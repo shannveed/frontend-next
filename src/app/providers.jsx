@@ -10,8 +10,6 @@ import { getUserInfo } from '../lib/client/auth';
 import { apiFetch } from '../lib/client/apiFetch';
 import { ensurePushSubscription } from '../lib/client/pushNotifications';
 
-import { getGoogleClientId, isValidGoogleClientId } from '../lib/client/googleClient';
-
 const PENDING_KEY = 'pendingWatchRequest';
 
 const shouldRegisterServiceWorker = () => {
@@ -20,6 +18,7 @@ const shouldRegisterServiceWorker = () => {
 
   if (process.env.NODE_ENV === 'production') return true;
 
+  // ✅ allow localhost testing of install prompt
   const host = window.location.hostname;
   return host === 'localhost' || host === '127.0.0.1';
 };
@@ -28,6 +27,7 @@ async function registerServiceWorker() {
   if (!shouldRegisterServiceWorker()) return;
 
   try {
+    // Avoid duplicate SW registrations during dev hot reloads
     const existing = await navigator.serviceWorker.getRegistration('/');
     if (existing) {
       existing.update().catch(() => {});
@@ -39,6 +39,7 @@ async function registerServiceWorker() {
       updateViaCache: 'none',
     });
 
+    // Only auto-reload in production (dev HMR will hate this)
     if (process.env.NODE_ENV === 'production') {
       const refresh = () => window.location.reload();
       navigator.serviceWorker.addEventListener('controllerchange', refresh);
@@ -63,14 +64,13 @@ async function registerServiceWorker() {
 }
 
 export default function Providers({ children }) {
-  const googleClientId = getGoogleClientId();
-  const googleEnabled = isValidGoogleClientId(googleClientId);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
     registerServiceWorker();
   }, []);
 
-  // keep existing behavior: auto-submit pending request + ensure push if granted
+  // ✅ Keep existing behavior: auto-submit pending request + ensure push if granted
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -80,7 +80,10 @@ export default function Providers({ children }) {
       if (!token) return;
 
       try {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        if (
+          typeof Notification !== 'undefined' &&
+          Notification.permission === 'granted'
+        ) {
           await ensurePushSubscription(token);
         }
       } catch {}
@@ -115,6 +118,7 @@ export default function Providers({ children }) {
 
     syncAfterAuth().catch(() => {});
     window.addEventListener('storage', syncAfterAuth);
+
     return () => window.removeEventListener('storage', syncAfterAuth);
   }, []);
 
@@ -127,18 +131,9 @@ export default function Providers({ children }) {
     );
   }, [children]);
 
-  // ✅ Only enable Google provider if the ID looks valid
-  if (googleEnabled) {
+  if (googleClientId && googleClientId !== 'undefined') {
     return (
-      <GoogleOAuthProvider clientId={googleClientId} key={googleClientId}>
-        {app}
-      </GoogleOAuthProvider>
-    );
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[google] Google login disabled: NEXT_PUBLIC_GOOGLE_CLIENT_ID is missing/invalid.'
+      <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
     );
   }
 
