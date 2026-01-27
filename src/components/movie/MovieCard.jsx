@@ -43,22 +43,27 @@ function MovieCard({
   onAdminDragEnter,
   onAdminDragEnd,
 }) {
+  const router = useRouter();
+
   const [liking, setLiking] = useState(false);
   const [liked, setLiked] = useState(false);
 
   // dropdown state
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const router = useRouter();
+
   const seg = movie?.slug || movie?._id;
   const href = seg ? `/movie/${seg}` : '/movies';
+
+  // Prefetch guard (optional)
   const didPrefetchRef = useRef(false);
- const prefetchThis = useCallback(() => {
+  const prefetchThis = useCallback(() => {
     if (!href) return;
     if (didPrefetchRef.current) return;
     didPrefetchRef.current = true;
     router.prefetch(href);
   }, [router, href]);
+
   const poster = movie?.titleImage || movie?.image || '/images/placeholder.jpg';
 
   const pagesList = useMemo(() => {
@@ -103,8 +108,8 @@ function MovieCard({
 
       if (!movie?._id) return;
 
-      const userInfo = getUserInfo();
-      const token = userInfo?.token;
+      const ui = getUserInfo();
+      const token = ui?.token;
 
       if (!token) {
         toast.error('Please login to add to favorites');
@@ -165,9 +170,6 @@ function MovieCard({
   return (
     <article
       className={[
-        // ✅ MATCH CRA sizing on mobile:
-        // - smaller padding on mobile => bigger poster
-        // - slightly rounder corners on mobile
         'border border-border p-2 mobile:p-2 hover:scale-95 transitions relative rounded mobile:rounded-md overflow-hidden group',
         adminDraggable ? 'cursor-grab active:cursor-grabbing' : '',
         isSelected ? 'ring-2 ring-customPurple' : '',
@@ -184,11 +186,7 @@ function MovieCard({
           ? (e) => onAdminDragEnter && onAdminDragEnter(e, movie._id)
           : undefined
       }
-      onDragEnd={
-        adminDraggable
-          ? (e) => onAdminDragEnd && onAdminDragEnd(e)
-          : undefined
-      }
+      onDragEnd={adminDraggable ? (e) => onAdminDragEnd?.(e) : undefined}
       onDragOver={adminDraggable ? (e) => e.preventDefault() : undefined}
     >
       {/* ✅ Admin controls (top-right) */}
@@ -267,31 +265,24 @@ function MovieCard({
         </div>
       )}
 
-      {/* Thumbnail info badge */}
+      {/* ✅ FIXED thumbnail badge (no multiline quote) */}
       {movie?.thumbnailInfo ? (
-  <div
-    className="
-      absolute top-2 left-2
-      bg-customPurple text-white
-      text-[10px] px-2 py-0.5
-      rounded-sm font-semibold z-10
-      max-w-[90%]
-      truncate whitespace-nowrap overflow-hidden
-    "
-    title={movie.thumbnailInfo}
-  >
-    {movie.thumbnailInfo}
-  </div>
-) : null}
+        <div
+          className="absolute top-2 left-2 bg-customPurple text-white text-[10px] px-2 py-0.5 rounded-sm font-semibold z-10 max-w-[90%] truncate whitespace-nowrap overflow-hidden"
+          title={movie.thumbnailInfo}
+        >
+          {movie.thumbnailInfo}
+        </div>
+      ) : null}
 
-
-      <Link href={href} prefetch
-    onMouseEnter={prefetchThis}
-    onTouchStart={prefetchThis}
-    className="block"
-  >
-        {/* ✅ Poster sizing fix for mobile:
-            CRA mobile ratio ≈ 1.54 => width/height ≈ 100/154 */}
+      <Link
+        href={href}
+        prefetch
+        onMouseEnter={prefetchThis}
+        onTouchStart={prefetchThis}
+        className="block"
+      >
+        {/* Poster */}
         <div className="relative w-full aspect-[2/3] mobile:aspect-[100/154] bg-black rounded-sm overflow-hidden">
           <SafeImage
             src={poster}
@@ -302,9 +293,8 @@ function MovieCard({
           />
         </div>
 
-        {/* Bottom overlay (CRA-like mobile compact text/padding) */}
+        {/* Bottom overlay */}
         <div className="absolute flex items-center justify-between gap-2 bottom-0 right-0 left-0 bg-main/60 text-white px-4 mobile:px-1 py-2 h-12">
-
           <h3
             className="font-semibold text-xs mobile:pl-1 mobile:text-[11px] line-clamp-2 flex-grow mr-2"
             title={movie?.name}
@@ -316,9 +306,9 @@ function MovieCard({
             <button
               onClick={handleLike}
               disabled={liked || liking}
-              className={`mobile:hidden h-7 w-7 flex-colo border-2 border-customPurple rounded px-2 py-1 text-white transitions flex-shrink-0
-                ${liked ? 'bg-transparent' : 'bg-customPurple hover:bg-transparent'}
-                ${liking ? 'opacity-60 cursor-wait' : ''}`}
+              className={`mobile:hidden h-7 w-7 flex-colo border-2 border-customPurple rounded px-2 py-1 text-white transitions flex-shrink-0 ${
+                liked ? 'bg-transparent' : 'bg-customPurple hover:bg-transparent'
+              } ${liking ? 'opacity-60 cursor-wait' : ''}`}
               type="button"
               aria-label={liked ? 'Already in favorites' : 'Add to favorites'}
               title={liked ? 'In favorites' : 'Add to favorites'}

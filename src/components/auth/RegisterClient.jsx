@@ -26,7 +26,9 @@ function redirectAfterAuth(router, user) {
       const st = JSON.parse(raw);
       localStorage.removeItem('redirectAfterLogin');
 
-      const fullPath = `${st?.pathname || '/profile'}${st?.search || ''}${st?.hash || ''}`;
+      const fullPath = `${st?.pathname || '/profile'}${st?.search || ''}${
+        st?.hash || ''
+      }`;
       router.replace(fullPath);
 
       setTimeout(() => {
@@ -54,7 +56,6 @@ export default function RegisterClient() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect away
   useEffect(() => {
     const ui = getUserInfo();
     if (ui?.token) redirectAfterAuth(router, ui);
@@ -116,9 +117,7 @@ export default function RegisterClient() {
     <div className="container mx-auto px-2 flex-colo min-h-[calc(100vh-200px)] py-2">
       <form
         onSubmit={submit}
-        className="
-  w-full 2xl:w-2/5 md:w-3/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-2 pt-3 pb-4 px-3 sm:pt-5 sm:pb-6 sm:px-6 above-1000:pt-5 above-1000:pb-8 above-1000:px-8 bg-dry rounded-lg border border-border shadow-xl"
-
+        className="w-full 2xl:w-2/5 md:w-3/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-2 pt-3 pb-4 px-3 sm:pt-5 sm:pb-6 sm:px-6 above-1000:pt-5 above-1000:pb-8 above-1000:px-8 bg-dry rounded-lg border border-border shadow-xl"
       >
         <img
           src="/images/MOVIEFROST.png"
@@ -130,9 +129,7 @@ export default function RegisterClient() {
           Create Your Free Account
         </h2>
 
-        {/* Full Name */}
         <div className="w-full flex flex-col gap-1">
-
           <Input
             label="Full Name"
             placeholder="Full Name"
@@ -152,9 +149,7 @@ export default function RegisterClient() {
           ) : null}
         </div>
 
-        {/* Email */}
         <div className="w-full flex flex-col gap-1">
-
           <Input
             label="Email"
             placeholder="Your Email"
@@ -171,9 +166,7 @@ export default function RegisterClient() {
           {fieldErrors.email ? <InlineError text={fieldErrors.email} /> : null}
         </div>
 
-        {/* Password */}
         <div className="w-full flex flex-col gap-1">
-
           <Input
             label="Password"
             placeholder="******"
@@ -193,9 +186,7 @@ export default function RegisterClient() {
           ) : null}
         </div>
 
-        {/* Confirm Password */}
         <div className="w-full flex flex-col gap-1">
-
           <Input
             label="Confirm Password"
             placeholder="******"
@@ -229,10 +220,7 @@ export default function RegisterClient() {
 
         <p className="text-center text-border text-sm">
           Already have an account?{' '}
-          <Link
-            href="/login"
-            className="text-customPurple font-semibold ml-2 hover:underline"
-          >
+          <Link href="/login" className="text-customPurple font-semibold ml-2 hover:underline">
             Sign In
           </Link>
         </p>
