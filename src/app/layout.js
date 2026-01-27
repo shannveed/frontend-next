@@ -15,8 +15,6 @@ export const metadata = {
   },
 
   description: 'Watch free movies and web series online in HD on MovieFrost.',
-
-  // ✅ REQUIRED: adds <link rel="manifest" href="/manifest.json" />
   manifest: '/manifest.json',
 
   icons: {
@@ -44,6 +42,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
+        {/* ✅ Google Analytics (GA4) */}
         {GA_ID ? (
           <>
             <Script
@@ -53,11 +52,15 @@ export default function RootLayout({ children }) {
             <Script id="ga4-init" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
-                function gtag(){window.dataLayer.push(arguments);}
+                function gtag(){ window.dataLayer.push(arguments); }
                 window.gtag = window.gtag || gtag;
 
                 gtag('js', new Date());
-                gtag('config', '${GA_ID}', { send_page_view: false });
+
+                // ✅ Send initial page_view (important for SEO landings / bounces)
+                gtag('config', '${GA_ID}', {
+                  page_path: window.location.pathname + window.location.search
+                });
               `}
             </Script>
           </>
