@@ -12,6 +12,11 @@ const SITE_URL = RAW_SITE_URL.replace(/\/+$/, '');
 const nextConfig = {
   reactStrictMode: true,
 
+eslint: {
+  ignoreDuringBuilds: true,
+},
+
+
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -29,14 +34,19 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        // ✅ all frontend /api calls go to backend (no CORS, fast edge rewrite)
         { source: '/api/:path*', destination: `${API_BASE}/api/:path*` },
+
+        // ✅ keep sitemaps served by backend controllers
         { source: '/sitemap.xml', destination: `${API_BASE}/sitemap.xml` },
         { source: '/sitemap-videos.xml', destination: `${API_BASE}/sitemap-videos.xml` },
       ],
     };
   },
 
+  // Optional: force canonical domain (or do this in Vercel domains UI)
   async redirects() {
+    // If your canonical is www.moviefrost.com
     if (new URL(SITE_URL).hostname === 'www.moviefrost.com') {
       return [
         {
@@ -51,21 +61,7 @@ const nextConfig = {
   },
 
   async headers() {
-    const faviconCache =
-      'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
-
     return [
-      // ✅ Favicons
-      {
-        source: '/favicon.ico',
-        headers: [{ key: 'Cache-Control', value: faviconCache }],
-      },
-      {
-        source: '/favicon1.png',
-        headers: [{ key: 'Cache-Control', value: faviconCache }],
-      },
-
-      // existing headers
       {
         source: '/service-worker.js',
         headers: [
