@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* ✅ Swiper global CSS must be imported globally in Next App Router */
+@import 'swiper/css';
+@import 'swiper/css/navigation';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    background: #080A1A;
+    color: white;
+    font-family: "Poppins", sans-serif;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
+@layer components {
+  .container {
+    @apply mx-auto max-w-screen-2xl px-4 sm:px-8;
+  }
+
+  .linear-bg {
+    background: linear-gradient(269.82deg, #07091c00 0.17%, #080a1ad6 99.87%);
+  }
+
+  .flex-colo { @apply flex flex-col justify-center items-center; }
+  .flex-rows { @apply flex flex-row justify-center items-center; }
+  .flex-btn  { @apply flex justify-between items-center; }
+  .transitions { @apply transition duration-300 ease-in; }
+}

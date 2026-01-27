@@ -1,0 +1,830 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+
+import RequireAdmin from '../auth/RequireAdmin';
+import SideBarShell from './SideBarShell';
+import Loader from '../common/Loader';
+import Uploader from '../common/Uploader';
+
+import { parseDurationToMinutes, formatMinutesToDuration } from '../../lib/client/duration';
+import { getCategoriesClient, getBrowseByDistinctClient } from '../../lib/client/catalog';
+import {
+  createMovieAdmin,
+  getMovieByIdAdmin,
+  updateMovieAdmin,
+} from '../../lib/client/moviesAdmin';
+
+const PREDEFINED_BROWSEBY = [
+  'Hollywood (English)',
+  'Hollywood (Hindi Dubbed)',
+  'Bollywood',
+  'South Indian (Hindi Dubbed)',
+  'Korean (English)',
+  'Korean (Hindi Dubbed)',
+  'Chinease Drama',
+  'Japanese Anime',
+  'Indian Punjabi Movies',
+  'Hollywood Web Series (English)',
+  'Hollywood Web Series (Hindi Dubbed)',
+  'Bollywood Web Series',
+  'WWE Wrestling',
+];
+
+const emptyEpisode = (episodeNumber = 1) => ({
+  _id: undefined,
+  seasonNumber: 1,
+  episodeNumber,
+  title: '',
+  duration: '',
+  desc: '',
+  video: '',
+  videoUrl2: '',
+  videoUrl3: '',
+});
+
+const emptyForm = {
+  type: 'Movie',
+  name: '',
+  time: '',
+  language: '',
+  year: '',
+  category: '',
+  browseBy: '',
+  thumbnailInfo: '',
+  desc: '',
+  director: '',
+  seoTitle: '',
+  seoDescription: '',
+  seoKeywords: '',
+
+  video: '',
+  videoUrl2: '',
+  videoUrl3: '',
+  downloadUrl: '',
+
+  episodes: [],
+
+  latest: false,
+  previousHit: false,
+  isPublished: false,
+};
+
+export default function MovieEditorClient({ mode = 'create', movieId = null }) {
+  return (
+    <RequireAdmin>
+      {(user) => (
+        <EditorInner mode={mode} movieId={movieId} token={user.token} />
+      )}
+    </RequireAdmin>
+  );
+}
+
+function EditorInner({ mode, movieId, token }) {
+  const isEdit = mode === 'edit';
+
+  const [booting, setBooting] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [categories, setCategories] = useState([]);
+  const [browseByDistinct, setBrowseByDistinct] = useState([]);
+
+  const [posterImage, setPosterImage] = useState('');
+  const [titleImage, setTitleImage] = useState('');
+
+  const [form, setForm] = useState({ ...emptyForm });
+
+  const browseByOptions = useMemo(() => {
+    const distinct = Array.isArray(browseByDistinct)
+      ? browseByDistinct.filter((x) => String(x || '').trim())
+      : [];
+    return Array.from(new Set([...distinct, ...PREDEFINED_BROWSEBY]));
+  }, [browseByDistinct]);
+
+  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const setType = (nextType) => {
+    setForm((p) => {
+      const base = { ...p, type: nextType };
+
+      if (nextType === 'WebSeries') {
+        return {
+          ...base,
+          video: '',
+          videoUrl2: '',
+          videoUrl3: '',
+          downloadUrl: '',
+          episodes: p.episodes?.length ? p.episodes : [emptyEpisode(1)],
+        };
+      }
+
+      // Movie
+      return {
+        ...base,
+        episodes: [],
+      };
+    });
+  };
+
+  const updateEpisode = (idx, k, v) => {
+    setForm((p) => {
+      const eps = Array.isArray(p.episodes) ? [...p.episodes] : [];
+      eps[idx] = { ...(eps[idx] || emptyEpisode(idx + 1)), [k]: v };
+      return { ...p, episodes: eps };
+    });
+  };
+
+  const addEpisode = () => {
+    setForm((p) => {
+      const eps = Array.isArray(p.episodes) ? [...p.episodes] : [];
+      eps.push(emptyEpisode(eps.length + 1));
+      return { ...p, episodes: eps };
+    });
+  };
+
+  const removeEpisode = (idx) => {
+    setForm((p) => ({
+      ...p,
+      episodes: (p.episodes || []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  // Load categories + browseBy + movie(for edit)
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        setBooting(true);
+
+        const [cats, browse] = await Promise.all([
+          getCategoriesClient().catch(() => []),
+          getBrowseByDistinctClient().catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        setCategories(Array.isArray(cats) ? cats : []);
+        setBrowseByDistinct(Array.isArray(browse) ? browse : []);
+
+        if (isEdit) {
+          const m = await getMovieByIdAdmin(token, movieId);
+
+          if (!m) {
+            toast.error('Movie not found');
+            window.location.href = '/movieslist';
+            return;
+          }
+
+          setPosterImage(m.image || '');
+          setTitleImage(m.titleImage || '');
+
+          const formattedEpisodes =
+            m.type === 'WebSeries' && Array.isArray(m.episodes)
+              ? m.episodes.map((ep) => ({
+                  _id: ep._id,
+                  seasonNumber: ep.seasonNumber || 1,
+                  episodeNumber: ep.episodeNumber || 1,
+                  title: ep.title || '',
+                  duration: ep.duration ? formatMinutesToDuration(ep.duration) : '',
+                  desc: ep.desc || '',
+                  video: ep.video || '',
+                  videoUrl2: ep.videoUrl2 || '',
+                  videoUrl3: ep.videoUrl3 || '',
+                }))
+              : [];
+
+          setForm({
+            ...emptyForm,
+            type: m.type || 'Movie',
+            name: m.name || '',
+            time: m.time ? formatMinutesToDuration(m.time) : '',
+            language: m.language || '',
+            year: m.year || '',
+            category: m.category || '',
+            browseBy: m.browseBy || '',
+            thumbnailInfo: m.thumbnailInfo || '',
+            desc: m.desc || '',
+            director: m.director || '',
+            seoTitle: m.seoTitle || '',
+            seoDescription: m.seoDescription || '',
+            seoKeywords: m.seoKeywords || '',
+
+            video: m.video || '',
+            videoUrl2: m.videoUrl2 || '',
+            videoUrl3: m.videoUrl3 || '',
+            downloadUrl: m.downloadUrl || '',
+
+            episodes: formattedEpisodes,
+
+            latest: !!m.latest,
+            previousHit: !!m.previousHit,
+            isPublished: typeof m.isPublished === 'boolean' ? m.isPublished : true,
+          });
+
+          // if webseries but no episodes, ensure one row
+          if (m.type === 'WebSeries' && formattedEpisodes.length === 0) {
+            setForm((p) => ({ ...p, episodes: [emptyEpisode(1)] }));
+          }
+        } else {
+          // create mode: start clean
+          setForm({ ...emptyForm });
+          setPosterImage('');
+          setTitleImage('');
+        }
+      } catch (e) {
+        toast.error(e?.message || 'Failed to load editor');
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, token, movieId]);
+
+  const validateAndBuildPayload = () => {
+    if (!posterImage || !titleImage) {
+      toast.error('Please upload both Poster Image and Title Image.');
+      return null;
+    }
+
+    const totalMinutes = parseDurationToMinutes(form.time);
+    if (totalMinutes === null) {
+      toast.error('Invalid duration format. Use e.g. 2Hr 35Min');
+      return null;
+    }
+
+    const year = Number(form.year);
+    if (!Number.isFinite(year) || year < 1888) {
+      toast.error('Please enter a valid year (>= 1888).');
+      return null;
+    }
+
+    if (!form.name.trim() || !form.desc.trim() || !form.language.trim()) {
+      toast.error('Name, Description and Language are required.');
+      return null;
+    }
+
+    if (!form.category) {
+      toast.error('Please select category.');
+      return null;
+    }
+
+    if (!form.browseBy) {
+      toast.error('Please select Browse By.');
+      return null;
+    }
+
+    if (form.latest && form.previousHit) {
+      toast.error('Latest and PreviousHit cannot both be selected.');
+      return null;
+    }
+
+    const base = {
+      type: form.type,
+      name: form.name.trim(),
+      desc: form.desc.trim(),
+      image: posterImage,
+      titleImage: titleImage,
+
+      category: form.category,
+      browseBy: form.browseBy,
+      thumbnailInfo: String(form.thumbnailInfo || '').trim(),
+
+      language: form.language.trim(),
+      year,
+      time: totalMinutes,
+
+      director: String(form.director || '').trim(),
+      seoTitle: String(form.seoTitle || '').trim(),
+      seoDescription: String(form.seoDescription || '').trim(),
+      seoKeywords: String(form.seoKeywords || '').trim(),
+
+      latest: !!form.latest,
+      previousHit: !!form.previousHit,
+      isPublished: !!form.isPublished,
+    };
+
+    if (form.type === 'Movie') {
+      if (!String(form.video || '').trim()) return toast.error('Server 1 URL is required'), null;
+      if (!String(form.videoUrl2 || '').trim()) return toast.error('Server 2 URL is required'), null;
+      if (!String(form.videoUrl3 || '').trim()) return toast.error('Server 3 URL is required'), null;
+
+      return {
+        ...base,
+        video: String(form.video || '').trim(),
+        videoUrl2: String(form.videoUrl2 || '').trim(),
+        videoUrl3: String(form.videoUrl3 || '').trim(),
+        downloadUrl: String(form.downloadUrl || '').trim() || null,
+        episodes: undefined,
+      };
+    }
+
+    // WebSeries
+    const eps = Array.isArray(form.episodes) ? form.episodes : [];
+    if (!eps.length) {
+      toast.error('Please add at least one episode.');
+      return null;
+    }
+
+    const normalizedEpisodes = eps.map((ep, idx) => {
+      const epMinutes = parseDurationToMinutes(ep.duration);
+      if (epMinutes === null) {
+        throw new Error(`Episode ${idx + 1}: invalid duration (use e.g. 45Min)`);
+      }
+
+      const seasonNumber = Math.max(1, Number(ep.seasonNumber) || 1);
+      const episodeNumber = Number(ep.episodeNumber);
+
+      if (!Number.isFinite(episodeNumber) || episodeNumber < 1) {
+        throw new Error(`Episode ${idx + 1}: episodeNumber must be >= 1`);
+      }
+
+      const v1 = String(ep.video || '').trim();
+      const v2 = String(ep.videoUrl2 || '').trim();
+      const v3 = String(ep.videoUrl3 || '').trim();
+
+      if (!v1 || !v2 || !v3) {
+        throw new Error(`Episode ${episodeNumber}: all 3 servers are required`);
+      }
+
+      return {
+        ...(ep._id ? { _id: ep._id } : {}),
+        seasonNumber,
+        episodeNumber,
+        title: String(ep.title || ''),
+        duration: epMinutes,
+        desc: String(ep.desc || ''),
+        video: v1,
+        videoUrl2: v2,
+        videoUrl3: v3,
+      };
+    });
+
+    return {
+      ...base,
+      episodes: normalizedEpisodes,
+      video: undefined,
+      videoUrl2: undefined,
+      videoUrl3: undefined,
+      downloadUrl: undefined,
+    };
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+
+    let payload;
+    try {
+      payload = validateAndBuildPayload();
+      if (!payload) return;
+    } catch (err) {
+      toast.error(err?.message || 'Invalid episode data');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (isEdit) {
+        await updateMovieAdmin(token, movieId, payload);
+        toast.success('Updated successfully');
+      } else {
+        await createMovieAdmin(token, payload);
+        toast.success('Created successfully');
+
+        // reset like CRA AddMovie
+        setForm({ ...emptyForm });
+        setPosterImage('');
+        setTitleImage('');
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    'w-full bg-main border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple';
+
+  if (booting) {
+    return (
+      <SideBarShell>
+        <Loader />
+      </SideBarShell>
+    );
+  }
+
+  return (
+    <SideBarShell>
+      <h2 className="text-xl font-bold mb-6">
+        {isEdit ? 'Edit Movie / Web Series' : 'Create Movie / Web Series'}
+      </h2>
+
+      <form onSubmit={onSubmit} className="space-y-6">
+        {/* Type */}
+        <div>
+          <label className="text-sm text-border font-semibold">Type</label>
+          <select
+            value={form.type}
+            onChange={(e) => setType(e.target.value)}
+            className={`${inputClass} mt-2`}
+          >
+            <option value="Movie">Movie</option>
+            <option value="WebSeries">Web Series</option>
+          </select>
+        </div>
+
+        {/* Basic fields */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-border font-semibold">Name</label>
+            <input
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="Movie/Series name"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-border font-semibold">Total Duration</label>
+            <input
+              value={form.time}
+              onChange={(e) => setField('time', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="e.g. 2Hr 35Min"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-border font-semibold">Language</label>
+            <input
+              value={form.language}
+              onChange={(e) => setField('language', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="English"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-border font-semibold">Year</label>
+            <input
+              value={form.year}
+              onChange={(e) => setField('year', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="2024"
+              type="number"
+            />
+          </div>
+        </div>
+
+        {/* Images */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-main border border-border rounded-lg p-4">
+            <p className="text-sm font-semibold mb-2">Poster Image (without text)</p>
+            <Uploader
+              setImageUrl={setPosterImage}
+              compression={{ targetSizeKB: 70, maxWidth: 1920, maxHeight: 1920, mimeType: 'image/webp' }}
+            />
+            {posterImage ? (
+              <img src={posterImage} alt="poster" className="mt-3 w-full max-w-xs rounded border border-border" />
+            ) : null}
+          </div>
+
+          <div className="bg-main border border-border rounded-lg p-4">
+            <p className="text-sm font-semibold mb-2">Title Image (with text)</p>
+            <Uploader
+              setImageUrl={setTitleImage}
+              compression={{ targetSizeKB: 50, maxWidth: 1600, maxHeight: 1600, mimeType: 'image/webp' }}
+            />
+            {titleImage ? (
+              <img src={titleImage} alt="title" className="mt-3 w-full max-w-xs rounded border border-border" />
+            ) : null}
+          </div>
+        </div>
+
+        {/* Category + BrowseBy */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-border font-semibold">Category</label>
+            <select
+              value={form.category}
+              onChange={(e) => setField('category', e.target.value)}
+              className={`${inputClass} mt-2`}
+            >
+              <option value="">Select Category...</option>
+              {categories.map((c) => (
+                <option key={c._id} value={c.title}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-border font-semibold">Browse By</label>
+            <select
+              value={form.browseBy}
+              onChange={(e) => setField('browseBy', e.target.value)}
+              className={`${inputClass} mt-2`}
+            >
+              <option value="">Select Browse By...</option>
+              {browseByOptions.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Thumbnail + Director */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-border font-semibold">Thumbnail Info</label>
+            <input
+              value={form.thumbnailInfo}
+              onChange={(e) => setField('thumbnailInfo', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="e.g. HD / S01"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-border font-semibold">Director (optional)</label>
+            <input
+              value={form.director}
+              onChange={(e) => setField('director', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="Director name"
+            />
+          </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="text-sm text-border font-semibold">Description</label>
+          <textarea
+            value={form.desc}
+            onChange={(e) => setField('desc', e.target.value)}
+            className={`${inputClass} mt-2 min-h-[140px]`}
+            placeholder="Movie description..."
+          />
+        </div>
+
+        {/* SEO */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-border font-semibold">SEO Title (optional)</label>
+            <input
+              value={form.seoTitle}
+              onChange={(e) => setField('seoTitle', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="Max 100 chars"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-border font-semibold">SEO Keywords (optional)</label>
+            <input
+              value={form.seoKeywords}
+              onChange={(e) => setField('seoKeywords', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="comma,separated,keywords"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm text-border font-semibold">SEO Description (optional)</label>
+            <input
+              value={form.seoDescription}
+              onChange={(e) => setField('seoDescription', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="Max 300 chars"
+            />
+          </div>
+        </div>
+
+        {/* Flags */}
+        <div className="bg-main border border-border rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Visibility & Flags</h3>
+
+          <label className="flex items-center gap-2 mb-3">
+            <input
+              type="checkbox"
+              checked={!!form.isPublished}
+              onChange={(e) => setField('isPublished', e.target.checked)}
+              className="accent-customPurple"
+            />
+            <span className="text-sm">
+              {form.isPublished ? 'Published (visible to users)' : 'Draft (hidden from users)'}
+            </span>
+          </label>
+
+          <div className="flex flex-wrap gap-6">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!form.latest}
+                onChange={(e) => setField('latest', e.target.checked)}
+                className="accent-customPurple"
+              />
+              <span className="text-sm">Latest</span>
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!form.previousHit}
+                onChange={(e) => setField('previousHit', e.target.checked)}
+                className="accent-customPurple"
+              />
+              <span className="text-sm">Previous Hit</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Movie servers */}
+        {form.type === 'Movie' ? (
+          <div className="bg-main border border-border rounded-lg p-4 space-y-4">
+            <h3 className="font-semibold">Movie Servers</h3>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-border font-semibold">Server 1 URL *</label>
+                <input
+                  value={form.video}
+                  onChange={(e) => setField('video', e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-border font-semibold">Server 2 URL *</label>
+                <input
+                  value={form.videoUrl2}
+                  onChange={(e) => setField('videoUrl2', e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-border font-semibold">Server 3 URL *</label>
+                <input
+                  value={form.videoUrl3}
+                  onChange={(e) => setField('videoUrl3', e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-border font-semibold">Download URL (optional)</label>
+                <input
+                  value={form.downloadUrl}
+                  onChange={(e) => setField('downloadUrl', e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* WebSeries episodes */}
+        {form.type === 'WebSeries' ? (
+          <div className="bg-main border border-border rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Episodes *</h3>
+              <button
+                type="button"
+                onClick={addEpisode}
+                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 transition text-white text-sm font-semibold"
+              >
+                Add Episode
+              </button>
+            </div>
+
+            {form.episodes.length === 0 ? (
+              <p className="text-sm text-border">No episodes yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {form.episodes.map((ep, idx) => (
+                  <div key={ep._id || idx} className="border border-border rounded-lg p-4 bg-dry">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-semibold">Episode {idx + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeEpisode(idx)}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                        disabled={form.episodes.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-border font-semibold">Season *</label>
+                        <input
+                          type="number"
+                          value={ep.seasonNumber}
+                          onChange={(e) => updateEpisode(idx, 'seasonNumber', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Episode Number *</label>
+                        <input
+                          type="number"
+                          value={ep.episodeNumber}
+                          onChange={(e) => updateEpisode(idx, 'episodeNumber', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Title (optional)</label>
+                        <input
+                          value={ep.title}
+                          onChange={(e) => updateEpisode(idx, 'title', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Duration *</label>
+                        <input
+                          value={ep.duration}
+                          onChange={(e) => updateEpisode(idx, 'duration', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                          placeholder="e.g. 45Min"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Server 1 *</label>
+                        <input
+                          value={ep.video}
+                          onChange={(e) => updateEpisode(idx, 'video', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Server 2 *</label>
+                        <input
+                          value={ep.videoUrl2}
+                          onChange={(e) => updateEpisode(idx, 'videoUrl2', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">Server 3 *</label>
+                        <input
+                          value={ep.videoUrl3}
+                          onChange={(e) => updateEpisode(idx, 'videoUrl3', e.target.value)}
+                          className={`${inputClass} mt-2`}
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="text-sm text-border font-semibold">Description (optional)</label>
+                        <textarea
+                          value={ep.desc}
+                          onChange={(e) => updateEpisode(idx, 'desc', e.target.value)}
+                          className={`${inputClass} mt-2 min-h-[90px]`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-customPurple hover:bg-opacity-90 transition text-white py-3 rounded font-semibold disabled:opacity-60"
+        >
+          {saving ? 'Saving…' : isEdit ? 'Update' : 'Publish'}
+        </button>
+      </form>
+    </SideBarShell>
+  );
+}
