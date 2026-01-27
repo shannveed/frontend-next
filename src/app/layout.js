@@ -15,11 +15,19 @@ export const metadata = {
   },
 
   description: 'Watch free movies and web series online in HD on MovieFrost.',
+
   manifest: '/manifest.json',
 
+  // ✅ IMPORTANT: tell browsers + crawlers where the favicon is
   icons: {
-    icon: '/favicon1.png',
-    apple: '/images/MOVIEFROST.png',
+    icon: [
+      // Many crawlers fetch this:
+      { url: '/favicon.ico' }, // served by src/app/favicon.ico/route.js
+      // Explicit PNG favicon (your file):
+      { url: '/favicon1.png', type: 'image/png', sizes: '48x48' },
+    ],
+    shortcut: ['/favicon1.png'],
+    apple: [{ url: '/images/MOVIEFROST.png', type: 'image/png', sizes: '180x180' }],
   },
 
   appleWebApp: {
@@ -42,7 +50,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
-        {/* ✅ Google Analytics (GA4) */}
         {GA_ID ? (
           <>
             <Script
@@ -52,15 +59,11 @@ export default function RootLayout({ children }) {
             <Script id="ga4-init" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
-                function gtag(){ window.dataLayer.push(arguments); }
+                function gtag(){window.dataLayer.push(arguments);}
                 window.gtag = window.gtag || gtag;
 
                 gtag('js', new Date());
-
-                // ✅ Send initial page_view (important for SEO landings / bounces)
-                gtag('config', '${GA_ID}', {
-                  page_path: window.location.pathname + window.location.search
-                });
+                gtag('config', '${GA_ID}', { send_page_view: false });
               `}
             </Script>
           </>
