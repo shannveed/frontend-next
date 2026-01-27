@@ -1,3 +1,4 @@
+// frontend-next/src/components/layout/NavBar.jsx
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
@@ -34,6 +35,33 @@ import {
 import { getFavoriteIdsCache } from '../../lib/client/favoritesCache';
 
 const DEFAULT_PROFILE_IMAGE = '/images/placeholder.jpg';
+
+// ---- BrowseBy caching (speeds up menu) ----
+const BROWSEBY_CACHE_KEY = 'mf_browseByDistinct_cache_v1';
+const BROWSEBY_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+const readBrowseByCache = () => {
+  if (typeof window === 'undefined') return { list: [], stale: true };
+  try {
+    const raw = sessionStorage.getItem(BROWSEBY_CACHE_KEY);
+    if (!raw) return { list: [], stale: true };
+
+    const parsed = JSON.parse(raw);
+    const ts = Number(parsed?.ts || 0);
+    const list = Array.isArray(parsed?.list) ? parsed.list : [];
+    const stale = !ts || Date.now() - ts > BROWSEBY_CACHE_TTL_MS;
+    return { list, stale };
+  } catch {
+    return { list: [], stale: true };
+  }
+};
+
+const writeBrowseByCache = (list) => {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(BROWSEBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), list }));
+  } catch {}
+};
 
 const normalizeAvatarUrl = (value) => {
   const v = String(value ?? '').trim();
@@ -78,8 +106,9 @@ export default function NavBar() {
   const token = userInfo?.token;
   const isAdmin = !!userInfo?.isAdmin;
 
-  const [favoritesCount, setFavoritesCount] = useState(0);
-  const [browseBy, setBrowseBy] = useState([]);
+  const [favoritesCount, setFavoritesCount] = useState(() => getFavoriteIdsCache().length);
+
+  const [browseBy, setBrowseBy] = useState(() => readBrowseByCache().list);
 
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -97,6 +126,7 @@ export default function NavBar() {
   const [replyMessage, setReplyMessage] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
 
+  // Sync userInfo
   useEffect(() => {
     setUserInfo(getUserInfo());
     const onStorage = () => setUserInfo(getUserInfo());
@@ -104,44 +134,60 @@ export default function NavBar() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const onDown = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      if (notifyRef.current && !notifyRef.current.contains(e.target)) {
+        setNotifyOpen(false);
+        setReplyOpenId(null);
+        setReplyLink('');
+        setReplyMessage('');
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  // ✅ BrowseBy distinct: load from cache instantly + refresh if stale
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+
+    const cached = readBrowseByCache();
+    if (cached.list?.length) setBrowseBy(cached.list);
+
+    const shouldFetch = cached.stale || !cached.list?.length;
+
+    if (!shouldFetch) return () => controller.abort();
+
     (async () => {
       try {
-        const res = await fetch('/api/movies/browseBy-distinct', { cache: 'force-cache' });
+        const res = await fetch('/api/movies/browseBy-distinct', {
+          cache: 'force-cache',
+          signal: controller.signal,
+        });
         const data = await res.json().catch(() => []);
-        if (!cancelled) setBrowseBy(Array.isArray(data) ? data : []);
-      } catch {}
+        const list = Array.isArray(data) ? data : [];
+        if (cancelled) return;
+
+        setBrowseBy(list);
+        writeBrowseByCache(list);
+      } catch {
+        // ignore
+      }
     })();
+
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
-  const hollywoodBrowseBy = useMemo(
-    () => (browseBy || []).filter((x) => x && String(x).toLowerCase().includes('hollywood')),
-    [browseBy]
-  );
-
-  const indianBrowseBy = useMemo(
-    () =>
-      (browseBy || []).filter(
-        (x) =>
-          x &&
-          (String(x).toLowerCase().includes('bollywood') ||
-            String(x).toLowerCase().includes('indian'))
-      ),
-    [browseBy]
-  );
-
-  const leftoverBrowseBy = useMemo(() => {
-    const h = new Set(hollywoodBrowseBy);
-    const i = new Set(indianBrowseBy);
-    return (browseBy || []).filter((x) => x && !h.has(x) && !i.has(x));
-  }, [browseBy, hollywoodBrowseBy, indianBrowseBy]);
-
-  // Favorites count
+  // Favorites count: show instantly from cache, then sync from server
   useEffect(() => {
+    setFavoritesCount(getFavoriteIdsCache().length);
+
     if (!token) {
       setFavoritesCount(0);
       return;
@@ -152,8 +198,10 @@ export default function NavBar() {
     (async () => {
       try {
         const favs = await getFavorites(token);
-        if (!cancelled) setFavoritesCount(Array.isArray(favs) ? favs.length : 0);
-      } catch {}
+        if (!cancelled) setFavoritesCount(Array.isArray(favs) ? favs.length : getFavoriteIdsCache().length);
+      } catch {
+        // ignore (keep cached count)
+      }
     })();
 
     return () => {
@@ -161,12 +209,9 @@ export default function NavBar() {
     };
   }, [token]);
 
+  // Update favorites count when cache changes (likes/unlikes)
   useEffect(() => {
-    const handler = () => {
-      const ids = getFavoriteIdsCache();
-      setFavoritesCount(ids.length);
-    };
-
+    const handler = () => setFavoritesCount(getFavoriteIdsCache().length);
     window.addEventListener(FAVORITES_UPDATED_EVENT, handler);
     return () => window.removeEventListener(FAVORITES_UPDATED_EVENT, handler);
   }, []);
@@ -188,6 +233,7 @@ export default function NavBar() {
     [token]
   );
 
+  // Poll notifications
   useEffect(() => {
     if (!token) return;
     refreshNotifications(true);
@@ -195,6 +241,7 @@ export default function NavBar() {
     return () => clearInterval(id);
   }, [token, refreshNotifications]);
 
+  // Push event refresh
   useEffect(() => {
     if (!token) return;
     const handler = () => refreshNotifications(true);
@@ -202,21 +249,7 @@ export default function NavBar() {
     return () => window.removeEventListener(PUSH_RECEIVED_EVENT, handler);
   }, [token, refreshNotifications]);
 
-  useEffect(() => {
-    const onDown = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
-      if (notifyRef.current && !notifyRef.current.contains(e.target)) {
-        setNotifyOpen(false);
-        setReplyOpenId(null);
-        setReplyLink('');
-        setReplyMessage('');
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
-
-  // Search suggestions
+  // Search suggestions (debounced)
   useEffect(() => {
     const term = search.trim();
     if (term.length < 2) {
@@ -236,7 +269,9 @@ export default function NavBar() {
         const list = Array.isArray(data?.movies) ? data.movies : [];
         setSearchResults(list.slice(0, 5));
         setShowDropdown(true);
-      } catch {}
+      } catch {
+        // ignore
+      }
     }, 200);
 
     return () => {
@@ -288,7 +323,7 @@ export default function NavBar() {
   const onBellClick = async () => {
     if (!token) {
       toast.error('Please login to view notifications');
-      router.push('/login'); // ✅ SPA navigation
+      router.push('/login');
       return;
     }
 
@@ -309,7 +344,6 @@ export default function NavBar() {
 
     if (!link) return;
 
-    // ✅ internal links use router (fast), external use location
     if (link.startsWith('http')) window.location.href = link;
     else router.push(link);
   };
@@ -345,7 +379,7 @@ export default function NavBar() {
       setReplyLoading(true);
       await replyToWatchRequest(token, requestId, {
         link,
-        message: replyMessage.trim()
+        message: replyMessage.trim(),
       });
       toast.success('Reply sent');
       setReplyOpenId(null);
@@ -359,6 +393,28 @@ export default function NavBar() {
     }
   };
 
+  const hollywoodBrowseBy = useMemo(
+    () => (browseBy || []).filter((x) => x && String(x).toLowerCase().includes('hollywood')),
+    [browseBy]
+  );
+
+  const indianBrowseBy = useMemo(
+    () =>
+      (browseBy || []).filter(
+        (x) =>
+          x &&
+          (String(x).toLowerCase().includes('bollywood') ||
+            String(x).toLowerCase().includes('indian'))
+      ),
+    [browseBy]
+  );
+
+  const leftoverBrowseBy = useMemo(() => {
+    const h = new Set(hollywoodBrowseBy);
+    const i = new Set(indianBrowseBy);
+    return (browseBy || []).filter((x) => x && !h.has(x) && !i.has(x));
+  }, [browseBy, hollywoodBrowseBy, indianBrowseBy]);
+
   const hover = 'hover:text-customPurple transitions text-white';
 
   const avatarSrc = useMemo(() => {
@@ -371,11 +427,7 @@ export default function NavBar() {
         {/* Logo */}
         <div className="hidden lg:block col-span-1">
           <Link href="/">
-            <img
-              src="/images/MOVIEFROST.png"
-              alt="logo"
-              className="w-full h-10 above-1000:h-8 object-contain"
-            />
+            <img src="/images/MOVIEFROST.png" alt="logo" className="w-full h-10 object-contain" />
           </Link>
         </div>
 
@@ -387,7 +439,7 @@ export default function NavBar() {
           >
             <button
               type="submit"
-              className="bg-customPurple w-10 mobile:w-10 flex-colo h-9 mobile:h-9 rounded-sm mobile:rounded-none text-white"
+              className="bg-customPurple w-10 flex-colo h-9 mobile:h-9 rounded-sm mobile:rounded-none text-white"
               aria-label="Search movies"
             >
               <FaSearch className="mobile:text-base" />
@@ -418,6 +470,7 @@ export default function NavBar() {
             ) : null}
           </form>
 
+          {/* Suggestions */}
           {showDropdown && searchResults.length > 0 && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
               {searchResults.map((m) => (
@@ -437,7 +490,7 @@ export default function NavBar() {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = '/images/profile-user.png';
+                        e.currentTarget.src = '/images/placeholder.jpg';
                       }}
                     />
                   </div>
@@ -455,9 +508,7 @@ export default function NavBar() {
 
         {/* Desktop links */}
         <div className="hidden lg:flex col-span-4 font-medium text-xs xl:gap-6 2xl:gap-10 justify-between items-center">
-          <Link href="/movies" className={hover}>
-            Movies
-          </Link>
+          <Link href="/movies" className={hover}>Movies</Link>
 
           {/* Hollywood */}
           <div className="relative group">
@@ -525,9 +576,7 @@ export default function NavBar() {
             </div>
           </div>
 
-          <Link href="/contact-us" className={hover}>
-            Contact Us
-          </Link>
+          <Link href="/contact-us" className={hover}>Contact Us</Link>
 
           {/* Notifications */}
           <div className="relative" ref={notifyRef}>

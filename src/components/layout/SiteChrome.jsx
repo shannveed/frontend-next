@@ -2,11 +2,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 import Footer from './Footer';
+import NavBar from './NavBar';                // ✅ direct import
+import MobileFooter from './MobileFooter';    // ✅ direct import
+
 import MovieRequestPopup from '../modals/MovieRequestPopup';
 import ChannelPopup from '../modals/ChannelPopup';
 import InstallPwaPopup from '../modals/InstallPwaPopup';
@@ -15,16 +17,6 @@ import AdsterraScripts from '../ads/AdsterraScripts';
 
 import { OPEN_WATCH_REQUEST_POPUP, PUSH_RECEIVED_EVENT } from '../../lib/events';
 import { getUserInfo } from '../../lib/client/auth';
-
-const NavBar = dynamic(() => import('./NavBar'), {
-  ssr: false,
-  loading: () => <div className="h-[72px] bg-main" />,
-});
-
-const MobileFooter = dynamic(() => import('./MobileFooter'), {
-  ssr: false,
-  loading: () => <div className="lg:hidden h-16" />,
-});
 
 const POPUP_COOLDOWN_MS = 20000;
 const POPUP_RETRY_MS = 2000;
@@ -66,9 +58,7 @@ export default function SiteChrome({ children }) {
   const isAnyPopupOpenRef = useRef(false);
   const lastPopupClosedAtRef = useRef(0);
 
-  useEffect(() => {
-    setIsIOS(isIOSDevice());
-  }, []);
+  useEffect(() => setIsIOS(isIOSDevice()), []);
 
   useEffect(() => {
     setUserInfoState(getUserInfo());
@@ -162,8 +152,7 @@ export default function SiteChrome({ children }) {
     };
 
     navigator.serviceWorker.addEventListener('message', onMessage);
-    return () =>
-      navigator.serviceWorker.removeEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
   }, []);
 
   useEffect(() => {
@@ -202,7 +191,7 @@ export default function SiteChrome({ children }) {
     }
   };
 
-  // ✅ UPDATED: only show popup when install is actually possible OR iOS manual
+  // Only show popup when install is possible OR iOS manual
   useEffect(() => {
     if (!isIOS && !deferredPrompt) return;
 
@@ -216,7 +205,6 @@ export default function SiteChrome({ children }) {
       } catch {}
 
       if (!isIOS && !deferredPrompt) return true;
-
       return false;
     };
 
@@ -251,8 +239,8 @@ export default function SiteChrome({ children }) {
       {ADS_ENABLED ? <AdsterraScripts /> : null}
       <RouteChangeTracker />
 
+      {/* ✅ Now SSR/hydrates normally instead of waiting for a lazy chunk */}
       <NavBar />
-
       <div className="min-h-screen pb-20 sm:pb-0">{children}</div>
 
       <div className="mb-16 sm:mb-0">
