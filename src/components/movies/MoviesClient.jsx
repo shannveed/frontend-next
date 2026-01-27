@@ -296,11 +296,13 @@ export default function MoviesClient({
         </div>
       )}
 
-      <div className="mt-4 text-sm text-border">
-        Total{' '}
-        <span className="text-white font-semibold">{displayMovies.length}</span>{' '}
-        Items Found On This Page
-      </div>
+      <p className="text-md font-medium my-4 mobile:px-4">
+          Total{' '}
+          <span className="font-bold text-customPurple">
+            {displayMovies ? displayMovies.length : 0}
+          </span>{' '}
+          Items Found On This Page
+        </p>
 
       {displayMovies.length ? (
         <>
