@@ -1,6 +1,17 @@
 // src/lib/seo.js
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com')
-  .replace(/\/+$/, '');
+export const normalizeSiteUrl = (raw, fallback = 'https://www.moviefrost.com') => {
+  const v = String(raw || '').trim().replace(/\/+$/, '');
+
+  if (!v) return fallback;
+
+  // already absolute
+  if (/^https?:\/\//i.test(v)) return v;
+
+  // if user provided "www.domain.com" or "domain.com"
+  return `https://${v.replace(/^\/+/, '')}`;
+};
+
+export const SITE_URL = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 
@@ -28,10 +39,6 @@ export const watchUrl = (movie) => {
   return `${SITE_URL}/watch/${seg}`;
 };
 
-/**
- * ✅ Option B:
- * /watch is canonical to itself and indexable
- */
 export const watchCanonical = (movie) => watchUrl(movie);
 
 export const buildMovieTitle = (movie) => {
@@ -57,8 +64,8 @@ export const buildBreadcrumbJsonLd = (movie) => {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
       { '@type': 'ListItem', position: 2, name: 'Movies', item: `${SITE_URL}/movies` },
-      { '@type': 'ListItem', position: 3, name: clean(movie?.name || 'Movie'), item: canonical },
-    ],
+      { '@type': 'ListItem', position: 3, name: clean(movie?.name || 'Movie'), item: canonical }
+    ]
   };
 };
 
@@ -83,7 +90,7 @@ export const buildMovieJsonLd = (movie) => {
           ratingValue: Number(movie?.rate || 0).toFixed(1),
           reviewCount: movie.numberOfReviews,
           bestRating: '5',
-          worstRating: '0',
+          worstRating: '0'
         }
       : undefined;
 
@@ -103,6 +110,7 @@ export const buildMovieJsonLd = (movie) => {
     ...(directorName ? { director: { '@type': 'Person', name: directorName } } : {}),
     ...(actors.length ? { actor: actors } : {}),
     ...(aggregateRating ? { aggregateRating } : {}),
-    potentialAction: { '@type': 'WatchAction', target: watchUrl(movie) },
+    potentialAction: { '@type': 'WatchAction', target: watchUrl(movie) }
   };
 };
+1
