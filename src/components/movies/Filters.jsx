@@ -1,8 +1,7 @@
-// frontend-next/src/components/movies/Filters.jsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { FaAngleDown, FaCheck } from 'react-icons/fa';
 
 import {
@@ -30,7 +29,6 @@ function Dropdown({ selected, items, onSelect }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
-  // close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
@@ -48,7 +46,6 @@ function Dropdown({ selected, items, onSelect }) {
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
@@ -56,21 +53,18 @@ function Dropdown({ selected, items, onSelect }) {
         className="w-full flex items-center justify-between gap-2 bg-dry border border-border rounded px-4 py-3 above-1000:py-2.5 mobile:py-2 text-white text-xs above-1000:text-xs"
       >
         <span className="truncate">{selected?.title || ''}</span>
-        <FaAngleDown
-          className={`text-xs transition-transform ${open ? 'rotate-180' : ''}`}
-        />
+        <FaAngleDown className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Options */}
       {open && (
-        <div className="absolute left-0 right-0 mt-1 bg-main border border-border rounded-md shadow-lg z-[60] max-h-72 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-2 w-full bg-dry border border-border rounded shadow-lg overflow-hidden z-50 max-h-72 overflow-y-auto">
           {items.map((item, i) => {
             const active = item?.title === selected?.title;
 
             return (
               <button
                 type="button"
-                key={`${item?.title || 'opt'}-${i}`}
+                key={`${item?.title || 'item'}-${i}`}
                 onClick={() => {
                   onSelect(item);
                   setOpen(false);
@@ -81,11 +75,12 @@ function Dropdown({ selected, items, onSelect }) {
                       ? 'font-semibold bg-customPurple text-white'
                       : 'font-normal hover:bg-main/70 text-white'
                   }`}
-
               >
                 {item?.title}
                 {active && (
-                  <FaCheck className="absolute left-3 above-1000:left-2.5 mobile:left-2 top-1/2 -translate-y-1/2 text-xs" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <FaCheck className="text-white" />
+                  </span>
                 )}
               </button>
             );
@@ -96,22 +91,25 @@ function Dropdown({ selected, items, onSelect }) {
   );
 }
 
-export default function MoviesFilters({ categories = [], browseByDistinct = [] }) {
-  const router = useRouter();
-  const sp = useSearchParams();
+const toStr = (v) => (v === undefined || v === null ? '' : String(v));
 
-  // Build Category items (CRA style)
+export default function MoviesFilters({
+  categories = [],
+  browseByDistinct = [],
+  query = {},
+}) {
+  const router = useRouter();
+
+  // Category items
   const categoryItems = useMemo(() => {
     const cats = Array.isArray(categories) ? categories : [];
-    if (cats.length === 0) return [{ title: 'No category found' }];
-
+    if (!cats.length) return [{ title: 'No category found' }];
     return [{ title: 'All Categories' }, ...cats.map((c) => ({ title: c.title }))];
   }, [categories]);
 
-  // Build BrowseBy items = CRA browseByData + backend distinct (extras at end)
+  // BrowseBy items
   const browseItems = useMemo(() => {
     const distinct = Array.isArray(browseByDistinct) ? browseByDistinct : [];
-
     const staticTitles = Array.isArray(browseByData)
       ? browseByData.map((b) => b.title).filter(Boolean)
       : ['Browse By'];
@@ -124,60 +122,78 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [] }
 
     const titles = [...staticTitles, ...extras];
 
-    // Ensure placeholder first
     const placeholder = 'Browse By';
     const without = titles.filter((t) => t !== placeholder);
-
     return [{ title: placeholder }, ...without.map((t) => ({ title: t }))];
   }, [browseByDistinct]);
 
-  // Selected filter state (CRA-like objects)
-  const [category, setCategory] = useState({ title: 'All Categories' });
-  const [browseBy, setBrowseBy] = useState({ title: 'Browse By' });
+  // Selected states
+  const [category, setCategory] = useState(categoryItems[0] || { title: 'All Categories' });
+  const [browseBy, setBrowseBy] = useState(browseItems[0] || { title: 'Browse By' });
   const [language, setLanguage] = useState(LanguageData[0]);
   const [year, setYear] = useState(YearData[0]);
   const [times, setTimes] = useState(TimesData[0]);
   const [rates, setRates] = useState(RatesData[0]);
 
-  // Sync UI with URL query (supports back/forward navigation)
-  const queryKey = sp.toString();
+  // Sync UI from server query (works with back/forward + SSR navigations)
+  const queryKey = useMemo(() => JSON.stringify(query || {}), [query]);
 
   useEffect(() => {
-    const qCategory = sp.get('category') || '';
-    const qBrowse = sp.get('browseBy') || '';
-    const qLanguage = sp.get('language') || '';
-    const qYear = sp.get('year') || '';
-    const qTime = sp.get('time') || '';
-    const qRate = sp.get('rate') || '';
+    const qCategory = toStr(query?.category);
+    const qBrowse = toStr(query?.browseBy);
+    const qLanguage = toStr(query?.language);
+    const qYear = toStr(query?.year);
+    const qTime = toStr(query?.time);
+    const qRate = toStr(query?.rate);
 
     setCategory(qCategory ? findByTitle(categoryItems, qCategory, categoryItems[0]) : categoryItems[0]);
     setBrowseBy(qBrowse ? findByTitle(browseItems, qBrowse, browseItems[0]) : browseItems[0]);
-
     setLanguage(qLanguage ? findByTitle(LanguageData, qLanguage, LanguageData[0]) : LanguageData[0]);
     setYear(findByDigits(YearData, qYear, YearData[0]));
     setTimes(findByDigits(TimesData, qTime, TimesData[0]));
     setRates(findByDigits(RatesData, qRate, RatesData[0]));
-  }, [queryKey, categoryItems, browseItems]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [queryKey, categoryItems, browseItems]);
 
-  // Push URL updates (preserve other params like "search", clear pageNumber)
+  const buildBaseParams = useCallback(() => {
+    const params = new URLSearchParams();
+
+    const set = (k, v) => {
+      const val = toStr(v).trim();
+      if (!val) return;
+      params.set(k, val);
+    };
+
+    set('category', query?.category);
+    set('browseBy', query?.browseBy);
+    set('language', query?.language);
+    set('year', query?.year);
+    set('time', query?.time);
+    set('rate', query?.rate);
+    set('search', query?.search);
+
+    const pn = Number(query?.pageNumber) || 1;
+    if (pn > 1) params.set('pageNumber', String(pn));
+
+    return params;
+  }, [query]);
+
   const pushParams = useCallback(
     (mutate) => {
-      const params = new URLSearchParams(sp.toString());
+      const params = buildBaseParams();
 
-      // reset pagination when filters change
+      // reset pagination on filter change
       params.delete('pageNumber');
 
       mutate(params);
 
       const qs = params.toString();
       router.push(qs ? `/movies?${qs}` : '/movies');
-
       if (typeof window !== 'undefined') window.scrollTo(0, 0);
     },
-    [router, sp]
+    [router, buildBaseParams]
   );
 
-  // Selection handlers (update state + URL)
+  // Handlers
   const selectBrowseBy = (item) => {
     setBrowseBy(item);
     pushParams((params) => {
@@ -242,12 +258,10 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [] }
   ];
 
   return (
-    <section className="my-6 ">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {filters.map((f) => (
-          <Dropdown key={f.key} selected={f.selected} items={f.items} onSelect={f.onSelect} />
-        ))}
-      </div>
-    </section>
+    <div className="grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-6 gap-3">
+      {filters.map((f) => (
+        <Dropdown key={f.key} selected={f.selected} items={f.items} onSelect={f.onSelect} />
+      ))}
+    </div>
   );
 }

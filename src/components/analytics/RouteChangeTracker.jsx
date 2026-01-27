@@ -1,12 +1,11 @@
-// src/components/analytics/RouteChangeTracker.jsx
 'use client';
 
-import { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
-export default function RouteChangeTracker() {
+function RouteChangeTrackerInner() {
   const pathname = usePathname();
   const sp = useSearchParams();
   const qs = sp?.toString?.() || '';
@@ -25,4 +24,13 @@ export default function RouteChangeTracker() {
   }, [pathname, qs]);
 
   return null;
+}
+
+export default function RouteChangeTracker() {
+  // ✅ Required by Next.js to avoid missing-suspense-with-csr-bailout
+  return (
+    <Suspense fallback={null}>
+      <RouteChangeTrackerInner />
+    </Suspense>
+  );
 }

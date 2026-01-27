@@ -1,13 +1,13 @@
-// frontend-next/src/components/movies/MoviesClient.jsx
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import MovieCard from '../movie/MovieCard';
 import MoviesFilters from './Filters';
 import Pagination from './Pagination';
+
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../ads/EffectiveGateNativeBanner';
@@ -21,23 +21,29 @@ import {
   setLatestNewMovies,
 } from '../../lib/client/moviesAdmin';
 
+const toNum = (v, fallback = 1) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
 export default function MoviesClient({
-  initialQuery,
-  initialData,
-  categories,
-  browseByDistinct,
+  initialQuery = {},
+  initialData = {},
+  categories = [],
+  browseByDistinct = [],
 }) {
   const router = useRouter();
-  const sp = useSearchParams();
 
   const [userInfo, setUserInfo] = useState(null);
   const token = userInfo?.token || null;
   const isAdmin = !!userInfo?.isAdmin;
 
   // visible data
-  const [movies, setMovies] = useState(initialData?.movies || []);
-  const [page, setPage] = useState(initialData?.page || 1);
-  const [pages, setPages] = useState(initialData?.pages || 1);
+  const [movies, setMovies] = useState(() =>
+    Array.isArray(initialData?.movies) ? initialData.movies : []
+  );
+  const [page, setPage] = useState(() => toNum(initialData?.page, 1));
+  const [pages, setPages] = useState(() => toNum(initialData?.pages, 1));
 
   // admin mode
   const [adminMode, setAdminMode] = useState(false);
@@ -58,9 +64,9 @@ export default function MoviesClient({
 
   // when server props change (navigation)
   useEffect(() => {
-    setMovies(initialData?.movies || []);
-    setPage(initialData?.page || 1);
-    setPages(initialData?.pages || 1);
+    setMovies(Array.isArray(initialData?.movies) ? initialData.movies : []);
+    setPage(toNum(initialData?.page, 1));
+    setPages(toNum(initialData?.pages, 1));
 
     // keep your old behavior
     setAdminMode(false);
@@ -71,10 +77,7 @@ export default function MoviesClient({
   }, [initialData]);
 
   // admin sees drafts too (client-side replace list)
-  const queryKey = useMemo(
-    () => JSON.stringify(initialQuery || {}),
-    [initialQuery]
-  );
+  const queryKey = useMemo(() => JSON.stringify(initialQuery || {}), [initialQuery]);
 
   useEffect(() => {
     if (!isAdmin || !token) return;
@@ -86,9 +89,9 @@ export default function MoviesClient({
         const data = await getMoviesAdmin(token, initialQuery);
         if (cancelled) return;
 
-        setMovies(data?.movies || []);
-        setPage(data?.page || 1);
-        setPages(data?.pages || 1);
+        setMovies(Array.isArray(data?.movies) ? data.movies : []);
+        setPage(toNum(data?.page, 1));
+        setPages(toNum(data?.pages, 1));
       } catch {
         // keep public list on failure
       }
@@ -114,31 +117,34 @@ export default function MoviesClient({
   const displayMovies =
     isAdmin && adminMode && localOrder.length ? localOrder : movies;
 
-  // keep existing URL builder (used by pagination)
-  const buildUrl = (overrides = {}) => {
-    const params = new URLSearchParams(sp.toString());
+  // Build URL without useSearchParams (SSR/ISR safe)
+  const buildUrl = useCallback(
+    (overrides = {}) => {
+      const q = { ...initialQuery, ...overrides };
 
-    const setOrDelete = (k, v) => {
-      if (v === undefined || v === null || v === '') params.delete(k);
-      else params.set(k, String(v));
-    };
+      const params = new URLSearchParams();
+      const set = (k, v) => {
+        const val = String(v ?? '').trim();
+        if (!val) return;
+        params.set(k, val);
+      };
 
-    setOrDelete('category', overrides.category ?? initialQuery.category);
-    setOrDelete('browseBy', overrides.browseBy ?? initialQuery.browseBy);
-    setOrDelete('language', overrides.language ?? initialQuery.language);
-    setOrDelete('year', overrides.year ?? initialQuery.year);
-    setOrDelete('time', overrides.time ?? initialQuery.time);
-    setOrDelete('rate', overrides.rate ?? initialQuery.rate);
-    setOrDelete('search', overrides.search ?? initialQuery.search);
+      set('category', q.category);
+      set('browseBy', q.browseBy);
+      set('language', q.language);
+      set('year', q.year);
+      set('time', q.time);
+      set('rate', q.rate);
+      set('search', q.search);
 
-    setOrDelete(
-      'pageNumber',
-      overrides.pageNumber ?? initialQuery.pageNumber ?? 1
-    );
+      const pn = toNum(q.pageNumber ?? 1, 1);
+      if (pn > 1) params.set('pageNumber', String(pn));
 
-    const qs = params.toString();
-    return qs ? `/movies?${qs}` : '/movies';
-  };
+      const qs = params.toString();
+      return qs ? `/movies?${qs}` : '/movies';
+    },
+    [initialQuery]
+  );
 
   const onPageChange = (p) => {
     router.push(buildUrl({ pageNumber: p }));
@@ -153,8 +159,9 @@ export default function MoviesClient({
   };
 
   const clearSelection = () => setSelectedIds([]);
+  const bulkOrSingle = (baseId) => (selectedIds.length ? selectedIds : [baseId]);
 
-  // drag reorder (React parity)
+  // drag reorder
   const onAdminDragStart = (e, id) => {
     try {
       e.dataTransfer.effectAllowed = 'move';
@@ -196,8 +203,6 @@ export default function MoviesClient({
     }
   };
 
-  const bulkOrSingle = (baseId) => (selectedIds.length ? selectedIds : [baseId]);
-
   const addToTrending = async (baseId) => {
     if (!isAdmin || !token) return;
     try {
@@ -222,7 +227,7 @@ export default function MoviesClient({
 
   const moveToAnyPage = async (baseId, targetPage) => {
     if (!isAdmin || !token) return;
-    const tp = Number(targetPage) || 1;
+    const tp = toNum(targetPage, 1);
 
     try {
       await moveMoviesToPage(token, tp, bulkOrSingle(baseId));
@@ -237,69 +242,69 @@ export default function MoviesClient({
   const showAds = displayMovies.length > 0;
 
   return (
-    <div className="min-height-screen container mx-auto px-8 mobile:px-0 my-2">
-      {/* ✅ CRA-style filters UI */}
-      <MoviesFilters categories={categories} browseByDistinct={browseByDistinct} />
+    <section className="container py-6">
+      {/* Filters */}
+      <MoviesFilters
+        categories={categories}
+        browseByDistinct={browseByDistinct}
+        query={initialQuery}
+      />
 
       {/* Admin toolbar */}
       {isAdmin && (
-        <div className="my-4 p-4 bg-dry rounded-lg border border-border">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                setAdminMode((p) => !p);
-                clearSelection();
-              }}
-              className={`px-4 py-2 text-sm rounded border transitions ${
-                adminMode
-                  ? 'bg-customPurple border-customPurple text-white'
-                  : 'border-customPurple text-white hover:bg-customPurple'
-              }`}
-              type="button"
-            >
-              {adminMode ? 'Exit Admin Mode' : 'Enter Admin Mode'}
-            </button>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setAdminMode((p) => !p);
+              clearSelection();
+              setPendingReorder(false);
+              setDraggedId(null);
+            }}
+            className={`px-4 py-2 text-sm rounded border transitions ${
+              adminMode
+                ? 'bg-customPurple border-customPurple text-white'
+                : 'border-customPurple text-white hover:bg-customPurple'
+            }`}
+          >
+            {adminMode ? 'Exit Admin Mode' : 'Enter Admin Mode'}
+          </button>
 
-            {adminMode && selectedIds.length > 0 && (
-              <>
-                <span className="text-xs text-customPurple font-semibold">
-                  {selectedIds.length} selected
-                </span>
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="px-3 py-1.5 text-xs rounded border border-border text-white bg-main hover:bg-dry transitions"
-                >
-                  Clear Selection
-                </button>
-              </>
-            )}
-
-            {adminMode && pendingReorder && (
+          {adminMode && selectedIds.length > 0 && (
+            <div className="text-sm text-white">
+              <span className="font-semibold">{selectedIds.length}</span> selected
               <button
                 type="button"
-                onClick={saveOrder}
-                disabled={saving}
-                className="px-4 py-2 text-sm rounded bg-green-600 hover:bg-green-700 text-white transitions disabled:opacity-60"
+                onClick={clearSelection}
+                className="ml-3 underline text-customPurple hover:text-white transitions"
               >
-                {saving ? 'Saving...' : 'Save Order'}
+                Clear Selection
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {adminMode && pendingReorder && (
+            <button
+              type="button"
+              onClick={saveOrder}
+              disabled={saving}
+              className="px-4 py-2 text-sm rounded bg-customPurple text-white disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : 'Save Order'}
+            </button>
+          )}
         </div>
       )}
 
-      <p className="text-md font-medium my-4 mobile:px-2">
+      <div className="mt-4 text-sm text-border">
         Total{' '}
-        <span className="font-bold text-customPurple">
-          {displayMovies.length}
-        </span>{' '}
+        <span className="text-white font-semibold">{displayMovies.length}</span>{' '}
         Items Found On This Page
-      </p>
+      </div>
 
       {displayMovies.length ? (
         <>
-          <div className="grid sm:mt-8 mt-6 xl:grid-cols-5 2xl:grid-cols-5 lg:grid-cols-3 sm:grid-cols-2 mobile:grid-cols-2 grid-cols-1 gap-4 mobile:gap-3 ">
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-5 gap-4">
             {displayMovies.map((m) => (
               <MovieCard
                 key={m._id}
@@ -308,9 +313,9 @@ export default function MoviesClient({
                 isSelected={selectedIds.includes(m._id)}
                 onSelectToggle={toggleSelect}
                 totalPages={pages}
-                onMoveToPageClick={moveToAnyPage}
-                onMoveToLatestNewClick={addToTrending}
-                onMoveToBannerClick={addToBanner}
+                onMoveToPageClick={(movieId, p) => moveToAnyPage(movieId, p)}
+                onMoveToLatestNewClick={(movieId) => addToTrending(movieId)}
+                onMoveToBannerClick={(movieId) => addToBanner(movieId)}
                 adminDraggable={isAdmin && adminMode}
                 onAdminDragStart={onAdminDragStart}
                 onAdminDragEnter={onAdminDragEnter}
@@ -319,23 +324,22 @@ export default function MoviesClient({
             ))}
           </div>
 
-          <Pagination page={page} pages={pages} onChange={onPageChange} />
+          {pages > 1 && (
+            <div className="mt-10 flex justify-center">
+              <Pagination page={page} pages={pages} onChange={onPageChange} />
+            </div>
+          )}
 
           {showAds && (
-            <>
-              <EffectiveGateNativeBanner refreshKey="movies-page-bottom-desktop" />
-              <EffectiveGateSquareAd
-                refreshKey="movies-page-bottom-mobile"
-                className="px-4 sm:px-0"
-              />
-            </>
+            <div className="mt-8 space-y-6">
+              <EffectiveGateNativeBanner refreshKey={`movies-${page}`} />
+              <EffectiveGateSquareAd refreshKey={`movies-square-${page}`} />
+            </div>
           )}
         </>
       ) : (
-        <div className="w-full gap-6 flex-colo min-h-screen">
-          <p className="text-border text-sm">No movies found.</p>
-        </div>
+        <div className="mt-10 text-center text-gray-300">No movies found.</div>
       )}
-    </div>
+    </section>
   );
 }
