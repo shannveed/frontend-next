@@ -1,4 +1,4 @@
-// frontend-next/src/app/page.jsx
+// src/app/page.jsx
 import HomeClient from '../components/home/HomeClient';
 import {
   getBannerMovies,
@@ -10,7 +10,6 @@ import { SITE_URL } from '../lib/seo';
 
 export const revalidate = 60;
 
-// ✅ Canonical for homepage
 export const metadata = {
   alternates: { canonical: `${SITE_URL}/` },
 };

@@ -30,6 +30,8 @@ const nextConfig = {
     return {
       beforeFiles: [
         { source: '/api/:path*', destination: `${API_BASE}/api/:path*` },
+
+        // sitemaps are served by backend
         { source: '/sitemap.xml', destination: `${API_BASE}/sitemap.xml` },
         { source: '/sitemap-videos.xml', destination: `${API_BASE}/sitemap-videos.xml` },
         { source: '/sitemap-index.xml', destination: `${API_BASE}/sitemap-index.xml` },
@@ -38,6 +40,7 @@ const nextConfig = {
   },
 
   async redirects() {
+    // Force moviefrost.com -> www.moviefrost.com if your canonical host is www
     if (new URL(SITE_URL).hostname === 'www.moviefrost.com') {
       return [
         {
@@ -56,7 +59,6 @@ const nextConfig = {
       'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
 
     return [
-      // ✅ Favicons
       {
         source: '/favicon.ico',
         headers: [{ key: 'Cache-Control', value: faviconCache }],
@@ -65,8 +67,6 @@ const nextConfig = {
         source: '/favicon1.png',
         headers: [{ key: 'Cache-Control', value: faviconCache }],
       },
-
-      // existing headers
       {
         source: '/service-worker.js',
         headers: [

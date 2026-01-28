@@ -1,4 +1,4 @@
-// frontend-next/src/app/movie/[slug]/page.jsx
+// src/app/movie/[slug]/page.jsx
 import { cache } from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 
@@ -14,12 +14,11 @@ import {
 import JsonLd from '../../../components/seo/JsonLd';
 import MoviePageClient from '../../../components/movie/MoviePageClient';
 
-const getMovie = cache(async (slug) => getMovieBySlug(slug, { revalidate: 3600 }));
+const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
 
 export async function generateMetadata({ params }) {
   const movie = await getMovie(params.slug);
 
-  // ✅ If movie doesn't exist or is not published -> noindex meta for 404 page
   if (!movie) {
     return {
       title: 'Movie not found',
@@ -48,10 +47,10 @@ export async function generateMetadata({ params }) {
 export default async function MoviePage({ params }) {
   const movie = await getMovie(params.slug);
 
-  // ✅ REAL 404 status (fixes "Soft 404" + lots of "noindex" URLs)
+  // ✅ REAL 404 status (fixes "Soft 404")
   if (!movie) notFound();
 
-  // ✅ Strong SEO redirect (308) to canonical slug
+  // ✅ 308 redirect to canonical slug
   if (movie?.slug && params.slug !== movie.slug) {
     permanentRedirect(`/movie/${movie.slug}`);
   }

@@ -1,3 +1,4 @@
+// src/app/robots.js
 import { SITE_URL } from '../lib/seo';
 
 export default function robots() {
@@ -23,9 +24,9 @@ export default function robots() {
       },
     ],
     sitemap: [
-  `${SITE_URL}/sitemap-index.xml`,
-  `${SITE_URL}/sitemap.xml`,
-  `${SITE_URL}/sitemap-videos.xml`,
-],
+      `${SITE_URL}/sitemap-index.xml`,
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/sitemap-videos.xml`,
+    ],
   };
 }

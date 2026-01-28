@@ -1,5 +1,6 @@
 // src/app/about-us/page.jsx
 import Link from 'next/link';
+import { SITE_URL } from '../../lib/seo';
 
 export const metadata = {
   title: 'About Us',
@@ -56,10 +57,7 @@ export default function AboutPage() {
 
         <div className="mt-8">
           <Card title="Need help?">
-            <p>
-              If you want to report an issue or contact support, visit our
-              Contact page.
-            </p>
+            <p>If you want to report an issue or contact support, visit our Contact page.</p>
             <Link
               href="/contact-us"
               className="inline-block mt-3 bg-customPurple hover:bg-opacity-90 transition text-white px-5 py-3 rounded font-semibold"

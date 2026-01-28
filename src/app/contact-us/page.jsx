@@ -1,6 +1,7 @@
 // src/app/contact-us/page.jsx
 import { FaEnvelope, FaMapMarkerAlt, FaPhoneAlt } from 'react-icons/fa';
 import ContactFormClient from '../../components/pages/ContactFormClient';
+import { SITE_URL } from '../../lib/seo';
 
 export const metadata = {
   title: 'Contact Us',
@@ -36,7 +37,6 @@ export default function ContactPage() {
         </p>
 
         <div className="grid lg:grid-cols-2 gap-8 mt-8">
-          {/* Left: contact info */}
           <div className="space-y-4">
             <InfoCard icon={FaEnvelope} title="Email">
               <a
@@ -64,7 +64,6 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Right: form (client) */}
           <ContactFormClient />
         </div>
       </div>
