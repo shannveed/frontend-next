@@ -1,3 +1,4 @@
+// frontend-next/src/app/page.jsx
 import HomeClient from '../components/home/HomeClient';
 import {
   getBannerMovies,
@@ -5,8 +6,14 @@ import {
   getMovies,
   getTopRatedMovies,
 } from '../lib/api';
+import { SITE_URL } from '../lib/seo';
 
 export const revalidate = 60;
+
+// ✅ Canonical for homepage
+export const metadata = {
+  alternates: { canonical: `${SITE_URL}/` },
+};
 
 export default async function HomePage() {
   const [banner, latestNew, moviesPage1, topRated] = await Promise.all([

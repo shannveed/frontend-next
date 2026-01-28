@@ -1,6 +1,6 @@
-// src/app/watch/[slug]/page.jsx
+// frontend-next/src/app/watch/[slug]/page.jsx
 import { cache } from 'react';
-import { redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 
 import { getMovieBySlug, getRelatedMovies } from '../../../lib/api';
 import { buildMovieDescription, buildMovieTitle, watchCanonical } from '../../../lib/seo';
@@ -30,6 +30,7 @@ export async function generateMetadata({ params }) {
       url: canonical,
       title,
       description,
+      images: [movie?.titleImage || movie?.image].filter(Boolean),
     },
   };
 }
@@ -37,15 +38,17 @@ export async function generateMetadata({ params }) {
 export default async function WatchPage({ params }) {
   const movie = await getMovie(params.slug);
 
+  // ✅ REAL 404 status
+  if (!movie) notFound();
+
+  // ✅ Strong SEO redirect (308)
   if (movie?.slug && params.slug !== movie.slug) {
-    redirect(`/watch/${movie.slug}`);
+    permanentRedirect(`/watch/${movie.slug}`);
   }
 
-  const related = movie
-    ? await getRelatedMovies(movie.slug || movie._id, 20, { revalidate: 600 }).catch(
-        () => []
-      )
-    : [];
+  const related = await getRelatedMovies(movie.slug || movie._id, 20, {
+    revalidate: 600,
+  }).catch(() => []);
 
   return (
     <WatchClient

@@ -6,6 +6,7 @@ export const metadata = {
   title: 'Contact Us',
   description:
     'Contact MovieFrost support. We are here to help you with streaming and website issues.',
+  alternates: { canonical: `${SITE_URL}/contact-us` },
 };
 
 function InfoCard({ icon: Icon, title, children }) {

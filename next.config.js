@@ -32,6 +32,7 @@ const nextConfig = {
         { source: '/api/:path*', destination: `${API_BASE}/api/:path*` },
         { source: '/sitemap.xml', destination: `${API_BASE}/sitemap.xml` },
         { source: '/sitemap-videos.xml', destination: `${API_BASE}/sitemap-videos.xml` },
+        { source: '/sitemap-index.xml', destination: `${API_BASE}/sitemap-index.xml` },
       ],
     };
   },

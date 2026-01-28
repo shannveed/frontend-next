@@ -1,6 +1,6 @@
-// src/app/movie/[slug]/page.jsx
+// frontend-next/src/app/movie/[slug]/page.jsx
 import { cache } from 'react';
-import { redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 
 import { getMovieBySlug, getRelatedMovies } from '../../../lib/api';
 import {
@@ -14,13 +14,12 @@ import {
 import JsonLd from '../../../components/seo/JsonLd';
 import MoviePageClient from '../../../components/movie/MoviePageClient';
 
-const getMovie = cache(async (slug) =>
-  getMovieBySlug(slug, { revalidate: 3600 })
-);
+const getMovie = cache(async (slug) => getMovieBySlug(slug, { revalidate: 3600 }));
 
 export async function generateMetadata({ params }) {
   const movie = await getMovie(params.slug);
 
+  // ✅ If movie doesn't exist or is not published -> noindex meta for 404 page
   if (!movie) {
     return {
       title: 'Movie not found',
@@ -49,24 +48,25 @@ export async function generateMetadata({ params }) {
 export default async function MoviePage({ params }) {
   const movie = await getMovie(params.slug);
 
-  // Published movie canonical redirect
+  // ✅ REAL 404 status (fixes "Soft 404" + lots of "noindex" URLs)
+  if (!movie) notFound();
+
+  // ✅ Strong SEO redirect (308) to canonical slug
   if (movie?.slug && params.slug !== movie.slug) {
-    redirect(`/movie/${movie.slug}`);
+    permanentRedirect(`/movie/${movie.slug}`);
   }
 
-  const related = movie
-    ? await getRelatedMovies(movie.slug || movie._id, 20, { revalidate: 600 }).catch(
-        () => []
-      )
-    : [];
+  const related = await getRelatedMovies(movie.slug || movie._id, 20, {
+    revalidate: 600,
+  }).catch(() => []);
 
-  const breadcrumbLd = movie ? buildBreadcrumbJsonLd(movie) : null;
-  const movieLd = movie ? buildMovieJsonLd(movie) : null;
+  const breadcrumbLd = buildBreadcrumbJsonLd(movie);
+  const movieLd = buildMovieJsonLd(movie);
 
   return (
     <>
-      {breadcrumbLd ? <JsonLd data={breadcrumbLd} /> : null}
-      {movieLd ? <JsonLd data={movieLd} /> : null}
+      <JsonLd data={breadcrumbLd} />
+      <JsonLd data={movieLd} />
 
       <MoviePageClient
         slug={params.slug}

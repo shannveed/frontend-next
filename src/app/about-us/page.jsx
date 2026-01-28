@@ -5,6 +5,7 @@ export const metadata = {
   title: 'About Us',
   description:
     'Learn about MovieFrost — a free platform to discover and watch movies and web series online in HD.',
+  alternates: { canonical: `${SITE_URL}/about-us` },
 };
 
 function Card({ title, children }) {
