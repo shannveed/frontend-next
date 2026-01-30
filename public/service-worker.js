@@ -7,7 +7,7 @@ const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
-  '/favicon1.png',
+  '/images/favicon1.png', // ✅ UPDATED (was /favicon1.png)
   '/manifest.json',
   '/images/MOVIEFROST.png',
   '/images/placeholder.jpg',

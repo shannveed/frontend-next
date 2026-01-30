@@ -32,6 +32,7 @@ const MobileCard = memo(function MobileCard({
   progress = 0,
 }) {
   const movieHref = `/movie/${movie?.slug || movie?._id}`;
+  const editHref = `/edit/${movie?.slug || movie?._id}`; // ✅ slug-first
 
   return (
     <article className="bg-dry border border-border rounded-lg p-4 mb-3">
@@ -61,7 +62,7 @@ const MobileCard = memo(function MobileCard({
         {admin ? (
           <>
             <a
-              href={`/edit/${movie?._id}`}
+              href={editHref}
               className="flex-1 border border-border bg-dry flex gap-1 items-center justify-center text-xs rounded py-2"
             >
               Edit <FaEdit className="text-green-500 text-sm" />
@@ -107,6 +108,7 @@ const Row = memo(function Row({
   progress = 0,
 }) {
   const movieHref = `/movie/${movie?.slug || movie?._id}`;
+  const editHref = `/edit/${movie?.slug || movie?._id}`; // ✅ slug-first
 
   return (
     <tr>
@@ -138,7 +140,7 @@ const Row = memo(function Row({
         {admin ? (
           <>
             <a
-              href={`/edit/${movie?._id}`}
+              href={editHref}
               className="border border-border bg-dry flex gap-2 items-center text-border rounded py-1 px-2 mobile:hidden"
             >
               Edit <FaEdit className="text-green-500" />

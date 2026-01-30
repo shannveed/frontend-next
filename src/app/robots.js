@@ -27,6 +27,7 @@ export default function robots() {
       `${SITE_URL}/sitemap-index.xml`,
       `${SITE_URL}/sitemap.xml`,
       `${SITE_URL}/sitemap-videos.xml`,
+      `${SITE_URL}/sitemap-actors.xml`,
     ],
   };
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 import RequireAdmin from '../auth/RequireAdmin';
@@ -8,8 +9,14 @@ import SideBarShell from './SideBarShell';
 import Loader from '../common/Loader';
 import Uploader from '../common/Uploader';
 
-import { parseDurationToMinutes, formatMinutesToDuration } from '../../lib/client/duration';
-import { getCategoriesClient, getBrowseByDistinctClient } from '../../lib/client/catalog';
+import {
+  parseDurationToMinutes,
+  formatMinutesToDuration,
+} from '../../lib/client/duration';
+import {
+  getCategoriesClient,
+  getBrowseByDistinctClient,
+} from '../../lib/client/catalog';
 import {
   createMovieAdmin,
   getMovieByIdAdmin,
@@ -44,6 +51,11 @@ const emptyEpisode = (episodeNumber = 1) => ({
   videoUrl3: '',
 });
 
+const emptyCast = () => ({
+  name: '',
+  image: '',
+});
+
 const emptyForm = {
   type: 'Movie',
   name: '',
@@ -54,7 +66,11 @@ const emptyForm = {
   browseBy: '',
   thumbnailInfo: '',
   desc: '',
+
   director: '',
+  imdbId: '', // ✅ NEW
+  casts: [], // ✅ NEW
+
   seoTitle: '',
   seoDescription: '',
   seoKeywords: '',
@@ -71,6 +87,10 @@ const emptyForm = {
   isPublished: false,
 };
 
+const isLikelyObjectId = (v) => /^[a-f\d]{24}$/i.test(String(v || ''));
+
+const isValidImdbId = (v) => /^tt\d{5,10}$/i.test(String(v || '').trim());
+
 export default function MovieEditorClient({ mode = 'create', movieId = null }) {
   return (
     <RequireAdmin>
@@ -82,6 +102,7 @@ export default function MovieEditorClient({ mode = 'create', movieId = null }) {
 }
 
 function EditorInner({ mode, movieId, token }) {
+  const router = useRouter();
   const isEdit = mode === 'edit';
 
   const [booting, setBooting] = useState(true);
@@ -92,6 +113,12 @@ function EditorInner({ mode, movieId, token }) {
 
   const [posterImage, setPosterImage] = useState('');
   const [titleImage, setTitleImage] = useState('');
+
+  // ✅ Always keep real DB _id for update calls even when URL param is slug
+  const [dbId, setDbId] = useState(null);
+
+  // ✅ Show + use slug (edit URL should be /edit/<slug>)
+  const [currentSlug, setCurrentSlug] = useState('');
 
   const [form, setForm] = useState({ ...emptyForm });
 
@@ -127,6 +154,32 @@ function EditorInner({ mode, movieId, token }) {
     });
   };
 
+  // Cast helpers
+  const updateCast = (idx, key, value) => {
+    setForm((p) => {
+      const casts = Array.isArray(p.casts) ? [...p.casts] : [];
+      const cur = casts[idx] || emptyCast();
+      casts[idx] = { ...cur, [key]: value };
+      return { ...p, casts };
+    });
+  };
+
+  const addCast = () => {
+    setForm((p) => {
+      const casts = Array.isArray(p.casts) ? [...p.casts] : [];
+      casts.push(emptyCast());
+      return { ...p, casts };
+    });
+  };
+
+  const removeCast = (idx) => {
+    setForm((p) => ({
+      ...p,
+      casts: (p.casts || []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  // Episode helpers
   const updateEpisode = (idx, k, v) => {
     setForm((p) => {
       const eps = Array.isArray(p.episodes) ? [...p.episodes] : [];
@@ -168,70 +221,96 @@ function EditorInner({ mode, movieId, token }) {
         setCategories(Array.isArray(cats) ? cats : []);
         setBrowseByDistinct(Array.isArray(browse) ? browse : []);
 
-        if (isEdit) {
-          const m = await getMovieByIdAdmin(token, movieId);
-
-          if (!m) {
-            toast.error('Movie not found');
-            window.location.href = '/movieslist';
-            return;
-          }
-
-          setPosterImage(m.image || '');
-          setTitleImage(m.titleImage || '');
-
-          const formattedEpisodes =
-            m.type === 'WebSeries' && Array.isArray(m.episodes)
-              ? m.episodes.map((ep) => ({
-                  _id: ep._id,
-                  seasonNumber: ep.seasonNumber || 1,
-                  episodeNumber: ep.episodeNumber || 1,
-                  title: ep.title || '',
-                  duration: ep.duration ? formatMinutesToDuration(ep.duration) : '',
-                  desc: ep.desc || '',
-                  video: ep.video || '',
-                  videoUrl2: ep.videoUrl2 || '',
-                  videoUrl3: ep.videoUrl3 || '',
-                }))
-              : [];
-
-          setForm({
-            ...emptyForm,
-            type: m.type || 'Movie',
-            name: m.name || '',
-            time: m.time ? formatMinutesToDuration(m.time) : '',
-            language: m.language || '',
-            year: m.year || '',
-            category: m.category || '',
-            browseBy: m.browseBy || '',
-            thumbnailInfo: m.thumbnailInfo || '',
-            desc: m.desc || '',
-            director: m.director || '',
-            seoTitle: m.seoTitle || '',
-            seoDescription: m.seoDescription || '',
-            seoKeywords: m.seoKeywords || '',
-
-            video: m.video || '',
-            videoUrl2: m.videoUrl2 || '',
-            videoUrl3: m.videoUrl3 || '',
-            downloadUrl: m.downloadUrl || '',
-
-            episodes: formattedEpisodes,
-
-            latest: !!m.latest,
-            previousHit: !!m.previousHit,
-            isPublished: typeof m.isPublished === 'boolean' ? m.isPublished : true,
-          });
-
-          // if webseries but no episodes, ensure one row
-          if (m.type === 'WebSeries' && formattedEpisodes.length === 0) {
-            setForm((p) => ({ ...p, episodes: [emptyEpisode(1)] }));
-          }
-        } else {
-          // create mode: start clean
+        if (!isEdit) {
           setForm({ ...emptyForm });
           setPosterImage('');
           setTitleImage('');
+          setDbId(null);
+          setCurrentSlug('');
+          return;
+        }
+
+        const m = await getMovieByIdAdmin(token, movieId);
+
+        if (!m) {
+          toast.error('Movie not found');
+          window.location.href = '/movieslist';
+          return;
+        }
+
+        // ✅ store dbId always (used for PUT)
+        setDbId(m._id || null);
+
+        // ✅ slug display + URL normalization
+        const slug = String(m.slug || '').trim();
+        setCurrentSlug(slug);
+
+        // If user opened /edit/<ObjectId>, convert to /edit/<slug>
+        if (slug && isLikelyObjectId(movieId) && slug !== movieId) {
+          router.replace(`/edit/${slug}`, { scroll: false });
+        }
+
+        setPosterImage(m.image || '');
+        setTitleImage(m.titleImage || '');
+
+        const formattedEpisodes =
+          m.type === 'WebSeries' && Array.isArray(m.episodes)
+            ? m.episodes.map((ep) => ({
+                _id: ep._id,
+                seasonNumber: ep.seasonNumber || 1,
+                episodeNumber: ep.episodeNumber || 1,
+                title: ep.title || '',
+                duration: ep.duration ? formatMinutesToDuration(ep.duration) : '',
+                desc: ep.desc || '',
+                video: ep.video || '',
+                videoUrl2: ep.videoUrl2 || '',
+                videoUrl3: ep.videoUrl3 || '',
+              }))
+            : [];
+
+        const formattedCasts = Array.isArray(m.casts)
+          ? m.casts.map((c) => ({
+              name: c?.name || '',
+              image: c?.image || '',
+            }))
+          : [];
+
+        setForm({
+          ...emptyForm,
+          type: m.type || 'Movie',
+          name: m.name || '',
+          time: m.time ? formatMinutesToDuration(m.time) : '',
+          language: m.language || '',
+          year: m.year || '',
+          category: m.category || '',
+          browseBy: m.browseBy || '',
+          thumbnailInfo: m.thumbnailInfo || '',
+          desc: m.desc || '',
+
+          director: m.director || '',
+          imdbId: m.imdbId || '',
+          casts: formattedCasts,
+
+          seoTitle: m.seoTitle || '',
+          seoDescription: m.seoDescription || '',
+          seoKeywords: m.seoKeywords || '',
+
+          video: m.video || '',
+          videoUrl2: m.videoUrl2 || '',
+          videoUrl3: m.videoUrl3 || '',
+          downloadUrl: m.downloadUrl || '',
+
+          episodes: formattedEpisodes,
+
+          latest: !!m.latest,
+          previousHit: !!m.previousHit,
+          isPublished:
+            typeof m.isPublished === 'boolean' ? m.isPublished : true,
+        });
+
+        // if webseries but no episodes, ensure one row
+        if (m.type === 'WebSeries' && formattedEpisodes.length === 0) {
+          setForm((p) => ({ ...p, episodes: [emptyEpisode(1)] }));
         }
       } catch (e) {
         toast.error(e?.message || 'Failed to load editor');
@@ -245,7 +324,7 @@ function EditorInner({ mode, movieId, token }) {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, token, movieId]);
+  }, [isEdit, token, movieId, router]);
 
   const validateAndBuildPayload = () => {
     if (!posterImage || !titleImage) {
@@ -285,6 +364,29 @@ function EditorInner({ mode, movieId, token }) {
       return null;
     }
 
+    const imdbId = String(form.imdbId || '').trim();
+    if (imdbId && !isValidImdbId(imdbId)) {
+      toast.error('IMDb ID must look like: tt1630029');
+      return null;
+    }
+
+    // ✅ Casts validation (optional, but if provided must be complete)
+    const castsRaw = Array.isArray(form.casts) ? form.casts : [];
+    const normalizedCasts = castsRaw.map((c) => ({
+      name: String(c?.name || '').trim(),
+      image: String(c?.image || '').trim(),
+    }));
+
+    const hasPartial = normalizedCasts.some(
+      (c) => (c.name || c.image) && !(c.name && c.image)
+    );
+    if (hasPartial) {
+      toast.error('Each cast must have BOTH name and image (or remove it).');
+      return null;
+    }
+
+    const casts = normalizedCasts.filter((c) => c.name && c.image);
+
     const base = {
       type: form.type,
       name: form.name.trim(),
@@ -301,6 +403,9 @@ function EditorInner({ mode, movieId, token }) {
       time: totalMinutes,
 
       director: String(form.director || '').trim(),
+      imdbId,
+      casts,
+
       seoTitle: String(form.seoTitle || '').trim(),
       seoDescription: String(form.seoDescription || '').trim(),
       seoKeywords: String(form.seoKeywords || '').trim(),
@@ -311,9 +416,12 @@ function EditorInner({ mode, movieId, token }) {
     };
 
     if (form.type === 'Movie') {
-      if (!String(form.video || '').trim()) return toast.error('Server 1 URL is required'), null;
-      if (!String(form.videoUrl2 || '').trim()) return toast.error('Server 2 URL is required'), null;
-      if (!String(form.videoUrl3 || '').trim()) return toast.error('Server 3 URL is required'), null;
+      if (!String(form.video || '').trim())
+        return toast.error('Server 1 URL is required'), null;
+      if (!String(form.videoUrl2 || '').trim())
+        return toast.error('Server 2 URL is required'), null;
+      if (!String(form.videoUrl3 || '').trim())
+        return toast.error('Server 3 URL is required'), null;
 
       return {
         ...base,
@@ -335,7 +443,9 @@ function EditorInner({ mode, movieId, token }) {
     const normalizedEpisodes = eps.map((ep, idx) => {
       const epMinutes = parseDurationToMinutes(ep.duration);
       if (epMinutes === null) {
-        throw new Error(`Episode ${idx + 1}: invalid duration (use e.g. 45Min)`);
+        throw new Error(
+          `Episode ${idx + 1}: invalid duration (use e.g. 45Min)`
+        );
       }
 
       const seasonNumber = Math.max(1, Number(ep.seasonNumber) || 1);
@@ -376,6 +486,18 @@ function EditorInner({ mode, movieId, token }) {
     };
   };
 
+  const copyToClipboard = async (value) => {
+    const text = String(value || '').trim();
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied');
+    } catch {
+      toast.error('Copy failed (browser blocked clipboard)');
+    }
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
 
@@ -392,8 +514,20 @@ function EditorInner({ mode, movieId, token }) {
       setSaving(true);
 
       if (isEdit) {
-        await updateMovieAdmin(token, movieId, payload);
+        // ✅ IMPORTANT: update by REAL _id (dbId) so slug URL doesn't break update
+        const targetId = dbId || movieId;
+
+        const updated = await updateMovieAdmin(token, targetId, payload);
         toast.success('Updated successfully');
+
+        // ✅ update slug + URL if name/year changed
+        const nextSlug = String(updated?.slug || '').trim();
+        if (nextSlug) {
+          setCurrentSlug(nextSlug);
+          if (nextSlug !== movieId) {
+            router.replace(`/edit/${nextSlug}`, { scroll: false });
+          }
+        }
       } else {
         await createMovieAdmin(token, payload);
         toast.success('Created successfully');
@@ -402,6 +536,8 @@ function EditorInner({ mode, movieId, token }) {
         setForm({ ...emptyForm });
         setPosterImage('');
         setTitleImage('');
+        setDbId(null);
+        setCurrentSlug('');
       }
     } catch (err) {
       toast.error(err?.message || 'Save failed');
@@ -426,6 +562,50 @@ function EditorInner({ mode, movieId, token }) {
       <h2 className="text-xl font-bold mb-6">
         {isEdit ? 'Edit Movie / Web Series' : 'Create Movie / Web Series'}
       </h2>
+
+      {/* ✅ Slug display + quick links */}
+      {isEdit && currentSlug ? (
+        <div className="bg-main border border-border rounded-lg p-4 mb-6">
+          <h3 className="font-semibold mb-2">Slug</h3>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              className={`${inputClass}`}
+              value={currentSlug}
+              readOnly
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              onClick={() => copyToClipboard(currentSlug)}
+              className="bg-customPurple hover:bg-opacity-90 transition text-white px-4 py-3 rounded font-semibold"
+            >
+              Copy
+            </button>
+          </div>
+
+          <div className="text-xs text-dryGray mt-2">
+            Public:{' '}
+            <a
+              href={`/movie/${currentSlug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-customPurple hover:underline"
+            >
+              /movie/{currentSlug}
+            </a>{' '}
+            •{' '}
+            <a
+              href={`/watch/${currentSlug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-customPurple hover:underline"
+            >
+              /watch/{currentSlug}
+            </a>
+          </div>
+        </div>
+      ) : null}
 
       <form onSubmit={onSubmit} className="space-y-6">
         {/* Type */}
@@ -454,7 +634,9 @@ function EditorInner({ mode, movieId, token }) {
           </div>
 
           <div>
-            <label className="text-sm text-border font-semibold">Total Duration</label>
+            <label className="text-sm text-border font-semibold">
+              Total Duration
+            </label>
             <input
               value={form.time}
               onChange={(e) => setField('time', e.target.value)}
@@ -488,13 +670,24 @@ function EditorInner({ mode, movieId, token }) {
         {/* Images */}
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-main border border-border rounded-lg p-4">
-            <p className="text-sm font-semibold mb-2">Poster Image (without text)</p>
+            <p className="text-sm font-semibold mb-2">
+              Poster Image (without text)
+            </p>
             <Uploader
               setImageUrl={setPosterImage}
-              compression={{ targetSizeKB: 70, maxWidth: 1920, maxHeight: 1920, mimeType: 'image/webp' }}
+              compression={{
+                targetSizeKB: 70,
+                maxWidth: 1920,
+                maxHeight: 1920,
+                mimeType: 'image/webp',
+              }}
             />
             {posterImage ? (
-              <img src={posterImage} alt="poster" className="mt-3 w-full max-w-xs rounded border border-border" />
+              <img
+                src={posterImage}
+                alt="poster"
+                className="mt-3 w-full max-w-xs rounded border border-border"
+              />
             ) : null}
           </div>
 
@@ -502,10 +695,19 @@ function EditorInner({ mode, movieId, token }) {
             <p className="text-sm font-semibold mb-2">Title Image (with text)</p>
             <Uploader
               setImageUrl={setTitleImage}
-              compression={{ targetSizeKB: 50, maxWidth: 1600, maxHeight: 1600, mimeType: 'image/webp' }}
+              compression={{
+                targetSizeKB: 50,
+                maxWidth: 1600,
+                maxHeight: 1600,
+                mimeType: 'image/webp',
+              }}
             />
             {titleImage ? (
-              <img src={titleImage} alt="title" className="mt-3 w-full max-w-xs rounded border border-border" />
+              <img
+                src={titleImage}
+                alt="title"
+                className="mt-3 w-full max-w-xs rounded border border-border"
+              />
             ) : null}
           </div>
         </div>
@@ -545,10 +747,12 @@ function EditorInner({ mode, movieId, token }) {
           </div>
         </div>
 
-        {/* Thumbnail + Director */}
+        {/* Thumbnail + Director + IMDb */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-border font-semibold">Thumbnail Info</label>
+            <label className="text-sm text-border font-semibold">
+              Thumbnail Info
+            </label>
             <input
               value={form.thumbnailInfo}
               onChange={(e) => setField('thumbnailInfo', e.target.value)}
@@ -558,13 +762,31 @@ function EditorInner({ mode, movieId, token }) {
           </div>
 
           <div>
-            <label className="text-sm text-border font-semibold">Director (optional)</label>
+            <label className="text-sm text-border font-semibold">
+              Director (optional)
+            </label>
             <input
               value={form.director}
               onChange={(e) => setField('director', e.target.value)}
               className={`${inputClass} mt-2`}
               placeholder="Director name"
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-sm text-border font-semibold">
+              IMDb ID (optional)
+            </label>
+            <input
+              value={form.imdbId}
+              onChange={(e) => setField('imdbId', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="tt1630029"
+              spellCheck={false}
+            />
+            <p className="text-xs text-dryGray mt-1">
+              Tip: Add correct IMDb ID to improve IMDb/RottenTomatoes matching.
+            </p>
           </div>
         </div>
 
@@ -582,7 +804,9 @@ function EditorInner({ mode, movieId, token }) {
         {/* SEO */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-border font-semibold">SEO Title (optional)</label>
+            <label className="text-sm text-border font-semibold">
+              SEO Title (optional)
+            </label>
             <input
               value={form.seoTitle}
               onChange={(e) => setField('seoTitle', e.target.value)}
@@ -591,7 +815,9 @@ function EditorInner({ mode, movieId, token }) {
             />
           </div>
           <div>
-            <label className="text-sm text-border font-semibold">SEO Keywords (optional)</label>
+            <label className="text-sm text-border font-semibold">
+              SEO Keywords (optional)
+            </label>
             <input
               value={form.seoKeywords}
               onChange={(e) => setField('seoKeywords', e.target.value)}
@@ -600,7 +826,9 @@ function EditorInner({ mode, movieId, token }) {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="text-sm text-border font-semibold">SEO Description (optional)</label>
+            <label className="text-sm text-border font-semibold">
+              SEO Description (optional)
+            </label>
             <input
               value={form.seoDescription}
               onChange={(e) => setField('seoDescription', e.target.value)}
@@ -622,7 +850,9 @@ function EditorInner({ mode, movieId, token }) {
               className="accent-customPurple"
             />
             <span className="text-sm">
-              {form.isPublished ? 'Published (visible to users)' : 'Draft (hidden from users)'}
+              {form.isPublished
+                ? 'Published (visible to users)'
+                : 'Draft (hidden from users)'}
             </span>
           </label>
 
@@ -649,6 +879,104 @@ function EditorInner({ mode, movieId, token }) {
           </div>
         </div>
 
+        {/* ✅ NEW: Casts */}
+        <div className="bg-main border border-border rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold">Casts (optional)</h3>
+            <button
+              type="button"
+              onClick={addCast}
+              className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 transition text-white text-sm font-semibold"
+            >
+              Add Cast
+            </button>
+          </div>
+
+          {!form.casts?.length ? (
+            <p className="text-sm text-border">No casts added.</p>
+          ) : (
+            <div className="space-y-4">
+              {form.casts.map((c, idx) => (
+                <div
+                  key={idx}
+                  className="border border-border rounded-lg p-4 bg-dry"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-semibold">Cast {idx + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeCast(idx)}
+                      className="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-border font-semibold">
+                        Name *
+                      </label>
+                      <input
+                        value={c?.name || ''}
+                        onChange={(e) =>
+                          updateCast(idx, 'name', e.target.value)
+                        }
+                        className={`${inputClass} mt-2`}
+                        placeholder="Actor name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm text-border font-semibold">
+                        Image URL *
+                      </label>
+                      <input
+                        value={c?.image || ''}
+                        onChange={(e) =>
+                          updateCast(idx, 'image', e.target.value)
+                        }
+                        className={`${inputClass} mt-2`}
+                        placeholder="https://cdn..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <Uploader
+                      setImageUrl={(url) => updateCast(idx, 'image', url)}
+                      compression={{
+                        targetSizeKB: 40,
+                        maxWidth: 700,
+                        maxHeight: 700,
+                        mimeType: 'image/webp',
+                      }}
+                      buttonText="Upload Cast Image"
+                    />
+                  </div>
+
+                  {c?.image ? (
+                    <img
+                      src={c.image}
+                      alt={c.name || 'cast'}
+                      className="mt-3 w-24 h-24 object-cover rounded border border-border"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/images/placeholder.jpg';
+                      }}
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-dryGray">
+            Cast names automatically generate <code>/actor/&lt;slug&gt;</code>{' '}
+            pages.
+          </p>
+        </div>
+
         {/* Movie servers */}
         {form.type === 'Movie' ? (
           <div className="bg-main border border-border rounded-lg p-4 space-y-4">
@@ -656,7 +984,9 @@ function EditorInner({ mode, movieId, token }) {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-border font-semibold">Server 1 URL *</label>
+                <label className="text-sm text-border font-semibold">
+                  Server 1 URL *
+                </label>
                 <input
                   value={form.video}
                   onChange={(e) => setField('video', e.target.value)}
@@ -666,7 +996,9 @@ function EditorInner({ mode, movieId, token }) {
               </div>
 
               <div>
-                <label className="text-sm text-border font-semibold">Server 2 URL *</label>
+                <label className="text-sm text-border font-semibold">
+                  Server 2 URL *
+                </label>
                 <input
                   value={form.videoUrl2}
                   onChange={(e) => setField('videoUrl2', e.target.value)}
@@ -676,7 +1008,9 @@ function EditorInner({ mode, movieId, token }) {
               </div>
 
               <div>
-                <label className="text-sm text-border font-semibold">Server 3 URL *</label>
+                <label className="text-sm text-border font-semibold">
+                  Server 3 URL *
+                </label>
                 <input
                   value={form.videoUrl3}
                   onChange={(e) => setField('videoUrl3', e.target.value)}
@@ -686,7 +1020,9 @@ function EditorInner({ mode, movieId, token }) {
               </div>
 
               <div>
-                <label className="text-sm text-border font-semibold">Download URL (optional)</label>
+                <label className="text-sm text-border font-semibold">
+                  Download URL (optional)
+                </label>
                 <input
                   value={form.downloadUrl}
                   onChange={(e) => setField('downloadUrl', e.target.value)}
@@ -717,7 +1053,10 @@ function EditorInner({ mode, movieId, token }) {
             ) : (
               <div className="space-y-4">
                 {form.episodes.map((ep, idx) => (
-                  <div key={ep._id || idx} className="border border-border rounded-lg p-4 bg-dry">
+                  <div
+                    key={ep._id || idx}
+                    className="border border-border rounded-lg p-4 bg-dry"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <p className="font-semibold">Episode {idx + 1}</p>
                       <button
@@ -732,79 +1071,111 @@ function EditorInner({ mode, movieId, token }) {
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm text-border font-semibold">Season *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Season *
+                        </label>
                         <input
                           type="number"
                           value={ep.seasonNumber}
-                          onChange={(e) => updateEpisode(idx, 'seasonNumber', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'seasonNumber', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Episode Number *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Episode Number *
+                        </label>
                         <input
                           type="number"
                           value={ep.episodeNumber}
-                          onChange={(e) => updateEpisode(idx, 'episodeNumber', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'episodeNumber', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Title (optional)</label>
+                        <label className="text-sm text-border font-semibold">
+                          Title (optional)
+                        </label>
                         <input
                           value={ep.title}
-                          onChange={(e) => updateEpisode(idx, 'title', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'title', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Duration *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Duration *
+                        </label>
                         <input
                           value={ep.duration}
-                          onChange={(e) => updateEpisode(idx, 'duration', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'duration', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                           placeholder="e.g. 45Min"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Server 1 *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Server 1 *
+                        </label>
                         <input
                           value={ep.video}
-                          onChange={(e) => updateEpisode(idx, 'video', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'video', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                           placeholder="https://..."
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Server 2 *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Server 2 *
+                        </label>
                         <input
                           value={ep.videoUrl2}
-                          onChange={(e) => updateEpisode(idx, 'videoUrl2', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'videoUrl2', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                           placeholder="https://..."
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm text-border font-semibold">Server 3 *</label>
+                        <label className="text-sm text-border font-semibold">
+                          Server 3 *
+                        </label>
                         <input
                           value={ep.videoUrl3}
-                          onChange={(e) => updateEpisode(idx, 'videoUrl3', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'videoUrl3', e.target.value)
+                          }
                           className={`${inputClass} mt-2`}
                           placeholder="https://..."
                         />
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="text-sm text-border font-semibold">Description (optional)</label>
+                        <label className="text-sm text-border font-semibold">
+                          Description (optional)
+                        </label>
                         <textarea
                           value={ep.desc}
-                          onChange={(e) => updateEpisode(idx, 'desc', e.target.value)}
+                          onChange={(e) =>
+                            updateEpisode(idx, 'desc', e.target.value)
+                          }
                           className={`${inputClass} mt-2 min-h-[90px]`}
                         />
                       </div>

@@ -3,19 +3,17 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
-  FaCalendarAlt,
   FaFolder,
   FaRegClock,
   FaPlay,
   FaShareAlt,
+  FaCloudDownloadAlt,
 } from 'react-icons/fa';
-import { FiLogIn } from 'react-icons/fi';
-import { BiArrowBack } from 'react-icons/bi';
+import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
-// ✅ NEW: live average stars
 import MovieAverageStars from './MovieAverageStars';
+import SafeImage from '../common/SafeImage';
 
 const MOBILE_DESC_WORDS = 50;
 const DESKTOP_DESC_WORDS = 100;
@@ -30,31 +28,9 @@ const splitWords = (text = '') =>
 const truncateByWords = (text, maxWords) => {
   const words = splitWords(text);
   if (!words.length) return { text: '', isTruncated: false };
-  if (words.length <= maxWords) return { text: words.join(' '), isTruncated: false };
+  if (words.length <= maxWords)
+    return { text: words.join(' '), isTruncated: false };
   return { text: `${words.slice(0, maxWords).join(' ')}…`, isTruncated: true };
-};
-
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-
-    const mql = window.matchMedia('(max-width: 639px)');
-    const update = () => setIsMobile(mql.matches);
-
-    update();
-
-    if (mql.addEventListener) mql.addEventListener('change', update);
-    else mql.addListener(update);
-
-    return () => {
-      if (mql.removeEventListener) mql.removeEventListener('change', update);
-      else mql.removeListener(update);
-    };
-  }, []);
-
-  return isMobile;
 };
 
 const formatTime = (minutes) => {
@@ -62,205 +38,454 @@ const formatTime = (minutes) => {
   if (!Number.isFinite(n) || n <= 0) return '';
   const hrs = Math.floor(n / 60);
   const mins = Math.round(n % 60);
-
-  let timeStr = '';
-  if (hrs > 0) timeStr += `${hrs}Hr `;
-  if (mins > 0) timeStr += `${mins}Min`;
-  return timeStr.trim();
+  const parts = [];
+  if (hrs > 0) parts.push(`${hrs}Hr`);
+  if (mins > 0) parts.push(`${mins}Min`);
+  return parts.join(' ');
 };
 
-export default function MovieInfoClient({
-  movie,
-  onShare,
-  onDownload,
-  onBack,
-}) {
-  const router = useRouter();
-  const isMobile = useIsMobile();
+const personSlug = (name = '') =>
+  String(name || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const toNumberOrNull = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+function ExternalRatings({ movie }) {
+  const imdb = movie?.externalRatings?.imdb || {};
+  const rt = movie?.externalRatings?.rottenTomatoes || {};
+
+  const imdbRating = toNumberOrNull(imdb.rating);
+  const imdbVotes = toNumberOrNull(imdb.votes);
+
+  const imdbUrl =
+    String(imdb.url || '').trim() ||
+    (movie?.imdbId ? `https://www.imdb.com/title/${movie.imdbId}/` : '') ||
+    (movie?.name
+      ? `https://www.imdb.com/find?q=${encodeURIComponent(movie.name)}`
+      : '');
+
+  const rtRating = toNumberOrNull(rt.rating);
+  const rtUrl =
+    String(rt.url || '').trim() ||
+    (movie?.name
+      ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
+          movie.name
+        )}`
+      : '');
+
+  // show badges if we at least have links
+  const showImdb = !!imdbUrl;
+  const showRt = !!rtUrl;
+
+  if (!showImdb && !showRt) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 mt-3">
+      {showImdb ? (
+        <a
+          href={imdbUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions"
+        >
+          <SiImdb className="text-[#f5c518]" />
+          <span className="font-semibold">IMDb</span>
+          <span className="text-dryGray">
+            {imdbRating !== null ? `${imdbRating.toFixed(1)}/10` : 'N/A'}
+            {imdbVotes !== null ? ` (${imdbVotes.toLocaleString()} votes)` : ''}
+          </span>
+        </a>
+      ) : null}
+
+      {showRt ? (
+        <a
+          href={rtUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions"
+        >
+          <SiRottentomatoes className="text-[#fa320a]" />
+          <span className="font-semibold">Rotten</span>
+          <span className="text-dryGray">
+            {rtRating !== null ? `${rtRating}%` : 'N/A'}
+          </span>
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function CastScroller({ casts = [] }) {
+  const list = Array.isArray(casts)
+    ? casts.filter((c) => c?.name).slice(0, 20)
+    : [];
+
+  if (!list.length) return null;
+
+  return (
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-semibold text-sm">Cast</h3>
+        <span className="text-xs text-dryGray">{list.length} shown</span>
+      </div>
+
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {list.map((c, idx) => {
+          const slug = c?.slug || personSlug(c?.name);
+          const href = `/actor/${slug}`;
+
+          return (
+            <Link
+  key={`${slug}-${idx}`}
+  href={href}
+  className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions"
+>
+  <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border flex items-center justify-center">
+    <SafeImage
+      src={c?.image || '/images/placeholder.jpg'}
+      alt={c?.name || 'Actor'}
+      width={100}
+      height={120}
+      className="object-contain"
+    />
+  </div>
+
+  <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
+    {c?.name}
+  </p>
+</Link>
+
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+export default function MovieInfoClient({ movie, onShare }) {
   const [descExpanded, setDescExpanded] = useState(false);
 
   useEffect(() => setDescExpanded(false), [movie?._id]);
 
-  const wordLimit = isMobile ? MOBILE_DESC_WORDS : DESKTOP_DESC_WORDS;
+  const watchSeg = movie?.slug || movie?._id;
 
-  const { text: collapsedDesc, isTruncated } = useMemo(() => {
-    return truncateByWords(movie?.desc || '', wordLimit);
-  }, [movie?.desc, wordLimit]);
+  const mobileDesc = useMemo(
+    () => truncateByWords(movie?.desc || '', MOBILE_DESC_WORDS),
+    [movie?.desc]
+  );
 
-  const descToShow =
-    descExpanded || !isTruncated ? movie?.desc || '' : collapsedDesc;
+  const desktopDesc = useMemo(
+    () => truncateByWords(movie?.desc || '', DESKTOP_DESC_WORDS),
+    [movie?.desc]
+  );
 
-  const watchPathSegment = movie?.slug || movie?._id;
+  const categoryHref = movie?.category
+    ? `/movies?category=${encodeURIComponent(movie.category)}`
+    : '/movies';
 
-  const canDownload = movie?.type === 'Movie' && !!movie?.downloadUrl;
+  const directorName = String(movie?.director || '').trim();
+  const directorHref = directorName ? `/actor/${personSlug(directorName)}` : '';
 
-  const doBack = () => {
-    if (typeof onBack === 'function') return onBack();
-    router.back();
-  };
-
-  const doDownload = () => {
-    if (typeof onDownload === 'function') return onDownload(movie?.downloadUrl);
-    if (!movie?.downloadUrl) return;
-
-    const a = document.createElement('a');
-    a.href = movie.downloadUrl;
-    a.setAttribute('download', '');
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
-  const poster = movie?.image || '/images/placeholder.jpg';
-  const titleImg = movie?.titleImage || poster;
-
+  /* =========================
+     MOBILE (unchanged)
+     ========================= */
   return (
-    <div className="w-full xl:h-screen relative text-white" suppressHydrationWarning>
-      {/* background image (desktop) */}
-      <img
-        src={poster}
-        alt={movie?.name || 'Movie'}
-        className="w-full hidden xl:inline-block h-full object-cover"
-        onError={(e) => {
-          e.currentTarget.onerror = null;
-          e.currentTarget.src = '/images/placeholder.jpg';
-        }}
-      />
+    <div className="w-full text-white">
+      {/* MOBILE HERO: titleImage 60vh + title/meta + watch button */}
+      <section className="sm:hidden px-4 mt-4">
+        <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
+          <SafeImage
+            src={movie?.titleImage || movie?.image || '/images/placeholder.jpg'}
+            alt={movie?.name || 'Movie'}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+        </div>
 
-      <div className="xl:bg-main bg-dry flex-colo xl:bg-opacity-90 xl:absolute top-0 left-0 right-0 bottom-0">
-        <div className="container px-8 mobile:px-4 mx-auto 2xl:px-32 xl:grid grid-cols-3 flex-colo py-10 lg:py-20 gap-8">
-          {/* Back button (mobile/tablet like CRA) */}
-          <div className="xl:hidden w-full">
-            <button
-              onClick={doBack}
-              className="flex items-center gap-2 text-dryGray hover:text-white transitions mb-4"
-              type="button"
+        <div className="mt-3 bg-dry border border-border rounded-xl p-4">
+          <h1 className="text-lg font-bold leading-snug">{movie?.name}</h1>
+
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-dryGray">
+            {movie?.time ? (
+              <span className="inline-flex items-center gap-1">
+                <FaRegClock className="text-subMain w-3 h-3" />
+                {formatTime(movie.time)}
+              </span>
+            ) : null}
+
+            {movie?.category ? (
+              <Link
+                href={categoryHref}
+                className="inline-flex items-center gap-1 hover:text-customPurple transitions"
+              >
+                <FaFolder className="text-subMain w-3 h-3" />
+                {movie.category}
+              </Link>
+            ) : null}
+
+            {movie?.language ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="text-subMain">Lang:</span>
+                {movie.language}
+              </span>
+            ) : null}
+          </div>
+
+          {directorName ? (
+            <div className="mt-2 text-xs text-dryGray">
+              Director:{' '}
+              <Link
+                href={directorHref}
+                className="text-customPurple hover:underline"
+              >
+                {directorName}
+              </Link>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex gap-2">
+            <Link
+              href={`/watch/${watchSeg}`}
+              className="flex-1 bg-customPurple hover:bg-opacity-90 transition text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
-              <BiArrowBack className="text-xl" />
-              <span>Back to Movies</span>
+              <FaPlay className="text-sm" />
+              Watch
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => onShare?.()}
+              className="w-12 h-12 rounded-lg border border-border bg-main hover:border-customPurple transition flex items-center justify-center"
+              aria-label="Share"
+            >
+              <FaShareAlt />
             </button>
           </div>
+        </div>
 
-          {/* Title image */}
-          <div className="xl:col-span-1 w-full xl:order-none order-last xl:h-header bg-dry border border-gray-800 rounded-lg overflow-hidden">
-            <img
-              src={titleImg}
-              alt={movie?.name || 'Movie'}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = '/images/placeholder.jpg';
-              }}
-            />
+        {/* BELOW TOP VIEWPORT: Description */}
+        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+          <h2 className="text-sm font-semibold mb-2">Description</h2>
+
+          <p className="text-sm text-text leading-6 whitespace-pre-line">
+            {descExpanded || !mobileDesc.isTruncated
+              ? movie?.desc || ''
+              : mobileDesc.text}
+          </p>
+
+          {mobileDesc.isTruncated ? (
+            <button
+              type="button"
+              onClick={() => setDescExpanded((p) => !p)}
+              className="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+            >
+              {descExpanded ? 'Show less' : 'Read more'}
+            </button>
+          ) : null}
+        </div>
+
+        {/* Rating section */}
+        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-white font-semibold text-sm">Rating</p>
+            <p className="text-xs text-dryGray">
+              {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
+            </p>
           </div>
 
-          {/* Info */}
-          <div className="mt-2 col-span-2 md:grid grid-cols-5 gap-4 items-center">
-            <div className="col-span-3 flex flex-col gap-10 above-1000:gap-6">
-              <h1 className="xl:text-4xl above-1000:text-3xl capitalize font-sans text-xl font-bold">
-                {movie?.name}
-              </h1>
+          <div className="mt-2 flex items-center gap-2">
+            <MovieAverageStars
+              movieIdOrSlug={movie?.slug || movie?._id}
+              fallback={movie?.rate || 0}
+            />
+            <span className="text-sm text-dryGray">
+              {Number(movie?.rate || 0).toFixed(1)}/5
+            </span>
+          </div>
 
-              <div className="flex items-center gap-4 font-medium text-dryGray">
-                <div className="flex-col bg-customPurple text-xs px-2 py-1">
-                  HD 4K
-                </div>
+          <ExternalRatings movie={movie} />
+        </div>
 
-                <div className="flex items-center gap-1">
-                  <FaRegClock className="text-subMain w-3 h-3" />
-                  <p className="text-sm above-1000:text-xs">
-                    {formatTime(movie?.time)}
-                  </p>
-                </div>
+        {/* Cast */}
+        <CastScroller casts={movie?.casts} />
+      </section>
 
-                <div className="flex items-center gap-1">
-                  <FaCalendarAlt className="text-subMain w-3 h-3" />
-                  <p className="text-sm above-1000:text-xs">{movie?.year}</p>
-                </div>
+      {/* =========================
+         DESKTOP/TABLET (sm+): background image + poster left + content right
+         Order:
+         info row -> description -> watch/share -> rating -> cast
+         ========================= */}
+      <section className="hidden sm:block">
+        <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
+          {/* Background image visible on ALL sm+ */}
+          <SafeImage
+            src={movie?.image || movie?.titleImage || '/images/placeholder.jpg'}
+            alt={movie?.name || 'Movie background'}
+            fill
+            sizes="100vw"
+            className="object-cover"
+          />
 
-                <div className="flex items-center gap-1">
-                  <FaFolder className="text-subMain w-3 h-3" />
-                  <p className="text-sm above-1000:text-xs">{movie?.category}</p>
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-main/95" />
+
+          <div className="relative container mx-auto px-8 py-10 lg:py-14">
+            <div className="grid grid-cols-3 gap-8 items-start">
+              {/* Poster / Title image */}
+              <div className="col-span-1">
+                <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
+                  <SafeImage
+                    src={
+                      movie?.titleImage ||
+                      movie?.image ||
+                      '/images/placeholder.jpg'
+                    }
+                    alt={movie?.name || 'Movie'}
+                    width={520}
+                    height={780}
+                    className="object-cover w-full h-auto"
+                  />
                 </div>
               </div>
 
-              {/* Description with CRA word limits */}
-              <div className="text-text text-sm above-1000:text-xs above-1000:leading-6 leading-7">
-                <p className="whitespace-pre-line">{descToShow}</p>
+              {/* Details */}
+              <div className="col-span-2">
+                <h1 className="text-3xl lg:text-4xl  font-bold leading-tight">
+                  {movie?.name}
+                </h1>
 
-                {isTruncated && (
-                  <button
-                    type="button"
-                    onClick={() => setDescExpanded((p) => !p)}
-                    className="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm above-1000:text-xs"
-                    aria-expanded={descExpanded}
-                  >
-                    {descExpanded ? 'Show less' : 'Read more'}
-                  </button>
-                )}
-              </div>
+                {/* Info line: duration, category, language, director */}
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-dryGray text-sm">
+                  {movie?.time ? (
+                    <span className="inline-flex items-center gap-1">
+                      <FaRegClock className="text-subMain w-3 h-3" />
+                      {formatTime(movie.time)}
+                    </span>
+                  ) : null}
 
-              {/* Share + language + watch */}
-              <div className="grid sm:grid-cols-5 grid-cols-3 gap-4 p-6 above-1000:p-4 bg-main border border-gray-800 rounded-lg">
-                <div className="col-span-1 flex-colo border-r border-border">
-                  <button
-                    onClick={() => onShare?.()}
-                    className="w-10 h-10 above-1000:w-8 above-1000:h-8 hover:bg-customPurple flex-colo rounded-lg bg-white bg-opacity-20"
-                    type="button"
-                  >
-                    <FaShareAlt className="above-1000:text-sm" />
-                  </button>
+                  {movie?.category ? (
+                    <Link
+                      href={categoryHref}
+                      className="inline-flex items-center gap-1 hover:text-customPurple transitions"
+                    >
+                      <FaFolder className="text-subMain w-3 h-3" />
+                      {movie.category}
+                    </Link>
+                  ) : null}
+
+                  {movie?.language ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-subMain">Lang:</span>
+                      {movie.language}
+                    </span>
+                  ) : null}
+
+                  {directorName ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-subMain">Director:</span>
+                      <Link
+                        href={directorHref}
+                        className="text-customPurple hover:underline"
+                      >
+                        {directorName}
+                      </Link>
+                    </span>
+                  ) : null}
                 </div>
 
-                <div className="col-span-2 flex-colo font-medium text-sm above-1000:text-xs">
-                  <p>
-                    Language :{' '}
-                    <span className="ml-2 truncate">{movie?.language}</span>
+                {/* Description */}
+                <div className="mt-5 text-text text-sm leading-7">
+                  <p className="whitespace-pre-line">
+                    {descExpanded || !desktopDesc.isTruncated
+                      ? movie?.desc || ''
+                      : desktopDesc.text}
                   </p>
+
+                  {desktopDesc.isTruncated ? (
+                    <button
+                      type="button"
+                      onClick={() => setDescExpanded((p) => !p)}
+                      className="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+                    >
+                      {descExpanded ? 'Show less' : 'Read more'}
+                    </button>
+                  ) : null}
                 </div>
 
-                <div className="sm:col-span-2 col-span-3 flex justify-end font-medium text-sm above-1000:text-xs">
+                {/* Watch + Share + (Desktop Download if exists) */}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
-                    href={`/watch/${watchPathSegment}`}
-                    className="bg-dry py-4 above-1000:py-3 hover:bg-customPurple transitions border-2 border-customPurple rounded-full flex-rows gap-4 w-full sm:py-3"
+                    href={`/watch/${watchSeg}`}
+                    className="bg-customPurple hover:bg-opacity-90 transition text-white px-8 py-3 rounded-lg font-semibold flex items-center gap-2"
                   >
-                    <FaPlay className="w-3 h-3 above-1000:w-2.5 above-1000:h-2.5" />
+                    <FaPlay className="text-sm" />
                     Watch
                   </Link>
-                </div>
-              </div>
 
-              {/* ✅ LIVE average stars (from /ratings aggregate) */}
-              <div className="flex mb-6 above-1000:mb-4 text-lg above-1000:text-base gap-2">
-                <MovieAverageStars
-                  movieIdOrSlug={movie?.slug || movie?._id}
-                  fallback={movie?.rate || 0}
-                />
-              </div>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => onShare?.()}
+                    className="px-6 py-3 rounded-lg border border-border bg-black/30 hover:border-customPurple transition flex items-center gap-2"
+                    aria-label="Share"
+                  >
+                    <FaShareAlt />
+                    Share
+                  </button>
 
-            {/* Download vertical button (CRA style) */}
-            <div className="col-span-1 ml-4 md:mt-0 mt-2 flex justify-end">
-              <button
-                onClick={doDownload}
-                disabled={!canDownload}
-                className={`md:w-1/4 above-1000:w-1/3 w-full relative flex-colo border-2 transitions 
-                  h-16 md:h-64 above-1000:h-48 sm:h-14 rounded font-medium
-                  ${
-                    canDownload
-                      ? 'bg-customPurple hover:bg-transparent border-customPurple'
-                      : 'bg-main border-border opacity-60 cursor-not-allowed'
-                  }`}
-                type="button"
-              >
-                <div className="flex-rows gap-6 above-1000:gap-4 text-md above-1000:text-sm uppercase tracking-widest absolute md:rotate-90">
-                  Download <FiLogIn className="w-6 h-6 above-1000:w-5 above-1000:h-5" />
+                  {movie?.type === 'Movie' && movie?.downloadUrl ? (
+                    <a
+                      href={movie.downloadUrl}
+                      className="px-6 py-3 rounded-lg border border-customPurple bg-black/30 hover:bg-customPurple hover:text-white transition flex items-center gap-2"
+                    >
+                      <FaCloudDownloadAlt />
+                      Download
+                    </a>
+                  ) : null}
                 </div>
-              </button>
+
+                {/* Rating */}
+                <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-white font-semibold text-sm">Rating</p>
+                    <p className="text-xs text-dryGray">
+                      {Number(movie?.numberOfReviews || 0).toLocaleString()}{' '}
+                      reviews
+                    </p>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <MovieAverageStars
+                      movieIdOrSlug={movie?.slug || movie?._id}
+                      fallback={movie?.rate || 0}
+                    />
+                    <span className="text-sm text-dryGray">
+                      {Number(movie?.rate || 0).toFixed(1)}/5
+                    </span>
+                  </div>
+
+                  <ExternalRatings movie={movie} />
+                </div>
+
+                {/* Cast */}
+                <CastScroller casts={movie?.casts} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

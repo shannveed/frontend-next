@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { BsCollectionFill } from 'react-icons/bs';
-import { FaCloudDownloadAlt, FaHeart, FaPlay, FaShareAlt } from 'react-icons/fa';
+// Icons removed here as they were only used in the deleted mobile bar
 
 import Loader from '../common/Loader';
 import MovieInfoClient from './MovieInfoClient';
@@ -59,6 +59,7 @@ export default function MoviePageClient({
   const [error, setError] = useState('');
 
   const [shareOpen, setShareOpen] = useState(false);
+  // liked state is still kept if you want to pass it to MovieInfoClient later
   const [liked, setLiked] = useState(false);
 
   // track userInfo from localStorage (CRA login writes to localStorage)
@@ -70,8 +71,6 @@ export default function MoviePageClient({
   }, []);
 
   // If server couldn't fetch the movie (draft or not found), try on client:
-  // - public fetch again
-  // - if admin token exists, try admin endpoint
   useEffect(() => {
     let cancelled = false;
 
@@ -121,7 +120,7 @@ export default function MoviePageClient({
     };
   }, [slug, movie, token, isAdmin]);
 
-  // If slug changed (admin draft loaded etc), keep canonical URL
+  // Keep canonical URL
   useEffect(() => {
     if (!movie?.slug || !slug) return;
     if (movie.slug !== slug) router.replace(`/movie/${movie.slug}`);
@@ -145,7 +144,7 @@ export default function MoviePageClient({
     };
   }, [movie?._id, movie?.slug, related?.length]);
 
-  // Load favorites to show liked state (optional parity)
+  // Load favorites
   useEffect(() => {
     let cancelled = false;
 
@@ -174,9 +173,6 @@ export default function MoviePageClient({
       cancelled = true;
     };
   }, [token, movie?._id]);
-
-  const watchSeg = movie?.slug || movie?._id || slug;
-  const canDownload = movie?.type === 'Movie' && !!movie?.downloadUrl;
 
   const handleDownload = (url) => {
     if (!url) return;
@@ -235,6 +231,7 @@ export default function MoviePageClient({
               onShare={() => setShareOpen(true)}
               onDownload={handleDownload}
               onBack={() => router.back()}
+              // You can pass onLike={handleLike} here if MovieInfoClient needs it
             />
 
             <div className="my-6">
@@ -258,56 +255,8 @@ export default function MoviePageClient({
           </>
         ) : null}
       </div>
-
-      {/* Mobile Quick Actions (CRA style) */}
-      {movie && !loading && !error && (
-        <div className="sm:hidden fixed z-40 bottom-16 left-0 right-0 px-3 pb-2">
-          <div className="bg-main/95 border border-border rounded-xl shadow-lg px-3 py-2 flex items-center gap-2">
-            <button
-              onClick={() => router.push(`/watch/${watchSeg}`)}
-              className="flex-1 flex items-center justify-center gap-2 bg-customPurple hover:bg-opacity-90 text-white text-sm font-semibold py-2 rounded-lg transitions"
-              type="button"
-            >
-              <FaPlay className="text-sm" />
-              <span>Watch</span>
-            </button>
-
-            {canDownload && (
-              <button
-                onClick={() => handleDownload(movie.downloadUrl)}
-                className="px-3 py-2 rounded-lg border border-customPurple text-customPurple bg-main text-xs font-medium hover:bg-customPurple hover:text-white transitions"
-                type="button"
-              >
-                <div className="flex items-center gap-1">
-                  <FaCloudDownloadAlt className="text-sm" />
-                  <span>Download</span>
-                </div>
-              </button>
-            )}
-
-            <button
-              onClick={handleLike}
-              disabled={liked}
-              className={`w-9 h-9 flex items-center justify-center rounded-full border border-customPurple text-sm transitions ${
-                liked ? 'bg-customPurple text-white' : 'bg-main text-white hover:bg-customPurple'
-              }`}
-              aria-label={liked ? 'In favorites' : 'Add to favorites'}
-              type="button"
-            >
-              <FaHeart className="text-xs" />
-            </button>
-
-            <button
-              onClick={() => setShareOpen(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-full border border-border text-white bg-main hover:bg-customPurple transitions"
-              aria-label="Share movie"
-              type="button"
-            >
-              <FaShareAlt className="text-xs" />
-            </button>
-          </div>
-        </div>
-      )}
+      
+      {/* Mobile Quick Actions block has been removed */}
     </>
   );
 }

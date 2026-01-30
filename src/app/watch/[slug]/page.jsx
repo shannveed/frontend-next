@@ -1,36 +1,54 @@
-// src/app/watch/[slug]/page.jsx
-import { cache } from 'react';
-import { notFound, permanentRedirect } from 'next/navigation';
+// frontend-next/src/app/watch/[slug]/page.jsx
+import { cache } from "react";
+import { cookies } from "next/headers";
+import { notFound, permanentRedirect } from "next/navigation";
 
-import { getMovieBySlug, getRelatedMovies } from '../../../lib/api';
 import {
-  buildMovieDescription,
-  buildMovieTitle,
-  watchCanonical,
-} from '../../../lib/seo';
+  getMovieBySlug,
+  getMovieBySlugAdmin, // ✅ NEW
+  getRelatedMovies,
+  getRelatedMoviesAdmin, // ✅ NEW (optional)
+} from "../../../lib/api";
 
-import WatchClient from '../../../components/watch/WatchClient';
+import { buildMovieDescription, buildMovieTitle, watchCanonical } from "../../../lib/seo";
+import WatchClient from "../../../components/watch/WatchClient";
 
-const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
+// Public fetch is cacheable
+const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
+
+async function getMovieForRequest(slug) {
+  const pub = await getPublicMovie(slug);
+  if (pub) return { movie: pub, source: "public", token: null };
+
+  const token = cookies().get("mf_token")?.value || null;
+  if (!token) return { movie: null, source: "none", token: null };
+
+  const adminMovie = await getMovieBySlugAdmin(slug, token);
+  if (adminMovie) return { movie: adminMovie, source: "admin", token };
+
+  return { movie: null, source: "none", token: null };
+}
 
 export async function generateMetadata({ params }) {
-  const movie = await getMovie(params.slug);
+  const { movie } = await getMovieForRequest(params.slug);
 
   if (!movie) {
-    return { title: 'Not found', robots: { index: false, follow: false } };
+    return { title: "Not found", robots: { index: false, follow: false } };
   }
 
   const title = `Watch: ${buildMovieTitle(movie)}`;
   const description = buildMovieDescription(movie);
   const canonical = watchCanonical(movie);
 
+  const isPublished = movie?.isPublished !== false;
+
   return {
     title,
     description,
     alternates: { canonical },
-    robots: { index: true, follow: true },
+    robots: isPublished ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
-      type: movie?.type === 'WebSeries' ? 'video.episode' : 'video.movie',
+      type: movie?.type === "WebSeries" ? "video.episode" : "video.movie",
       url: canonical,
       title,
       description,
@@ -40,7 +58,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function WatchPage({ params }) {
-  const movie = await getMovie(params.slug);
+  const { movie, source, token } = await getMovieForRequest(params.slug);
 
   if (!movie) notFound();
 
@@ -48,9 +66,14 @@ export default async function WatchPage({ params }) {
     permanentRedirect(`/watch/${movie.slug}`);
   }
 
-  const related = await getRelatedMovies(movie.slug || movie._id, 20, {
-    revalidate: 600,
-  }).catch(() => []);
+  let related = [];
+  if (source === "admin" && token) {
+    related = await getRelatedMoviesAdmin(movie.slug || movie._id, token, 20).catch(() => []);
+  } else {
+    related = await getRelatedMovies(movie.slug || movie._id, 20, {
+      revalidate: 600,
+    }).catch(() => []);
+  }
 
   return (
     <WatchClient

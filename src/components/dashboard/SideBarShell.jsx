@@ -85,15 +85,27 @@ export default function SideBarShell({ children }) {
   const getClass = (href) =>
     pathname === href ? `${active} ${inActive}` : `${inActive} ${hover}`;
 
-  const logoutHandler = () => {
-    try {
-      localStorage.removeItem('userInfo');
-      localStorage.removeItem('redirectAfterLogin');
-    } catch {}
+  const logoutHandler = async () => {
+  try {
+    // ✅ clears mf_token cookie on backend
+    await fetch("/api/users/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // ignore
+  }
 
-    toast.success('Logged out successfully');
-    window.location.href = '/login'; // CRA fallback login
-  };
+  try {
+    localStorage.removeItem("userInfo");
+    localStorage.removeItem("redirectAfterLogin");
+    // keep same-tab UI updates
+    window.dispatchEvent(new Event("storage"));
+  } catch {}
+
+  toast.success("Logged out successfully");
+  window.location.href = "/login";
+};
 
   return (
     <div className="min-h-screen container mx-auto px-2 mobile:px-0">

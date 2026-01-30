@@ -1,43 +1,49 @@
+// frontend-next/src/lib/client/apiFetch.js
 export async function apiFetch(
   path,
   {
-    method = 'GET',
+    method = "GET",
     token = null,
     body = null,
     headers = {},
-    cache = method.toUpperCase() === 'GET' ? 'no-store' : 'no-store',
+    cache = method.toUpperCase() === "GET" ? "no-store" : "no-store",
     bustCache = false,
-    signal
+    signal,
   } = {}
 ) {
   let url = path;
 
   // Optional cache-buster (off by default)
-  if (bustCache && method.toUpperCase() === 'GET') {
+  if (bustCache && method.toUpperCase() === "GET") {
     const origin =
-      typeof window !== 'undefined' ? window.location.origin : 'https://www.moviefrost.com';
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://www.moviefrost.com";
     const u = new URL(url, origin);
-    u.searchParams.set('_t', String(Date.now()));
+    u.searchParams.set("_t", String(Date.now()));
     url = u.pathname + u.search;
   }
 
   const res = await fetch(url, {
     method,
     cache,
+
+    // ✅ IMPORTANT for SSR cookie auth
+    credentials: "include",
+
     headers: {
-      Accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
-    signal
+    signal,
   });
 
-  // Handle empty responses
   if (res.status === 204) return null;
 
-  const text = await res.text().catch(() => '');
+  const text = await res.text().catch(() => "");
   let data = null;
 
   try {
@@ -48,7 +54,10 @@ export async function apiFetch(
 
   if (!res.ok) {
     const msg =
-      data?.message || (typeof data === 'string' && data) || res.statusText || 'Request failed';
+      data?.message ||
+      (typeof data === "string" && data) ||
+      res.statusText ||
+      "Request failed";
     throw new Error(msg);
   }
 

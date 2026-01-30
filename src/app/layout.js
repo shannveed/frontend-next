@@ -16,18 +16,14 @@ export const metadata = {
 
   description: 'Watch free movies and web series online in HD on MovieFrost.',
 
+  // ✅ REQUIRED: adds <link rel="manifest" href="/manifest.json" />
   manifest: '/manifest.json',
 
-  // ✅ IMPORTANT: tell browsers + crawlers where the favicon is
+  // ✅ FIX: use the working path you requested
   icons: {
-    icon: [
-      // Many crawlers fetch this:
-      { url: '/favicon.ico' }, // served by src/app/favicon.ico/route.js
-      // Explicit PNG favicon (your file):
-      { url: '/favicon1.png', type: 'image/png', sizes: '48x48' },
-    ],
-    shortcut: ['/favicon1.png'],
-    apple: [{ url: '/images/MOVIEFROST.png', type: 'image/png', sizes: '180x180' }],
+    icon: [{ url: '/images/favicon1.png', type: 'image/png' }],
+    shortcut: ['/images/favicon1.png'],
+    apple: [{ url: '/images/MOVIEFROST.png', type: 'image/png' }],
   },
 
   appleWebApp: {

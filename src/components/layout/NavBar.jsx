@@ -106,9 +106,9 @@ export default function NavBar() {
   const token = userInfo?.token;
   const isAdmin = !!userInfo?.isAdmin;
 
-  const [favoritesCount, setFavoritesCount] = useState(() => getFavoriteIdsCache().length);
+const [favoritesCount, setFavoritesCount] = useState(0);
+const [browseBy, setBrowseBy] = useState([]);
 
-  const [browseBy, setBrowseBy] = useState(() => readBrowseByCache().list);
 
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);

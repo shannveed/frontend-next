@@ -1,27 +1,49 @@
-// src/app/movie/[slug]/page.jsx
-import { cache } from 'react';
-import { notFound, permanentRedirect } from 'next/navigation';
+// frontend-next/src/app/movie/[slug]/page.jsx
+import { cache } from "react";
+import { cookies } from "next/headers";
+import { notFound, permanentRedirect } from "next/navigation";
 
-import { getMovieBySlug, getRelatedMovies } from '../../../lib/api';
 import {
-  buildBreadcrumbJsonLd,
+  getMovieBySlug,
+  getMovieBySlugAdmin, // ✅ NEW
+  getRelatedMovies,
+  getRelatedMoviesAdmin, // ✅ NEW (optional)
+} from "../../../lib/api";
+
+import {
   buildMovieDescription,
-  buildMovieJsonLd,
   buildMovieTitle,
   movieCanonical,
-} from '../../../lib/seo';
+  buildMovieGraphJsonLd,
+} from "../../../lib/seo";
 
-import JsonLd from '../../../components/seo/JsonLd';
-import MoviePageClient from '../../../components/movie/MoviePageClient';
+import JsonLd from "../../../components/seo/JsonLd";
+import MoviePageClient from "../../../components/movie/MoviePageClient";
 
-const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
+// Public fetch is cacheable
+const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 300 }));
+
+async function getMovieForRequest(slug) {
+  // 1) Public first (SEO + caching)
+  const pub = await getPublicMovie(slug);
+  if (pub) return { movie: pub, source: "public", token: null };
+
+  // 2) If not found publicly → try admin using SSR cookie token
+  const token = cookies().get("mf_token")?.value || null;
+  if (!token) return { movie: null, source: "none", token: null };
+
+  const adminMovie = await getMovieBySlugAdmin(slug, token);
+  if (adminMovie) return { movie: adminMovie, source: "admin", token };
+
+  return { movie: null, source: "none", token: null };
+}
 
 export async function generateMetadata({ params }) {
-  const movie = await getMovie(params.slug);
+  const { movie } = await getMovieForRequest(params.slug);
 
   if (!movie) {
     return {
-      title: 'Movie not found',
+      title: "Movie not found",
       robots: { index: false, follow: false },
     };
   }
@@ -30,12 +52,15 @@ export async function generateMetadata({ params }) {
   const title = buildMovieTitle(movie);
   const description = buildMovieDescription(movie);
 
+  const isPublished = movie?.isPublished !== false;
+
   return {
     title,
     description,
     alternates: { canonical },
+    robots: isPublished ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
-      type: 'video.movie',
+      type: "video.movie",
       url: canonical,
       title,
       description,
@@ -45,9 +70,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function MoviePage({ params }) {
-  const movie = await getMovie(params.slug);
+  const { movie, source, token } = await getMovieForRequest(params.slug);
 
-  // ✅ REAL 404 status (fixes "Soft 404")
   if (!movie) notFound();
 
   // ✅ 308 redirect to canonical slug
@@ -55,18 +79,21 @@ export default async function MoviePage({ params }) {
     permanentRedirect(`/movie/${movie.slug}`);
   }
 
-  const related = await getRelatedMovies(movie.slug || movie._id, 20, {
-    revalidate: 600,
-  }).catch(() => []);
+  // Related: public for public pages, admin for draft previews (optional)
+  let related = [];
+  if (source === "admin" && token) {
+    related = await getRelatedMoviesAdmin(movie.slug || movie._id, token, 20).catch(() => []);
+  } else {
+    related = await getRelatedMovies(movie.slug || movie._id, 20, {
+      revalidate: 600,
+    }).catch(() => []);
+  }
 
-  const breadcrumbLd = buildBreadcrumbJsonLd(movie);
-  const movieLd = buildMovieJsonLd(movie);
+  const graphLd = buildMovieGraphJsonLd(movie);
 
   return (
     <>
-      <JsonLd data={breadcrumbLd} />
-      <JsonLd data={movieLd} />
-
+      <JsonLd data={graphLd} />
       <MoviePageClient
         slug={params.slug}
         initialMovie={movie}

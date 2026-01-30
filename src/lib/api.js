@@ -1,37 +1,50 @@
-// src/lib/api.js
+// frontend-next/src/lib/api.js
 const RAW_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend.vercel.app';
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://moviefrost-backend.vercel.app";
 
 // ✅ normalize: remove trailing slashes + accidental "/api"
-const API_BASE = RAW_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
-
+const API_BASE = RAW_BASE.replace(/\/+$/, "").replace(/\/api$/i, "");
 const API = `${API_BASE}/api`;
 
-async function fetchJson(url, init = {}) {
+async function fetchJson(url, init = {}, opts = {}) {
+  const {
+    nullOn404 = true,
+    nullOn401 = false,
+    nullOn403 = false,
+    nullOn400MovieNotFound = true,
+  } = opts;
+
   const res = await fetch(url, {
     ...init,
     headers: {
-      Accept: 'application/json',
+      Accept: "application/json",
       ...(init.headers || {}),
     },
   });
 
-  const text = await res.text().catch(() => '');
+  const text = await res.text().catch(() => "");
   let data = null;
+
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
     data = text;
   }
 
-  if (res.status === 404) return null;
+  if (nullOn404 && res.status === 404) return null;
+  if (nullOn401 && res.status === 401) return null;
+  if (nullOn403 && res.status === 403) return null;
 
   if (!res.ok) {
     const msg =
-      data?.message || (typeof data === 'string' ? data : res.statusText);
+      data?.message || (typeof data === "string" ? data : res.statusText);
 
-    // ✅ backend currently returns 400 with "Movie not found"
-    if (res.status === 400 && /movie not found/i.test(String(msg || ''))) {
+    // ✅ backend sometimes returns 400 with "Movie not found"
+    if (
+      nullOn400MovieNotFound &&
+      res.status === 400 &&
+      /movie not found/i.test(String(msg || ""))
+    ) {
       return null;
     }
 
@@ -50,32 +63,55 @@ export async function getBrowseByDistinct({ revalidate = 3600 } = {}) {
 }
 
 export async function getMovieBySlug(slug, { revalidate = 3600 } = {}) {
-  const safe = encodeURIComponent(String(slug || '').trim());
+  const safe = encodeURIComponent(String(slug || "").trim());
   if (!safe) return null;
+
   return fetchJson(`${API}/movies/${safe}`, { next: { revalidate } });
+}
+
+/* ============================================================
+   ✅ NEW: Admin movie fetch (SSR can preview drafts)
+   ============================================================ */
+export async function getMovieBySlugAdmin(slug, token) {
+  const safe = encodeURIComponent(String(slug || "").trim());
+  if (!safe || !token) return null;
+
+  return fetchJson(
+    `${API}/movies/admin/${safe}`,
+    {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}` },
+    },
+    {
+      nullOn404: true,
+      nullOn401: true,
+      nullOn403: true,
+      nullOn400MovieNotFound: true,
+    }
+  );
 }
 
 export async function getMovies(query = {}, { revalidate = 60 } = {}) {
   const {
-    category = '',
-    time = '',
-    language = '',
-    rate = '',
-    year = '',
-    browseBy = '',
-    search = '',
+    category = "",
+    time = "",
+    language = "",
+    rate = "",
+    year = "",
+    browseBy = "",
+    search = "",
     pageNumber = 1,
   } = query;
 
   const params = new URLSearchParams();
-  if (category) params.set('category', category);
-  if (time) params.set('time', time);
-  if (language) params.set('language', language);
-  if (rate) params.set('rate', rate);
-  if (year) params.set('year', year);
-  if (browseBy) params.set('browseBy', browseBy);
-  if (search) params.set('search', search);
-  params.set('pageNumber', String(pageNumber || 1));
+  if (category) params.set("category", category);
+  if (time) params.set("time", time);
+  if (language) params.set("language", language);
+  if (rate) params.set("rate", rate);
+  if (year) params.set("year", year);
+  if (browseBy) params.set("browseBy", browseBy);
+  if (search) params.set("search", search);
+  params.set("pageNumber", String(pageNumber || 1));
 
   return fetchJson(`${API}/movies?${params.toString()}`, {
     next: { revalidate },
@@ -99,9 +135,34 @@ export async function getTopRatedMovies({ revalidate = 600 } = {}) {
 }
 
 export async function getRelatedMovies(idOrSlug, limit = 20, { revalidate = 600 } = {}) {
-  const safe = encodeURIComponent(String(idOrSlug || '').trim());
+  const safe = encodeURIComponent(String(idOrSlug || "").trim());
   if (!safe) return [];
-  return fetchJson(`${API}/movies/related/${safe}?limit=${encodeURIComponent(limit)}`, {
-    next: { revalidate },
-  });
+  const data = await fetchJson(
+    `${API}/movies/related/${safe}?limit=${encodeURIComponent(limit)}`,
+    { next: { revalidate } }
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+/* ✅ Optional: admin related for draft previews */
+export async function getRelatedMoviesAdmin(idOrSlug, token, limit = 20) {
+  const safe = encodeURIComponent(String(idOrSlug || "").trim());
+  if (!safe || !token) return [];
+
+  const data = await fetchJson(
+    `${API}/movies/admin/related/${safe}?limit=${encodeURIComponent(limit)}`,
+    {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}` },
+    },
+    { nullOn401: true, nullOn403: true, nullOn404: true }
+  );
+
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getActorBySlug(slug, { revalidate = 30 } = {}) {
+  const safe = encodeURIComponent(String(slug || "").trim());
+  if (!safe) return null;
+  return fetchJson(`${API}/actors/${safe}`, { next: { revalidate } });
 }
