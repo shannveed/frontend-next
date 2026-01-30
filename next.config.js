@@ -78,7 +78,7 @@ const nextConfig = {
     return [
       // ✅ New favicon location
       {
-        source: '/images/favicon1.png',
+        source: '/favicon.ico',
         headers: [{ key: 'Cache-Control', value: faviconCache }],
       },
 
