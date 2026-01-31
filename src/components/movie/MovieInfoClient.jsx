@@ -84,11 +84,18 @@ function ExternalRatings({ movie }) {
         )}`
       : '');
 
-  // show badges if we at least have links
   const showImdb = !!imdbUrl;
   const showRt = !!rtUrl;
 
   if (!showImdb && !showRt) return null;
+
+  const hasImdb = imdbRating !== null;
+  const hasRt = rtRating !== null;
+
+  const badgeBase =
+    'inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions';
+
+  const badgeMuted = 'opacity-80';
 
   return (
     <div className="flex flex-wrap gap-2 mt-3">
@@ -97,13 +104,17 @@ function ExternalRatings({ movie }) {
           href={imdbUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions"
+          className={`${badgeBase} ${hasImdb ? '' : badgeMuted}`}
+          title={hasImdb ? 'IMDb rating' : 'Open IMDb'}
         >
           <SiImdb className="text-[#f5c518]" />
           <span className="font-semibold">IMDb</span>
+
           <span className="text-dryGray">
-            {imdbRating !== null ? `${imdbRating.toFixed(1)}/10` : 'N/A'}
-            {imdbVotes !== null ? ` (${imdbVotes.toLocaleString()} votes)` : ''}
+            {hasImdb ? `${imdbRating.toFixed(1)}/10` : 'View on IMDb'}
+            {hasImdb && imdbVotes !== null
+              ? ` (${imdbVotes.toLocaleString()} votes)`
+              : ''}
           </span>
         </a>
       ) : null}
@@ -113,18 +124,21 @@ function ExternalRatings({ movie }) {
           href={rtUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions"
+          className={`${badgeBase} ${hasRt ? '' : badgeMuted}`}
+          title={hasRt ? 'Rotten Tomatoes score' : 'Search Rotten Tomatoes'}
         >
           <SiRottentomatoes className="text-[#fa320a]" />
           <span className="font-semibold">Rotten</span>
+
           <span className="text-dryGray">
-            {rtRating !== null ? `${rtRating}%` : 'N/A'}
+            {hasRt ? `${rtRating}%` : 'Search on RT'}
           </span>
         </a>
       ) : null}
     </div>
   );
 }
+
 
 function CastScroller({ casts = [] }) {
   const list = Array.isArray(casts)
