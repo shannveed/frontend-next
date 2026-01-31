@@ -7,7 +7,14 @@ import { usePathname } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 import { BsFillGridFill } from 'react-icons/bs';
-import { FaListAlt, FaUsers, FaHeart, FaBell, FaCloudUploadAlt } from 'react-icons/fa';
+import {
+  FaListAlt,
+  FaUsers,
+  FaHeart,
+  FaBell,
+  FaCloudUploadAlt,
+  FaSearch, // ✅ NEW
+} from 'react-icons/fa';
 import { RiMovie2Fill, RiLockPasswordLine, RiLogoutCircleLine } from 'react-icons/ri';
 import { HiViewGridAdd } from 'react-icons/hi';
 import { FiSettings } from 'react-icons/fi';
@@ -26,6 +33,7 @@ const isNextRoute = (href = '') =>
   href === '/movieslist' ||
   href === '/addmovie' ||
   href === '/bulk-create' ||
+  href === '/get-movies' || // ✅ NEW
   href === '/push-notification' ||
   href === '/categories' ||
   href === '/users' ||
@@ -60,7 +68,12 @@ export default function SideBarShell({ children }) {
         { name: 'Dashboard', link: '/dashboard', icon: BsFillGridFill },
         { name: 'Movies List', link: '/movieslist', icon: FaListAlt },
         { name: 'Add Movie', link: '/addmovie', icon: RiMovie2Fill },
+
         { name: 'Bulk Create', link: '/bulk-create', icon: FaCloudUploadAlt },
+
+        // ✅ NEW (below Bulk Create)
+        { name: 'Get Movies', link: '/get-movies', icon: FaSearch },
+
         { name: 'Push Notification', link: '/push-notification', icon: FaBell },
         { name: 'Categories', link: '/categories', icon: HiViewGridAdd },
         { name: 'Users', link: '/users', icon: FaUsers },
@@ -86,26 +99,23 @@ export default function SideBarShell({ children }) {
     pathname === href ? `${active} ${inActive}` : `${inActive} ${hover}`;
 
   const logoutHandler = async () => {
-  try {
-    // ✅ clears mf_token cookie on backend
-    await fetch("/api/users/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-  } catch {
-    // ignore
-  }
+    try {
+      // clears mf_token cookie on backend
+      await fetch('/api/users/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {}
 
-  try {
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("redirectAfterLogin");
-    // keep same-tab UI updates
-    window.dispatchEvent(new Event("storage"));
-  } catch {}
+    try {
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('redirectAfterLogin');
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
 
-  toast.success("Logged out successfully");
-  window.location.href = "/login";
-};
+    toast.success('Logged out successfully');
+    window.location.href = '/login';
+  };
 
   return (
     <div className="min-h-screen container mx-auto px-2 mobile:px-0">
