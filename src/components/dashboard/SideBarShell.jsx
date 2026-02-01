@@ -14,6 +14,7 @@ import {
   FaBell,
   FaCloudUploadAlt,
   FaSearch, // ✅ NEW
+  FaEdit,
 } from 'react-icons/fa';
 import { RiMovie2Fill, RiLockPasswordLine, RiLogoutCircleLine } from 'react-icons/ri';
 import { HiViewGridAdd } from 'react-icons/hi';
@@ -34,6 +35,7 @@ const isNextRoute = (href = '') =>
   href === '/addmovie' ||
   href === '/bulk-create' ||
   href === '/get-movies' || // ✅ NEW
+  href === '/update-movies' ||
   href === '/push-notification' ||
   href === '/categories' ||
   href === '/users' ||
@@ -73,6 +75,7 @@ export default function SideBarShell({ children }) {
 
         // ✅ NEW (below Bulk Create)
         { name: 'Get Movies', link: '/get-movies', icon: FaSearch },
+        { name: 'Update Movies', link: '/update-movies', icon: FaEdit },
 
         { name: 'Push Notification', link: '/push-notification', icon: FaBell },
         { name: 'Categories', link: '/categories', icon: HiViewGridAdd },

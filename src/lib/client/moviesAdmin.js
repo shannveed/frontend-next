@@ -126,3 +126,10 @@ export const bulkCreateMoviesAdmin = (token, movies = []) =>
     token,
     body: { movies },
   });
+
+  export const bulkExactUpdateMoviesAdmin = (token, movies = []) =>
+  apiFetch('/api/movies/bulk-exact', {
+    method: 'PUT',
+    token,
+    body: { movies },
+  });

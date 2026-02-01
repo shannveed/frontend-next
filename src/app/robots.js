@@ -14,6 +14,7 @@ export default function robots() {
           '/edit',
           '/bulk-create',
           '/get-movies',
+          '/update-movies',
           '/push-notification',
           '/categories',
           '/users',
