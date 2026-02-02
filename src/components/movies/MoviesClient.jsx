@@ -129,6 +129,7 @@ export default function MoviesClient({
         params.set(k, val);
       };
 
+      set('type', q.type);
       set('category', q.category);
       set('browseBy', q.browseBy);
       set('language', q.language);

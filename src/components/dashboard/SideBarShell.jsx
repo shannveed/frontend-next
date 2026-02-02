@@ -13,14 +13,23 @@ import {
   FaHeart,
   FaBell,
   FaCloudUploadAlt,
-  FaSearch, // ✅ NEW
+  FaSearch,
   FaEdit,
 } from 'react-icons/fa';
-import { RiMovie2Fill, RiLockPasswordLine, RiLogoutCircleLine } from 'react-icons/ri';
+import {
+  RiMovie2Fill,
+  RiLockPasswordLine,
+  RiLogoutCircleLine,
+} from 'react-icons/ri';
 import { HiViewGridAdd } from 'react-icons/hi';
 import { FiSettings } from 'react-icons/fi';
 
 import { getUserInfo } from '../../lib/client/auth';
+
+// ✅ NEW: 1:1 ad (same component you use on Watch page)
+import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
+
+const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
 const isNextRoute = (href = '') =>
   href === '/' ||
@@ -34,7 +43,7 @@ const isNextRoute = (href = '') =>
   href === '/movieslist' ||
   href === '/addmovie' ||
   href === '/bulk-create' ||
-  href === '/get-movies' || // ✅ NEW
+  href === '/get-movies' ||
   href === '/update-movies' ||
   href === '/push-notification' ||
   href === '/categories' ||
@@ -49,7 +58,18 @@ function SmartLink({ href, className, children }) {
   return <a href={href} className={className}>{children}</a>;
 }
 
-export default function SideBarShell({ children }) {
+/**
+ * SideBarShell
+ *
+ * ✅ NEW props:
+ * - showSidebarAd: shows a 1:1 ad BELOW the sidebar links (sm+ only)
+ * - sidebarAdKey: unique key so the iframe refreshes per page
+ */
+export default function SideBarShell({
+  children,
+  showSidebarAd = false,
+  sidebarAdKey = '',
+}) {
   const pathname = usePathname();
   const [userInfo, setUserInfo] = useState(null);
 
@@ -72,8 +92,6 @@ export default function SideBarShell({ children }) {
         { name: 'Add Movie', link: '/addmovie', icon: RiMovie2Fill },
 
         { name: 'Bulk Create', link: '/bulk-create', icon: FaCloudUploadAlt },
-
-        // ✅ NEW (below Bulk Create)
         { name: 'Get Movies', link: '/get-movies', icon: FaSearch },
         { name: 'Update Movies', link: '/update-movies', icon: FaEdit },
 
@@ -120,6 +138,11 @@ export default function SideBarShell({ children }) {
     window.location.href = '/login';
   };
 
+  const sidebarAdRefreshKey = useMemo(() => {
+    const raw = sidebarAdKey || pathname || 'sidebar';
+    return String(raw).replace(/[^a-z0-9:_-]/gi, '_');
+  }, [sidebarAdKey, pathname]);
+
   return (
     <div className="min-h-screen container mx-auto px-2 mobile:px-0">
       <div className="xl:grid grid-cols-8 gap-10 above-1000:gap-8 mobile:gap-0 items-start md:py-12 py-6 above-1000:py-8 mobile:py-2">
@@ -145,6 +168,19 @@ export default function SideBarShell({ children }) {
               Login
             </a>
           )}
+
+          {/* ✅ NEW: Sidebar 1:1 ad (shown only above mobile screens) */}
+          {ADS_ENABLED && showSidebarAd ? (
+            <div className="mt-6 hidden sm:block">
+              <EffectiveGateSquareAd
+                refreshKey={`sidebar-1x1:${sidebarAdRefreshKey}`}
+                // show on >= 640px (above mobile)
+                minWidthPx={640}
+                maxWidthPx={99999}
+                className="my-0"
+              />
+            </div>
+          ) : null}
         </aside>
 
         <main className="col-span-6 rounded-md bg-dry border border-gray-800 p-6 above-1000:p-4 mobile:p-3">

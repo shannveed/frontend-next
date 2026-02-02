@@ -8,6 +8,7 @@ const buildQuery = (q = {}) => {
     p.set(k, String(v));
   };
 
+  set('type', q.type);
   set('category', q.category);
   set('time', q.time);
   set('language', q.language);

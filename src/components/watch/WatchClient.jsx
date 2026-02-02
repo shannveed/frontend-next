@@ -1059,6 +1059,14 @@ export default function WatchClient({
             <p className="text-border text-sm mt-6">No related titles found.</p>
           )}
         </div>
+        {/* ✅ NEW: Ads below related */}
+          <EffectiveGateNativeBanner
+            refreshKey={`watch-desktop-after-related-${movie?.slug || movie?._id || slug}`}
+          />
+          <EffectiveGateSquareAd
+            refreshKey={`watch-mobile-after-related-${movie?.slug || movie?._id || slug}`}
+            className="sm:hidden"
+          />
       </div>
     </div>
   );

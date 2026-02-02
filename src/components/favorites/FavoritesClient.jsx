@@ -9,8 +9,12 @@ import Table from '../dashboard/Table';
 import Loader from '../common/Loader';
 import Empty from '../common/Empty';
 
+import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
+
 import { getUserInfo } from '../../lib/client/auth';
 import { clearFavorites, getFavorites } from '../../lib/client/users';
+
+const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
 export default function FavoritesClient() {
   const [userInfo, setUserInfo] = useState(null);
@@ -41,7 +45,6 @@ export default function FavoritesClient() {
     setUserInfo(ui);
 
     if (!ui?.token) {
-      // ProtectedRoute parity
       window.location.href = '/login';
       return;
     }
@@ -84,9 +87,9 @@ export default function FavoritesClient() {
   };
 
   return (
-    <SideBarShell>
+    <SideBarShell showSidebarAd sidebarAdKey="favorites">
       <div className="flex-btn mb-6">
-        <h2 className="text-xl font-bold">Favorites Movies</h2>
+        <h2 className="text-xl font-bold">Favorites</h2>
 
         {likedMovies?.length > 0 && (
           <button
@@ -109,6 +112,14 @@ export default function FavoritesClient() {
       ) : (
         <Empty message="It seems like you don't have any favorite movies." />
       )}
+
+      {/* ✅ Mobile 1:1 ad BELOW favorites list */}
+      {ADS_ENABLED ? (
+        <EffectiveGateSquareAd
+          refreshKey="favorites-mobile-below-content"
+          className="sm:hidden mt-6"
+        />
+      ) : null}
     </SideBarShell>
   );
 }

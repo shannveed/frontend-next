@@ -1,12 +1,19 @@
 // frontend-next/src/components/layout/NavBar.jsx
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useContext,
+} from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
-import { CgUser } from 'react-icons/cg';
+import { CgUser, CgMenuBoxed } from 'react-icons/cg';
 import { FaBell, FaHeart, FaSearch } from 'react-icons/fa';
 import { IoClose } from 'react-icons/io5';
 
@@ -15,6 +22,8 @@ import {
   PUSH_RECEIVED_EVENT,
   FAVORITES_UPDATED_EVENT,
 } from '../../lib/events';
+
+import { SidebarContext } from '../../context/DrawerContext';
 
 import { getUserInfo } from '../../lib/client/auth';
 import { getFavorites } from '../../lib/client/users';
@@ -59,7 +68,10 @@ const readBrowseByCache = () => {
 const writeBrowseByCache = (list) => {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.setItem(BROWSEBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), list }));
+    sessionStorage.setItem(
+      BROWSEBY_CACHE_KEY,
+      JSON.stringify({ ts: Date.now(), list })
+    );
   } catch {}
 };
 
@@ -102,18 +114,28 @@ const SmartLink = ({ href, className, children, ...rest }) => {
 export default function NavBar() {
   const router = useRouter();
 
+  // ✅ Drawer control (opens same MenuDrawer used by MobileFooter)
+  const sidebar = useContext(SidebarContext);
+  const toggleDrawer = sidebar?.toggleDrawer;
+
+  // ✅ Mobile search open/close
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileSearchInputRef = useRef(null);
+
   const [userInfo, setUserInfo] = useState(null);
   const token = userInfo?.token;
   const isAdmin = !!userInfo?.isAdmin;
 
-const [favoritesCount, setFavoritesCount] = useState(0);
-const [browseBy, setBrowseBy] = useState([]);
-
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [browseBy, setBrowseBy] = useState([]);
 
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef(null);
+
+  // ✅ IMPORTANT: separate refs (mobile vs desktop) because both layouts exist in DOM
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
 
   const [notifyOpen, setNotifyOpen] = useState(false);
   const notifyRef = useRef(null);
@@ -134,10 +156,26 @@ const [browseBy, setBrowseBy] = useState([]);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  // ✅ Focus input when mobile search opens
+  useEffect(() => {
+    if (!mobileSearchOpen) return;
+    const t = setTimeout(() => {
+      mobileSearchInputRef.current?.focus?.();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [mobileSearchOpen]);
+
   // Close dropdowns on outside click
   useEffect(() => {
     const onDown = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      // ✅ search dropdown (mobile OR desktop)
+      const inSearch =
+        desktopSearchRef.current?.contains(e.target) ||
+        mobileSearchRef.current?.contains(e.target);
+
+      if (!inSearch) setShowDropdown(false);
+
+      // notifications dropdown
       if (notifyRef.current && !notifyRef.current.contains(e.target)) {
         setNotifyOpen(false);
         setReplyOpenId(null);
@@ -145,6 +183,7 @@ const [browseBy, setBrowseBy] = useState([]);
         setReplyMessage('');
       }
     };
+
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
@@ -198,7 +237,11 @@ const [browseBy, setBrowseBy] = useState([]);
     (async () => {
       try {
         const favs = await getFavorites(token);
-        if (!cancelled) setFavoritesCount(Array.isArray(favs) ? favs.length : getFavoriteIdsCache().length);
+        if (!cancelled) {
+          setFavoritesCount(
+            Array.isArray(favs) ? favs.length : getFavoriteIdsCache().length
+          );
+        }
       } catch {
         // ignore (keep cached count)
       }
@@ -280,16 +323,32 @@ const [browseBy, setBrowseBy] = useState([]);
     };
   }, [search]);
 
+  const closeMobileSearch = () => {
+    setMobileSearchOpen(false);
+    setShowDropdown(false);
+  };
+
+  const openMobileSearch = () => {
+    setNotifyOpen(false);
+    setMobileSearchOpen(true);
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const term = search.trim();
+
     if (!term) {
       router.push('/movies');
       setShowDropdown(false);
+      setMobileSearchOpen(false);
       return;
     }
+
     router.push(`/movies?search=${encodeURIComponent(term)}`);
     setShowDropdown(false);
+
+    // ✅ close search UI on mobile after submit
+    setMobileSearchOpen(false);
   };
 
   const openWatchRequestPopup = () => {
@@ -394,18 +453,19 @@ const [browseBy, setBrowseBy] = useState([]);
   };
 
   const hollywoodBrowseBy = useMemo(
-    () => (browseBy || []).filter((x) => x && String(x).toLowerCase().includes('hollywood')),
+    () =>
+      (browseBy || []).filter((x) =>
+        x ? String(x).toLowerCase().includes('hollywood') : false
+      ),
     [browseBy]
   );
 
   const indianBrowseBy = useMemo(
     () =>
-      (browseBy || []).filter(
-        (x) =>
-          x &&
-          (String(x).toLowerCase().includes('bollywood') ||
-            String(x).toLowerCase().includes('indian'))
-      ),
+      (browseBy || []).filter((x) => {
+        const v = String(x || '').toLowerCase();
+        return v.includes('bollywood') || v.includes('indian');
+      }),
     [browseBy]
   );
 
@@ -421,328 +481,512 @@ const [browseBy, setBrowseBy] = useState([]);
     return normalizeAvatarUrl(userInfo?.image) || DEFAULT_PROFILE_IMAGE;
   }, [userInfo?.image]);
 
+  const handleSuggestionPick = () => {
+    setShowDropdown(false);
+    setSearch('');
+    setMobileSearchOpen(false);
+  };
+
   return (
     <div className="bg-main shadow-md sticky top-0 z-20">
-      <div className="container py-6 above-1000:py-4 px-8 mobile:px-0 mobile:py-3 lg:grid gap-10 above-1000:gap-8 grid-cols-7 justify-between items-center">
-        {/* Logo */}
-        <div className="hidden lg:block col-span-1">
-          <Link href="/">
-            <img src="/images/MOVIEFROST.png" alt="logo" className="w-full h-10 object-contain" />
-          </Link>
-        </div>
-
-        {/* Search */}
-        <div className="col-span-2 mobile:col-span-7 relative mobile:w-full" ref={dropdownRef}>
-          <form
-            onSubmit={handleSearchSubmit}
-            className="w-full text-sm bg-black rounded mobile:rounded-none flex-btn gap-4 mobile:gap-2 border-2 border-customPurple"
-          >
+      {/* =========================================================
+          ✅ MOBILE/TABLET (< lg): icon bar + toggleable search
+         ========================================================= */}
+      <div className="lg:hidden border-b border-border">
+        {!mobileSearchOpen ? (
+          <div className="px-4 py-3 flex items-center justify-between">
+            {/* Left: Search icon */}
             <button
-              type="submit"
-              className="bg-customPurple w-10 flex-colo h-9 mobile:h-9 rounded-sm mobile:rounded-none text-white"
-              aria-label="Search movies"
+              type="button"
+              onClick={openMobileSearch}
+              className="w-9 h-9 flex-colo rounded-md bg-dry border border-border hover:border-customPurple transitions"
+              aria-label="Open search"
+              title="Search"
             >
-              <FaSearch className="mobile:text-base" />
+              <FaSearch className="text-lg text-white" />
             </button>
 
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Movie Name"
-              className="font-medium placeholder:text-border text-xs w-11/12 h-9 mobile:h-9 bg-transparent border-none px-2 text-white"
-            />
+            {/* Center: Logo */}
+            <Link href="/" aria-label="Go to home" className="flex-rows">
+              <img
+                src="/images/MOVIEFROST.png"
+                alt="MovieFrost"
+                className="h-9 w-auto max-w-[160px] object-contain"
+              />
+            </Link>
 
-            {search ? (
+            {/* Right: Menu icon (opens existing drawer) */}
+            <button
+              type="button"
+              onClick={() => {
+                setNotifyOpen(false);
+                setShowDropdown(false);
+                toggleDrawer?.();
+              }}
+              className="w-9 h-9 flex-colo rounded-md bg-dry border border-border hover:border-customPurple transitions"
+              aria-label="Open menu"
+              title="Menu"
+            >
+              <CgMenuBoxed className="text-2xl text-white" />
+            </button>
+          </div>
+        ) : (
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-2" ref={mobileSearchRef}>
+              {/* Close search mode */}
               <button
                 type="button"
-                className="pr-2 text-customPurple hover:text-white"
-                onClick={() => {
-                  setSearch('');
-                  setSearchResults([]);
-                  setShowDropdown(false);
-                  router.push('/movies');
-                }}
-                aria-label="Clear search"
+                onClick={closeMobileSearch}
+                className="w-10 h-10 flex-colo rounded-md bg-dry border border-border hover:border-customPurple transitions"
+                aria-label="Close search"
+                title="Close"
               >
-                <IoClose size={20} />
+                <IoClose className="text-xl text-white" />
               </button>
-            ) : null}
-          </form>
 
-          {/* Suggestions */}
-          {showDropdown && searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-              {searchResults.map((m) => (
-                <Link
-                  key={m._id}
-                  href={`/movie/${m.slug || m._id}`}
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setSearch('');
-                  }}
-                  className="flex items-center gap-3 px-3 py-2 hover:bg-main transitions border-b border-border/50 last:border-b-0"
+              {/* Search input (same behavior as before) */}
+              <div className="flex-1 relative">
+                <form
+                  onSubmit={handleSearchSubmit}
+                  className="w-full text-sm bg-black rounded flex-btn gap-2 border-2 border-customPurple"
                 >
-                  <div className="w-10 h-14 flex-shrink-0 rounded overflow-hidden bg-main">
-                    <img
-                      src={m?.titleImage || '/images/placeholder.jpg'}
-                      alt={m?.name || 'Movie'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = '/images/placeholder.jpg';
+                  <button
+                    type="submit"
+                    className="bg-customPurple w-10 flex-colo h-10 rounded-sm text-white"
+                    aria-label="Search movies"
+                  >
+                    <FaSearch className="text-base" />
+                  </button>
+
+                  <input
+                    ref={mobileSearchInputRef}
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search Movie Name"
+                    className="font-medium placeholder:text-border text-sm w-11/12 h-10 bg-transparent border-none px-2 text-white"
+                  />
+
+                  {search ? (
+                    <button
+                      type="button"
+                      className="pr-2 text-customPurple hover:text-white"
+                      onClick={() => {
+                        setSearch('');
+                        setSearchResults([]);
+                        setShowDropdown(false);
+                        router.push('/movies');
                       }}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{m.name}</p>
-                    <p className="text-xs text-dryGray truncate">
-                      {m.year} • {m.category}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+                      aria-label="Clear search"
+                    >
+                      <IoClose size={20} />
+                    </button>
+                  ) : null}
+                </form>
 
-        {/* Desktop links */}
-        <div className="hidden lg:flex col-span-4 font-medium text-xs xl:gap-6 2xl:gap-10 justify-between items-center">
-          <Link href="/movies" className={hover}>Movies</Link>
-
-          {/* Hollywood */}
-          <div className="relative group">
-            <button className={`${hover} inline-flex items-center`} type="button">
-              Hollywood
-            </button>
-            <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-              {hollywoodBrowseBy.length ? (
-                hollywoodBrowseBy.map((item) => (
-                  <Link
-                    key={item}
-                    href={`/movies?browseBy=${encodeURIComponent(item)}`}
-                    className="block px-3 py-1.5 hover:text-customPurple"
-                  >
-                    {item}
-                  </Link>
-                ))
-              ) : (
-                <p className="px-3 py-2 text-sm opacity-80">No Hollywood data</p>
-              )}
-            </div>
-          </div>
-
-          {/* Indian */}
-          <div className="relative group">
-            <button className={`${hover} inline-flex items-center`} type="button">
-              Indian
-            </button>
-            <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-              {indianBrowseBy.length ? (
-                indianBrowseBy.map((item) => (
-                  <Link
-                    key={item}
-                    href={`/movies?browseBy=${encodeURIComponent(item)}`}
-                    className="block px-3 py-1.5 hover:text-customPurple"
-                  >
-                    {item}
-                  </Link>
-                ))
-              ) : (
-                <p className="px-3 py-2 text-sm opacity-80">No Indian data</p>
-              )}
-            </div>
-          </div>
-
-          {/* Browse By */}
-          <div className="relative group">
-            <button className={`${hover} inline-flex items-center`} type="button">
-              Browse By
-            </button>
-            <div className="absolute left-0 top-full bg-black text-white min-w-[200px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-              {leftoverBrowseBy.length ? (
-                leftoverBrowseBy.map((item) => (
-                  <Link
-                    key={item}
-                    href={`/movies?browseBy=${encodeURIComponent(item)}`}
-                    className="block px-3 py-1.5 hover:text-customPurple"
-                  >
-                    {item}
-                  </Link>
-                ))
-              ) : (
-                <p className="px-3 py-2 text-sm opacity-80">No data</p>
-              )}
-            </div>
-          </div>
-
-          <Link href="/contact-us" className={hover}>Contact Us</Link>
-
-          {/* Notifications */}
-          <div className="relative" ref={notifyRef}>
-            <button className="relative" onClick={onBellClick} aria-label="Notifications" type="button">
-              <FaBell className="w-5 h-5 text-white" />
-              {unreadCount > 0 ? (
-                <span className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-2 -right-2.5">
-                  {unreadCount}
-                </span>
-              ) : null}
-            </button>
-
-            {notifyOpen && (
-              <div className="absolute right-0 mt-2 w-96 bg-black border border-customPurple rounded shadow-xl z-50 p-2 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between px-2 mb-2 gap-2">
-                  <h4 className="text-sm font-semibold text-white">Notifications</h4>
-
-                  <div className="flex items-center gap-3">
-                    {!isAdmin && (
-                      <button
-                        onClick={openWatchRequestPopup}
-                        className="text-xs text-customPurple hover:underline"
-                        type="button"
+                {/* Suggestions */}
+                {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                    {searchResults.map((m) => (
+                      <Link
+                        key={m._id}
+                        href={`/movie/${m.slug || m._id}`}
+                        onClick={handleSuggestionPick}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-main transitions border-b border-border/50 last:border-b-0"
                       >
-                        Request Movie
-                      </button>
-                    )}
-
-                    {notifications.length > 0 && (
-                      <button
-                        onClick={handleClearAll}
-                        className="text-xs text-subMain hover:underline"
-                        type="button"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {notifLoading ? (
-                  <p className="text-xs text-border px-2 py-2">Loading...</p>
-                ) : notifications.length === 0 ? (
-                  <div className="px-2 py-2">
-                    <p className="text-sm text-border mb-2">No notifications</p>
-                    {!isAdmin && (
-                      <button
-                        onClick={openWatchRequestPopup}
-                        className="w-full border border-customPurple text-customPurple hover:bg-customPurple hover:text-white transitions rounded py-2 text-sm"
-                        type="button"
-                      >
-                        Request a Movie / Web‑Series
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  [...notifications]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.createdAt || 0).getTime() -
-                        new Date(a.createdAt || 0).getTime()
-                    )
-                    .map((notif) => (
-                      <div
-                        key={notif._id}
-                        className={`text-sm text-white px-2 py-2 border-b border-gray-700 last:border-b-0 group ${
-                          !notif.read ? 'bg-gray-800/50' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleNotificationClick(notif)}
-                            className={`text-left flex-grow ${notif.read ? 'opacity-70' : ''}`}
-                          >
-                            {notif.title ? (
-                              <p className="text-xs font-semibold text-white mb-1">{notif.title}</p>
-                            ) : null}
-                            <p className="text-sm">{notif.message}</p>
-                          </button>
-
-                          <button
-                            onClick={() => handleRemoveNotification(notif._id)}
-                            className="text-xs text-gray-500 hover:text-red-500 ml-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Remove notification"
-                            type="button"
-                          >
-                            <IoClose size={14} />
-                          </button>
+                        <div className="w-10 h-14 flex-shrink-0 rounded overflow-hidden bg-main">
+                          <img
+                            src={m?.titleImage || '/images/placeholder.jpg'}
+                            alt={m?.name || 'Movie'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = '/images/placeholder.jpg';
+                            }}
+                          />
                         </div>
-
-                        {isAdmin && notif.type === 'watch_request' && (
-                          <div className="mt-2">
-                            <button
-                              onClick={() => {
-                                setReplyOpenId((prev) => (prev === notif._id ? null : notif._id));
-                                setReplyLink('');
-                                setReplyMessage('');
-                              }}
-                              className="text-xs text-customPurple hover:underline"
-                              type="button"
-                            >
-                              {replyOpenId === notif._id ? 'Close Reply' : 'Reply'}
-                            </button>
-
-                            {replyOpenId === notif._id && (
-                              <div className="mt-2 space-y-2">
-                                <input
-                                  value={replyLink}
-                                  onChange={(e) => setReplyLink(e.target.value)}
-                                  placeholder="Paste movie link (https://...)"
-                                  className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
-                                />
-                                <input
-                                  value={replyMessage}
-                                  onChange={(e) => setReplyMessage(e.target.value)}
-                                  placeholder="Optional message to user"
-                                  className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
-                                />
-                                <button
-                                  onClick={() => handleAdminReply(notif)}
-                                  className="w-full bg-customPurple text-white rounded py-2 text-xs disabled:opacity-60"
-                                  disabled={replyLoading}
-                                  type="button"
-                                >
-                                  {replyLoading ? 'Sending...' : 'Send'}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">
+                            {m.name}
+                          </p>
+                          <p className="text-xs text-dryGray truncate">
+                            {m.year} • {m.category}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* =========================================================
+          DESKTOP (lg+): keep your existing navbar as-is
+         ========================================================= */}
+      <div className="hidden lg:block">
+        <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-10 above-1000:gap-8 grid-cols-7 justify-between items-center">
+          {/* Logo */}
+          <div className="col-span-1">
+            <Link href="/">
+              <img
+                src="/images/MOVIEFROST.png"
+                alt="logo"
+                className="w-full h-10 object-contain"
+              />
+            </Link>
+          </div>
+
+          {/* Search (desktop) */}
+          <div className="col-span-2 relative" ref={desktopSearchRef}>
+            <form
+              onSubmit={handleSearchSubmit}
+              className="w-full text-sm bg-black rounded flex-btn gap-4 border-2 border-customPurple"
+            >
+              <button
+                type="submit"
+                className="bg-customPurple w-10 flex-colo h-9 rounded-sm text-white"
+                aria-label="Search movies"
+              >
+                <FaSearch />
+              </button>
+
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Movie Name"
+                className="font-medium placeholder:text-border text-xs w-11/12 h-9 bg-transparent border-none px-2 text-white"
+              />
+
+              {search ? (
+                <button
+                  type="button"
+                  className="pr-2 text-customPurple hover:text-white"
+                  onClick={() => {
+                    setSearch('');
+                    setSearchResults([]);
+                    setShowDropdown(false);
+                    router.push('/movies');
+                  }}
+                  aria-label="Clear search"
+                >
+                  <IoClose size={20} />
+                </button>
+              ) : null}
+            </form>
+
+            {/* Suggestions */}
+            {showDropdown && searchResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                {searchResults.map((m) => (
+                  <Link
+                    key={m._id}
+                    href={`/movie/${m.slug || m._id}`}
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setSearch('');
+                    }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-main transitions border-b border-border/50 last:border-b-0"
+                  >
+                    <div className="w-10 h-14 flex-shrink-0 rounded overflow-hidden bg-main">
+                      <img
+                        src={m?.titleImage || '/images/placeholder.jpg'}
+                        alt={m?.name || 'Movie'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/images/placeholder.jpg';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">
+                        {m.name}
+                      </p>
+                      <p className="text-xs text-dryGray truncate">
+                        {m.year} • {m.category}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Profile */}
-          <SmartLink
-            href={isAdmin ? '/dashboard' : token ? '/profile' : '/login'}
-            className={hover}
-            aria-label={token ? `${userInfo?.fullName || 'User'} profile` : 'Login'}
-          >
-            {token ? (
-              <img
-                src={avatarSrc}
-                alt={userInfo?.fullName || 'Profile'}
-                className="w-6 h-6 rounded-full border object-cover border-customPurple"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
-                }}
-              />
-            ) : (
-              <CgUser className="w-7 h-7" />
-            )}
-          </SmartLink>
+          {/* Desktop links */}
+          <div className="col-span-4 font-medium text-xs xl:gap-6 2xl:gap-10 justify-between items-center hidden lg:flex">
+            <Link href="/movies?type=Movie" className={hover}>
+              Movies
+            </Link>
 
-          {/* Favorites */}
-          <SmartLink href="/favorites" className={`${hover} relative`} aria-label="Favorites">
-            <FaHeart className="w-5 h-5" />
-            <div className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-3 -right-1.5">
-              {favoritesCount}
+            <Link href="/movies?type=WebSeries" className={hover}>
+              Tv Shows
+            </Link>
+
+            {/* Hollywood */}
+            <div className="relative group">
+              <button className={`${hover} inline-flex items-center`} type="button">
+                Hollywood
+              </button>
+              <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {hollywoodBrowseBy.length ? (
+                  hollywoodBrowseBy.map((item) => (
+                    <Link
+                      key={item}
+                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      className="block px-3 py-1.5 hover:text-customPurple"
+                    >
+                      {item}
+                    </Link>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm opacity-80">No Hollywood data</p>
+                )}
+              </div>
             </div>
-          </SmartLink>
+
+            {/* Indian */}
+            <div className="relative group">
+              <button className={`${hover} inline-flex items-center`} type="button">
+                Indian
+              </button>
+              <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {indianBrowseBy.length ? (
+                  indianBrowseBy.map((item) => (
+                    <Link
+                      key={item}
+                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      className="block px-3 py-1.5 hover:text-customPurple"
+                    >
+                      {item}
+                    </Link>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm opacity-80">No Indian data</p>
+                )}
+              </div>
+            </div>
+
+            {/* Browse By */}
+            <div className="relative group">
+              <button className={`${hover} inline-flex items-center`} type="button">
+                Browse By
+              </button>
+              <div className="absolute left-0 top-full bg-black text-white min-w-[200px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {leftoverBrowseBy.length ? (
+                  leftoverBrowseBy.map((item) => (
+                    <Link
+                      key={item}
+                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      className="block px-3 py-1.5 hover:text-customPurple"
+                    >
+                      {item}
+                    </Link>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm opacity-80">No data</p>
+                )}
+              </div>
+            </div>
+
+            <Link href="/contact-us" className={hover}>
+              Contact Us
+            </Link>
+
+            {/* Notifications */}
+            <div className="relative" ref={notifyRef}>
+              <button
+                className="relative"
+                onClick={onBellClick}
+                aria-label="Notifications"
+                type="button"
+              >
+                <FaBell className="w-5 h-5 text-white" />
+                {unreadCount > 0 ? (
+                  <span className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-2 -right-2.5">
+                    {unreadCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {notifyOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-black border border-customPurple rounded shadow-xl z-50 p-2 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between px-2 mb-2 gap-2">
+                    <h4 className="text-sm font-semibold text-white">
+                      Notifications
+                    </h4>
+
+                    <div className="flex items-center gap-3">
+                      {!isAdmin && (
+                        <button
+                          onClick={openWatchRequestPopup}
+                          className="text-xs text-customPurple hover:underline"
+                          type="button"
+                        >
+                          Request Movie
+                        </button>
+                      )}
+
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={handleClearAll}
+                          className="text-xs text-subMain hover:underline"
+                          type="button"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {notifLoading ? (
+                    <p className="text-xs text-border px-2 py-2">Loading...</p>
+                  ) : notifications.length === 0 ? (
+                    <div className="px-2 py-2">
+                      <p className="text-sm text-border mb-2">No notifications</p>
+                      {!isAdmin && (
+                        <button
+                          onClick={openWatchRequestPopup}
+                          className="w-full border border-customPurple text-customPurple hover:bg-customPurple hover:text-white transitions rounded py-2 text-sm"
+                          type="button"
+                        >
+                          Request a Movie / Web‑Series
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    [...notifications]
+                      .sort(
+                        (a, b) =>
+                          new Date(b.createdAt || 0).getTime() -
+                          new Date(a.createdAt || 0).getTime()
+                      )
+                      .map((notif) => (
+                        <div
+                          key={notif._id}
+                          className={`text-sm text-white px-2 py-2 border-b border-gray-700 last:border-b-0 group ${
+                            !notif.read ? 'bg-gray-800/50' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleNotificationClick(notif)}
+                              className={`text-left flex-grow ${
+                                notif.read ? 'opacity-70' : ''
+                              }`}
+                            >
+                              {notif.title ? (
+                                <p className="text-xs font-semibold text-white mb-1">
+                                  {notif.title}
+                                </p>
+                              ) : null}
+                              <p className="text-sm">{notif.message}</p>
+                            </button>
+
+                            <button
+                              onClick={() => handleRemoveNotification(notif._id)}
+                              className="text-xs text-gray-500 hover:text-red-500 ml-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              aria-label="Remove notification"
+                              type="button"
+                            >
+                              <IoClose size={14} />
+                            </button>
+                          </div>
+
+                          {isAdmin && notif.type === 'watch_request' && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => {
+                                  setReplyOpenId((prev) =>
+                                    prev === notif._id ? null : notif._id
+                                  );
+                                  setReplyLink('');
+                                  setReplyMessage('');
+                                }}
+                                className="text-xs text-customPurple hover:underline"
+                                type="button"
+                              >
+                                {replyOpenId === notif._id
+                                  ? 'Close Reply'
+                                  : 'Reply'}
+                              </button>
+
+                              {replyOpenId === notif._id && (
+                                <div className="mt-2 space-y-2">
+                                  <input
+                                    value={replyLink}
+                                    onChange={(e) =>
+                                      setReplyLink(e.target.value)
+                                    }
+                                    placeholder="Paste movie link (https://...)"
+                                    className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
+                                  />
+                                  <input
+                                    value={replyMessage}
+                                    onChange={(e) =>
+                                      setReplyMessage(e.target.value)
+                                    }
+                                    placeholder="Optional message to user"
+                                    className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
+                                  />
+                                  <button
+                                    onClick={() => handleAdminReply(notif)}
+                                    className="w-full bg-customPurple text-white rounded py-2 text-xs disabled:opacity-60"
+                                    disabled={replyLoading}
+                                    type="button"
+                                  >
+                                    {replyLoading ? 'Sending...' : 'Send'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Profile */}
+            <SmartLink
+              href={isAdmin ? '/dashboard' : token ? '/profile' : '/login'}
+              className={hover}
+              aria-label={
+                token ? `${userInfo?.fullName || 'User'} profile` : 'Login'
+              }
+            >
+              {token ? (
+                <img
+                  src={avatarSrc}
+                  alt={userInfo?.fullName || 'Profile'}
+                  className="w-6 h-6 rounded-full border object-cover border-customPurple"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
+                  }}
+                />
+              ) : (
+                <CgUser className="w-7 h-7" />
+              )}
+            </SmartLink>
+
+            {/* Favorites */}
+            <SmartLink
+              href="/favorites"
+              className={`${hover} relative`}
+              aria-label="Favorites"
+            >
+              <FaHeart className="w-5 h-5" />
+              <div className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-3 -right-1.5">
+                {favoritesCount}
+              </div>
+            </SmartLink>
+          </div>
         </div>
       </div>
     </div>

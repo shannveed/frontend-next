@@ -1,3 +1,4 @@
+// src/components/auth/LoginClient.jsx
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -13,9 +14,14 @@ import { getUserInfo, setUserInfo } from '../../lib/client/auth';
 import { Input } from '../forms/Usedinputs';
 import InlineError from '../forms/InlineError';
 
+// ✅ 1:1 ad component (same as Watch page)
+import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
+
 const GOOGLE_ENABLED =
   !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'undefined';
+
+const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -163,116 +169,159 @@ export default function LoginClient() {
 
   return (
     <div className="container mx-auto px-2 flex-colo min-h-auto md:min-h-[calc(100vh-200px)] py-3">
-      <form
-        onSubmit={submitEmailPassword}
-        className="w-full md:w-3/5 2xl:w-2/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-1 p-3 sm:p-8 above-1000:p-10 bg-dry rounded-lg border border-border shadow-xl"
-      >
-        <img
-          src="/images/MOVIEFROST.png"
-          alt="logo"
-          className="w-full h-10 above-1000:h-10 object-contain mb-1"
-        />
+      {/* ✅ Layout: Ads left + form + ads right (desktop only) */}
+      <div className="w-full flex flex-col items-center lg:flex-row lg:justify-center lg:items-center lg:gap-4 xl:gap-8">
+        {/* LEFT 1:1 AD — desktop only */}
+        {ADS_ENABLED ? (
+          <div className="hidden lg:block w-[260px] flex-shrink-0">
+            <EffectiveGateSquareAd
+              refreshKey="login-left"
+              minWidthPx={1024}
+              maxWidthPx={99999}
+              minHeight={260}
+              aspectRatio="1 / 1"
+              className="my-0"
+            />
+          </div>
+        ) : null}
 
-        {/* CRA extra line */}
-        <div className="text-center mb-3 mt-1 text-sm font-semibold text-customPurple">
-          Please Log In right now for Free
-        </div>
-
-        {/* CRA Google button */}
-        {googleAuthEnabled && (
-          <>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleGoogleSignIn}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') handleGoogleSignIn();
-              }}
-              className="flex items-center justify-center bg-customPurple rounded-lg shadow-md cursor-pointer transition-all duration-200 ease-in-out w-full hover:shadow-lg mb-3 above-1000:mb-3"
-            >
-              <div className="py-2 px-4 flex items-center justify-center">
-                <img
-                  className="w-8 h-8 above-1000:w-6 above-1000:h-6"
-                  src="/images/google.png"
-                  alt="Google Logo"
-                />
-              </div>
-              <p className="text-white font-semibold text-lg above-1000:text-base px-6">
-                Sign In with Google
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4 my-1 above-1000:my-1">
-              <div className="flex-grow h-px bg-border" />
-              <span className="text-border text-sm">OR</span>
-              <div className="flex-grow h-px bg-border" />
-            </div>
-          </>
-        )}
-
-        {/* Email */}
-        <div className="w-full flex flex-col gap-1">
-          <Input
-            label="Email"
-            placeholder="Your Email"
-            type="email"
-            name="email"
-            bg={true}
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: '' }));
-            }}
-            autoComplete="email"
-          />
-          {fieldErrors.email ? <InlineError text={fieldErrors.email} /> : null}
-        </div>
-
-        {/* Password */}
-        <div className="w-full flex flex-col gap-1">
-          <Input
-            label="Password"
-            placeholder="*******"
-            type="password"
-            name="password"
-            bg={true}
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (fieldErrors.password)
-                setFieldErrors((p) => ({ ...p, password: '' }));
-            }}
-            autoComplete="current-password"
-          />
-          {fieldErrors.password ? (
-            <InlineError text={fieldErrors.password} />
-          ) : null}
-        </div>
-
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="bg-customPurple transitions hover:bg-main flex-rows mt-6 mb-4 above-1000:mt-5 above-1000:mb-3 gap-4 text-white font-semibold p-4 above-1000:p-3 rounded-lg w-full disabled:opacity-60"
+        {/* LOGIN FORM */}
+        <form
+          onSubmit={submitEmailPassword}
+          className="w-full md:w-3/5 2xl:w-2/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-1 p-3 sm:p-8 above-1000:p-10 bg-dry rounded-lg border border-border shadow-xl"
         >
-          {loading ? (
-            'Loading...'
-          ) : (
+          <img
+            src="/images/MOVIEFROST.png"
+            alt="logo"
+            className="w-full h-10 above-1000:h-10 object-contain mb-1"
+          />
+
+          {/* The extra line requested */}
+          <div className="text-center mb-3 mt-1 text-sm font-semibold text-customPurple">
+            Please Log In right now for Free
+          </div>
+
+          {/* Google button */}
+          {googleAuthEnabled && (
             <>
-              <FiLogIn /> Sign In
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={handleGoogleSignIn}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') handleGoogleSignIn();
+                }}
+                className="flex items-center justify-center bg-customPurple rounded-lg shadow-md cursor-pointer transition-all duration-200 ease-in-out w-full hover:shadow-lg mb-3 above-1000:mb-3"
+              >
+                <div className="py-2 px-4 flex items-center justify-center">
+                  <img
+                    className="w-8 h-8 above-1000:w-6 above-1000:h-6"
+                    src="/images/google.png"
+                    alt="Google Logo"
+                  />
+                </div>
+                <p className="text-white font-semibold text-lg above-1000:text-base px-6">
+                  Sign In with Google
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 my-1 above-1000:my-1">
+                <div className="flex-grow h-px bg-border" />
+                <span className="text-border text-sm">OR</span>
+                <div className="flex-grow h-px bg-border" />
+              </div>
             </>
           )}
-        </button>
 
-        <p className="text-center text-border text-sm">
-          Don&apos;t have an account?{' '}
-          <Link
-            href="/register"
-            className="text-customPurple font-semibold ml-2 hover:underline"
+          {/* Email */}
+          <div className="w-full flex flex-col gap-1">
+            <Input
+              label="Email"
+              placeholder="Your Email"
+              type="email"
+              name="email"
+              bg={true}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (fieldErrors.email)
+                  setFieldErrors((p) => ({ ...p, email: '' }));
+              }}
+              autoComplete="email"
+            />
+            {fieldErrors.email ? <InlineError text={fieldErrors.email} /> : null}
+          </div>
+
+          {/* Password */}
+          <div className="w-full flex flex-col gap-1">
+            <Input
+              label="Password"
+              placeholder="*******"
+              type="password"
+              name="password"
+              bg={true}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (fieldErrors.password)
+                  setFieldErrors((p) => ({ ...p, password: '' }));
+              }}
+              autoComplete="current-password"
+            />
+            {fieldErrors.password ? (
+              <InlineError text={fieldErrors.password} />
+            ) : null}
+          </div>
+
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="bg-customPurple transitions hover:bg-main flex-rows mt-6 mb-4 above-1000:mt-5 above-1000:mb-3 gap-4 text-white font-semibold p-4 above-1000:p-3 rounded-lg w-full disabled:opacity-60"
           >
-            Sign Up
-          </Link>
-        </p>
-      </form>
+            {loading ? (
+              'Loading...'
+            ) : (
+              <>
+                <FiLogIn /> Sign In
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-border text-sm">
+            Don&apos;t have an account?{' '}
+            <Link
+              href="/register"
+              className="text-customPurple font-semibold ml-2 hover:underline"
+            >
+              Sign Up
+            </Link>
+          </p>
+        </form>
+
+        {/* ✅ MOBILE 1:1 AD BELOW login form (same as Watch page mobile ad) */}
+        {ADS_ENABLED ? (
+          <div className="w-full sm:hidden mt-6">
+            <EffectiveGateSquareAd
+              refreshKey="login-mobile-below-form"
+              className="my-0"
+            />
+          </div>
+        ) : null}
+
+        {/* RIGHT 1:1 AD — desktop only */}
+        {ADS_ENABLED ? (
+          <div className="hidden lg:block w-[260px] flex-shrink-0">
+            <EffectiveGateSquareAd
+              refreshKey="login-right"
+              minWidthPx={1024}
+              maxWidthPx={99999}
+              minHeight={260}
+              aspectRatio="1 / 1"
+              className="my-0"
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

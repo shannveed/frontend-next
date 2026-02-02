@@ -3,9 +3,9 @@
 export const LanguageData = [
   { title: 'Sort By Language' },
   { title: 'English' },
- { title: 'Korean' },
+  { title: 'Korean' },
   { title: 'Hindi' },
-    { title: 'Chinese' },
+  { title: 'Chinese' },
   { title: 'Japanese' },
   { title: 'Urdu' },
   { title: 'Turkish' },
@@ -86,17 +86,68 @@ export const YearData = [
   { title: '2000' },
 ];
 
-export const browseByData = [
+/**
+ * ✅ NEW: Type-specific BrowseBy lists for /movies
+ *
+ * - `title`: what user sees in dropdown
+ * - `value` (optional): what we actually send in ?browseBy=
+ *
+ * Why value is optional:
+ * You asked Movie page should show "Chinese" (but your DB value is usually "Chinease Drama").
+ * This lets you display "Chinese" while still filtering correctly without changing DB data.
+ */
+
+// ✅ /movies?type=Movie
+export const browseByMovieData = [
   { title: 'Browse By' },
   { title: 'Hollywood (English)' },
-  { title: 'Hollywood (Hindi Dubbed)' },
-  { title: 'Bollywood' },
+  { title: 'Bollywood (Hindi)' },
+  { title: 'Korean (English)' },
+  { title: 'Indian Punjabi Movies' },
   { title: 'South Indian (Hindi Dubbed)' },
-  { title: 'Korean (English Dubbed)' },
-  { title: 'Korean Dramas (English Dubbed)' },
-  { title: 'Pakistan Movies' },
-  { title: 'Blockbuster Movies' },
+  { title: 'Japanese (Movies)' },
+
+  // Display "Chinese" but filter using your existing DB value
+  { title: 'Chinese', value: 'Chinease Drama' },
+];
+
+// ✅ /movies?type=WebSeries
+export const browseByWebSeriesData = [
+  { title: 'Browse By' },
+  { title: 'Hollywood Web Series (English)' },
+  { title: 'Chinease Drama' },
+  { title: 'Korean Drama (Korean)' },
+  { title: 'Hollywood Web Series (Hindi Dubbed)' },
+  { title: 'Bollywood Web Series (Hindi)' },
+  { title: 'Japanese Anime' },
+  { title: 'Japanese Web Series' },
+  { title: 'Japanese Web Series (Hindi)' },
+  { title: 'Korean (Hindi Dubbed)' },
+];
+
+// Fallback when /movies has no type param
+export const browseByData = [
+  { title: 'Browse By' },
+
+  // Movies
+  { title: 'Hollywood (English)' },
+  { title: 'Bollywood (Hindi)' },
+  { title: 'Korean (English)' },
+  { title: 'Korean (Hindi Dubbed)' },
+  { title: 'Indian Punjabi Movies' },
+  { title: 'South Indian (Hindi Dubbed)' },
+  { title: 'Japanese (Movies)' },
+
+  // WebSeries
   { title: 'Hollywood Web Series (English)' },
   { title: 'Hollywood Web Series (Hindi Dubbed)' },
+  { title: 'Bollywood Web Series (Hindi)' },
   { title: 'Bollywood Web Series' },
+  { title: 'Japanese Web Series' },
+  { title: 'Japanese Web Series (Hindi)' },
+  { title: 'Korean Drama (Korean)' },
+  { title: 'Japanese Anime' },
+
+  // Chinese (DB)
+  { title: 'Chinease Drama' },
 ];

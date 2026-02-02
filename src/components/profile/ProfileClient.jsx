@@ -8,12 +8,15 @@ import SideBarShell from '../dashboard/SideBarShell';
 import Loader from '../common/Loader';
 import Uploader from '../common/Uploader';
 
+import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
+
 import { getUserInfo } from '../../lib/client/auth';
 import { apiFetch } from '../../lib/client/apiFetch';
 
+const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
+
 const isValidEmail = (email) => {
   const e = String(email || '').trim();
-  // simple + safe
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 };
 
@@ -30,12 +33,10 @@ export default function ProfileClient() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Load from localStorage (same as CRA behavior)
   useEffect(() => {
     const ui = getUserInfo();
 
     if (!ui?.token) {
-      // ProtectedRoute parity
       window.location.href = '/login';
       return;
     }
@@ -44,7 +45,6 @@ export default function ProfileClient() {
     setFullName(ui?.fullName || '');
     setEmail(ui?.email || '');
     setImage(ui?.image || '');
-
     setBooting(false);
   }, []);
 
@@ -74,17 +74,11 @@ export default function ProfileClient() {
       const updated = await apiFetch('/api/users', {
         method: 'PUT',
         token,
-        body: {
-          fullName: name,
-          email: em,
-          image: image || '',
-        },
+        body: { fullName: name, email: em, image: image || '' },
       });
 
-      // Backend returns updated user + token (same as CRA)
       try {
         localStorage.setItem('userInfo', JSON.stringify(updated));
-        // trigger NavBar/SideBarShell listeners (they listen on "storage")
         window.dispatchEvent(new Event('storage'));
       } catch {}
 
@@ -123,10 +117,7 @@ export default function ProfileClient() {
     try {
       setDeleting(true);
 
-      await apiFetch('/api/users', {
-        method: 'DELETE',
-        token,
-      });
+      await apiFetch('/api/users', { method: 'DELETE', token });
 
       try {
         localStorage.removeItem('userInfo');
@@ -144,7 +135,7 @@ export default function ProfileClient() {
   };
 
   return (
-    <SideBarShell>
+    <SideBarShell showSidebarAd sidebarAdKey="profile">
       <div className="flex flex-col gap-6">
         <div className="flex-btn">
           <h2 className="text-xl font-bold">Profile</h2>
@@ -153,94 +144,103 @@ export default function ProfileClient() {
         {booting ? (
           <Loader />
         ) : (
-          <form onSubmit={handleUpdate} className="flex flex-col gap-6">
-            {/* Profile Image */}
-            <div className="bg-main border border-border rounded-lg p-5">
-              <p className="text-border font-semibold text-sm mb-3">
-                Profile Image
-              </p>
+          <>
+            <form onSubmit={handleUpdate} className="flex flex-col gap-6">
+              {/* Profile Image */}
+              <div className="bg-main border border-border rounded-lg p-5">
+                <p className="text-border font-semibold text-sm mb-3">
+                  Profile Image
+                </p>
 
-              <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                <div className="w-28 h-28 rounded-full overflow-hidden border border-border bg-dry">
-                  <img
-                    src={avatarSrc}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = '/images/profile-user.png';
-                    }}
-                  />
-                </div>
+                <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+                  <div className="w-28 h-28 rounded-full overflow-hidden border border-border bg-dry">
+                    <img
+                      src={avatarSrc}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/images/placeholder.jpg';
+                      }}
+                    />
+                  </div>
 
-                <div className="flex-1 w-full">
-                  <Uploader
-                    setImageUrl={setImage}
-                    // Optional compression (same idea as CRA)
-                    compression={{
-                      targetSizeKB: 70,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      mimeType: 'image/webp',
-                    }}
-                    buttonText="Upload"
-                  />
-                  <p className="text-xs text-dryGray mt-2">
-                    Upload a square image for best results.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Inputs */}
-            <div className="bg-main border border-border rounded-lg p-5">
-              <div className="grid md:grid-cols-2 gap-5">
-                <div>
-                  <label className="text-border text-sm font-semibold">
-                    Full Name
-                  </label>
-                  <input
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
-                    placeholder="Your full name"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-border text-sm font-semibold">
-                    Email
-                  </label>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
-                    placeholder="you@example.com"
-                    type="email"
-                  />
+                  <div className="flex-1 w-full">
+                    <Uploader
+                      setImageUrl={setImage}
+                      compression={{
+                        targetSizeKB: 70,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        mimeType: 'image/webp',
+                      }}
+                      buttonText="Upload"
+                    />
+                    <p className="text-xs text-dryGray mt-2">
+                      Upload a square image for best results.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting || saving}
-                  className="w-full sm:w-auto bg-red-600 hover:bg-red-700 transition text-white py-3 px-6 rounded font-semibold disabled:opacity-60"
-                >
-                  {deleting ? 'Deleting...' : 'Delete Account'}
-                </button>
+              {/* Inputs */}
+              <div className="bg-main border border-border rounded-lg p-5">
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-border text-sm font-semibold">
+                      Full Name
+                    </label>
+                    <input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
+                      placeholder="Your full name"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={saving || deleting}
-                  className="w-full sm:w-auto bg-customPurple hover:bg-opacity-90 transition text-white py-3 px-8 rounded font-semibold disabled:opacity-60"
-                >
-                  {saving ? 'Updating...' : 'Update'}
-                </button>
+                  <div>
+                    <label className="text-border text-sm font-semibold">
+                      Email
+                    </label>
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
+                      placeholder="you@example.com"
+                      type="email"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting || saving}
+                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 transition text-white py-3 px-6 rounded font-semibold disabled:opacity-60"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete Account'}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={saving || deleting}
+                    className="w-full sm:w-auto bg-customPurple hover:bg-opacity-90 transition text-white py-3 px-8 rounded font-semibold disabled:opacity-60"
+                  >
+                    {saving ? 'Updating...' : 'Update'}
+                  </button>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+
+            {/* ✅ Mobile 1:1 ad BELOW the profile form */}
+            {ADS_ENABLED ? (
+              <EffectiveGateSquareAd
+                refreshKey="profile-mobile-below-form"
+                className="sm:hidden mt-6"
+              />
+            ) : null}
+          </>
         )}
       </div>
     </SideBarShell>

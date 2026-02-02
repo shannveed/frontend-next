@@ -93,6 +93,7 @@ export async function getMovieBySlugAdmin(slug, token) {
 
 export async function getMovies(query = {}, { revalidate = 60 } = {}) {
   const {
+    type = "",
     category = "",
     time = "",
     language = "",
@@ -104,6 +105,7 @@ export async function getMovies(query = {}, { revalidate = 60 } = {}) {
   } = query;
 
   const params = new URLSearchParams();
+  if (type) params.set("type", type);
   if (category) params.set("category", category);
   if (time) params.set("time", time);
   if (language) params.set("language", language);

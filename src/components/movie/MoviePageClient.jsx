@@ -13,6 +13,11 @@ import ShareModalClient from './ShareModalClient';
 import MovieRatingsStrip from './MovieRatingsStrip';
 import MovieCard from './MovieCard';
 
+// ✅ NEW: ads (same as Watch page)
+import EffectiveGateNativeBanner, {
+  EffectiveGateSquareAd,
+} from '../ads/EffectiveGateNativeBanner';
+
 import { getUserInfo } from '../../lib/client/auth';
 import { getFavorites, likeMovie } from '../../lib/client/users';
 import { apiFetch } from '../../lib/client/apiFetch';
@@ -54,7 +59,9 @@ export default function MoviePageClient({
   const isAdmin = !!userInfo?.isAdmin;
 
   const [movie, setMovie] = useState(initialMovie);
-  const [related, setRelated] = useState(Array.isArray(initialRelated) ? initialRelated : []);
+  const [related, setRelated] = useState(
+    Array.isArray(initialRelated) ? initialRelated : []
+  );
   const [loading, setLoading] = useState(!initialMovie);
   const [error, setError] = useState('');
 
@@ -203,12 +210,20 @@ export default function MoviePageClient({
 
   const relatedToShow = useMemo(() => {
     const list = Array.isArray(related) ? related : [];
-    return list.filter((m) => String(m?._id) !== String(movie?._id)).slice(0, 10);
+    return list
+      .filter((m) => String(m?._id) !== String(movie?._id))
+      .slice(0, 10);
   }, [related, movie?._id]);
+
+  const seg = movie?.slug || movie?._id || slug;
 
   return (
     <>
-      <ShareModalClient open={shareOpen} onClose={() => setShareOpen(false)} movie={movie} />
+      <ShareModalClient
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        movie={movie}
+      />
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
         {loading ? (
@@ -234,6 +249,13 @@ export default function MoviePageClient({
               // You can pass onLike={handleLike} here if MovieInfoClient needs it
             />
 
+            {/* ✅ NEW: Ads banner ABOVE user ratings (same style as Watch page) */}
+            <EffectiveGateNativeBanner refreshKey={`movie-desktop-before-ratings:${seg}`} />
+            <EffectiveGateSquareAd
+              refreshKey={`movie-mobile-before-ratings:${seg}`}
+              className="sm:hidden"
+            />
+
             <div className="my-6">
               <MovieRatingsStrip movieIdOrSlug={movie?.slug || movie?._id} />
             </div>
@@ -251,11 +273,12 @@ export default function MoviePageClient({
                   ))}
                 </div>
               </div>
+              
             )}
           </>
         ) : null}
       </div>
-      
+          
       {/* Mobile Quick Actions block has been removed */}
     </>
   );

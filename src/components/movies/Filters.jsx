@@ -10,9 +10,30 @@ import {
   TimesData,
   YearData,
   browseByData,
+  browseByMovieData,
+  browseByWebSeriesData,
 } from '../../data/filterData';
 
 const digitsOnly = (value = '') => String(value || '').replace(/\D/g, '');
+const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
+
+const toStr = (v) => (v === undefined || v === null ? '' : String(v));
+
+const getItemParamValue = (item) => String(item?.value ?? item?.title ?? '').trim();
+const getItemTitle = (item) => String(item?.title ?? '').trim();
+
+const findByParam = (items, queryValue, fallback) => {
+  const q = normalizeKey(queryValue);
+  if (!q) return fallback;
+
+  return (
+    items.find((it) => {
+      const byValue = normalizeKey(getItemParamValue(it));
+      const byTitle = normalizeKey(getItemTitle(it));
+      return byValue === q || byTitle === q;
+    }) || fallback
+  );
+};
 
 const findByTitle = (items, title, fallback) => {
   const t = String(title || '');
@@ -23,6 +44,23 @@ const findByDigits = (items, digits, fallback) => {
   const d = String(digits || '');
   if (!d) return fallback;
   return items.find((i) => digitsOnly(i?.title) === d) || fallback;
+};
+
+const normalizeTypeForBrowse = (typeValue = '') => {
+  const t = String(typeValue || '').trim().toLowerCase();
+  if (!t) return '';
+  if (t === 'movie' || t === 'movies') return 'Movie';
+  if (
+    t === 'webseries' ||
+    t === 'web-series' ||
+    t === 'web series' ||
+    t === 'tvshows' ||
+    t === 'tv-shows' ||
+    t === 'tv shows'
+  ) {
+    return 'WebSeries';
+  }
+  return '';
 };
 
 function Dropdown({ selected, items, onSelect }) {
@@ -91,43 +129,42 @@ function Dropdown({ selected, items, onSelect }) {
   );
 }
 
-const toStr = (v) => (v === undefined || v === null ? '' : String(v));
-
-export default function MoviesFilters({
-  categories = [],
-  browseByDistinct = [],
-  query = {},
-}) {
+export default function MoviesFilters({ categories = [], browseByDistinct = [], query = {} }) {
   const router = useRouter();
 
-  // Category items
+  const typeKey = useMemo(() => normalizeTypeForBrowse(query?.type), [query?.type]);
+
   const categoryItems = useMemo(() => {
     const cats = Array.isArray(categories) ? categories : [];
     if (!cats.length) return [{ title: 'No category found' }];
     return [{ title: 'All Categories' }, ...cats.map((c) => ({ title: c.title }))];
   }, [categories]);
 
-  // BrowseBy items
+  // ✅ IMPORTANT: BrowseBy list changes by type
   const browseItems = useMemo(() => {
+    if (typeKey === 'WebSeries') return browseByWebSeriesData;
+    if (typeKey === 'Movie') return browseByMovieData;
+
+    // no type -> keep broad dropdown (static + backend distinct extras)
     const distinct = Array.isArray(browseByDistinct) ? browseByDistinct : [];
     const staticTitles = Array.isArray(browseByData)
       ? browseByData.map((b) => b.title).filter(Boolean)
       : ['Browse By'];
 
-    const seen = new Set(staticTitles.map((s) => String(s).toLowerCase()));
+    const seen = new Set(staticTitles.map((s) => normalizeKey(s)));
     const extras = distinct
       .map((s) => String(s || '').trim())
       .filter(Boolean)
-      .filter((s) => !seen.has(s.toLowerCase()));
+      .filter((s) => !seen.has(normalizeKey(s)));
 
     const titles = [...staticTitles, ...extras];
 
     const placeholder = 'Browse By';
     const without = titles.filter((t) => t !== placeholder);
-    return [{ title: placeholder }, ...without.map((t) => ({ title: t }))];
-  }, [browseByDistinct]);
 
-  // Selected states
+    return [{ title: placeholder }, ...without.map((t) => ({ title: t }))];
+  }, [typeKey, browseByDistinct]);
+
   const [category, setCategory] = useState(categoryItems[0] || { title: 'All Categories' });
   const [browseBy, setBrowseBy] = useState(browseItems[0] || { title: 'Browse By' });
   const [language, setLanguage] = useState(LanguageData[0]);
@@ -135,7 +172,7 @@ export default function MoviesFilters({
   const [times, setTimes] = useState(TimesData[0]);
   const [rates, setRates] = useState(RatesData[0]);
 
-  // Sync UI from server query (works with back/forward + SSR navigations)
+  // Sync UI from URL query
   const queryKey = useMemo(() => JSON.stringify(query || {}), [query]);
 
   useEffect(() => {
@@ -147,8 +184,12 @@ export default function MoviesFilters({
     const qRate = toStr(query?.rate);
 
     setCategory(qCategory ? findByTitle(categoryItems, qCategory, categoryItems[0]) : categoryItems[0]);
-    setBrowseBy(qBrowse ? findByTitle(browseItems, qBrowse, browseItems[0]) : browseItems[0]);
+
+    // ✅ Supports title/value mapping (Chinese label -> Chinease Drama value)
+    setBrowseBy(qBrowse ? findByParam(browseItems, qBrowse, browseItems[0]) : browseItems[0]);
+
     setLanguage(qLanguage ? findByTitle(LanguageData, qLanguage, LanguageData[0]) : LanguageData[0]);
+
     setYear(findByDigits(YearData, qYear, YearData[0]));
     setTimes(findByDigits(TimesData, qTime, TimesData[0]));
     setRates(findByDigits(RatesData, qRate, RatesData[0]));
@@ -163,6 +204,8 @@ export default function MoviesFilters({
       params.set(k, val);
     };
 
+    // Keep existing query (including type)
+    set('type', query?.type);
     set('category', query?.category);
     set('browseBy', query?.browseBy);
     set('language', query?.language);
@@ -196,10 +239,13 @@ export default function MoviesFilters({
   // Handlers
   const selectBrowseBy = (item) => {
     setBrowseBy(item);
+
     pushParams((params) => {
-      const t = String(item?.title || '');
-      if (!t || t === 'Browse By') params.delete('browseBy');
-      else params.set('browseBy', t);
+      const title = getItemTitle(item);
+      const value = getItemParamValue(item);
+
+      if (!value || title === 'Browse By') params.delete('browseBy');
+      else params.set('browseBy', value);
     });
   };
 

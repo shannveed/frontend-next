@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import React, { Suspense, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 import { BsCollectionPlay } from 'react-icons/bs';
@@ -9,6 +9,7 @@ import { CgMenuBoxed } from 'react-icons/cg';
 import { BiHomeAlt, BiCategory } from 'react-icons/bi';
 import { FaBell } from 'react-icons/fa';
 import { IoClose } from 'react-icons/io5';
+import { MdLiveTv } from 'react-icons/md';
 
 import MenuDrawer from '../drawer/MenuDrawer';
 import { SidebarContext } from '../../context/DrawerContext';
@@ -31,9 +32,13 @@ import {
 
 import { OPEN_WATCH_REQUEST_POPUP, PUSH_RECEIVED_EVENT } from '../../lib/events';
 
-export default function MobileFooter() {
+function MobileFooterInner() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const typeParam = (searchParams?.get('type') || '').toLowerCase();
+  const isTvShowsType = typeParam === 'webseries';
 
   const {
     mobileDrawer,
@@ -198,7 +203,13 @@ export default function MobileFooter() {
   const handleMoviesClick = (e) => {
     e.preventDefault();
     closeAllOverlays();
-    router.push('/movies');
+    router.push('/movies?type=Movie');
+  };
+
+  const handleTvShowsClick = (e) => {
+    e.preventDefault();
+    closeAllOverlays();
+    router.push('/movies?type=WebSeries');
   };
 
   const handleMenuClick = () => {
@@ -308,11 +319,12 @@ export default function MobileFooter() {
 
   const active = 'bg-customPurple text-white';
   const inActive =
-    'transition duration-300 text-xl flex-colo text-white hover:bg-customPurple hover:text-white rounded-md px-3 py-1.5';
+    'transition duration-300 text-lg flex-colo text-white hover:bg-customPurple hover:text-white rounded-md px-2 py-1.5';
 
   const isHomeActive = isHomePage && activeMobileTab !== 'browseBy';
   const isBrowseByActive = isHomePage && activeMobileTab === 'browseBy';
-  const isMoviesActive = isMoviesPage;
+  const isMoviesActive = isMoviesPage && !isTvShowsType;
+  const isTvShowsActive = isMoviesPage && isTvShowsType;
   const isNotifActive = notifyOpen;
 
   return (
@@ -503,6 +515,18 @@ export default function MobileFooter() {
           </button>
 
           <button
+            onClick={handleTvShowsClick}
+            className={isTvShowsActive ? `${active} ${inActive}` : inActive}
+            aria-label="Tv Shows"
+            type="button"
+          >
+            <div className="flex flex-col items-center">
+              <MdLiveTv className="text-lg" />
+              <span className="text-[9px] mt-0.5">Tv Shows</span>
+            </div>
+          </button>
+
+          <button
             onClick={handleNotificationsClick}
             className={isNotifActive ? `${active} ${inActive}` : inActive}
             aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
@@ -536,3 +560,10 @@ export default function MobileFooter() {
   );
 }
 
+export default function MobileFooter() {
+  return (
+    <Suspense fallback={null}>
+      <MobileFooterInner />
+    </Suspense>
+  );
+}
