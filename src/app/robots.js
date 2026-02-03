@@ -13,6 +13,7 @@ export default function robots() {
           '/addmovie',
           '/edit',
           '/bulk-create',
+          '/preview',
           '/get-movies',
           '/update-movies',
           '/push-notification',

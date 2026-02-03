@@ -1,49 +1,88 @@
 // frontend-next/src/app/movie/[slug]/page.jsx
-import { cache } from "react";
-import { cookies } from "next/headers";
-import { notFound, permanentRedirect } from "next/navigation";
+import { cache } from 'react';
+import { notFound, permanentRedirect } from 'next/navigation';
 
 import {
+  getBannerMovies,
+  getLatestNewMovies,
+  getMovies,
   getMovieBySlug,
-  getMovieBySlugAdmin, // ✅ NEW
   getRelatedMovies,
-  getRelatedMoviesAdmin, // ✅ NEW (optional)
-} from "../../../lib/api";
+  getTopRatedMovies,
+} from '../../../lib/api';
 
 import {
   buildMovieDescription,
   buildMovieTitle,
   movieCanonical,
   buildMovieGraphJsonLd,
-} from "../../../lib/seo";
+} from '../../../lib/seo';
 
-import JsonLd from "../../../components/seo/JsonLd";
-import MoviePageClient from "../../../components/movie/MoviePageClient";
+import JsonLd from '../../../components/seo/JsonLd';
+import MovieInfoServer from '../../../components/movie/MovieInfoServer';
+import RelatedMoviesServer from '../../../components/movie/RelatedMoviesServer';
 
-// Public fetch is cacheable
-const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 300 }));
+// kept features (client components)
+import MovieRatingsStrip from '../../../components/movie/MovieRatingsStrip';
+import EffectiveGateNativeBanner, {
+  EffectiveGateSquareAd,
+} from '../../../components/ads/EffectiveGateNativeBanner';
 
-async function getMovieForRequest(slug) {
-  // 1) Public first (SEO + caching)
-  const pub = await getPublicMovie(slug);
-  if (pub) return { movie: pub, source: "public", token: null };
+/**
+ * ✅ Long-term SEO settings:
+ * - force-static => SSG/ISR HTML (no cookies/headers here!)
+ * - revalidate => stable cache (Google gets real HTML instantly)
+ */
+export const dynamic = 'force-static';
+export const dynamicParams = true;
+export const revalidate = 86400; // 24 hours
 
-  // 2) If not found publicly → try admin using SSR cookie token
-  const token = cookies().get("mf_token")?.value || null;
-  if (!token) return { movie: null, source: "none", token: null };
+// Deduplicate fetch between generateMetadata() + page render
+const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
 
-  const adminMovie = await getMovieBySlugAdmin(slug, token);
-  if (adminMovie) return { movie: adminMovie, source: "admin", token };
+/**
+ * OPTIONAL: Prebuild a small set of high-traffic movies at build time.
+ * Everything else will still work via ISR on first request.
+ */
+export async function generateStaticParams() {
+  try {
+    const [banner, latestNew, topRated, page1] = await Promise.all([
+      getBannerMovies(10, { revalidate: 60 }).catch(() => []),
+      getLatestNewMovies(120, { revalidate: 60 }).catch(() => []),
+      getTopRatedMovies({ revalidate: 60 }).catch(() => []),
+      getMovies({ pageNumber: 1 }, { revalidate: 60 }).catch(() => ({ movies: [] })),
+    ]);
 
-  return { movie: null, source: "none", token: null };
+    const all = [
+      ...(Array.isArray(banner) ? banner : []),
+      ...(Array.isArray(latestNew) ? latestNew : []),
+      ...(Array.isArray(topRated) ? topRated : []),
+      ...(Array.isArray(page1?.movies) ? page1.movies : []),
+    ];
+
+    const set = new Set();
+    for (const m of all) {
+      const seg = m?.slug || m?._id;
+      if (seg) set.add(String(seg));
+    }
+
+    // keep build small
+    return Array.from(set)
+      .slice(0, 200)
+      .map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }) {
-  const { movie } = await getMovieForRequest(params.slug);
+  const slug = params?.slug;
+
+  const movie = await getMovie(slug);
 
   if (!movie) {
     return {
-      title: "Movie not found",
+      title: 'Movie not found',
       robots: { index: false, follow: false },
     };
   }
@@ -52,16 +91,20 @@ export async function generateMetadata({ params }) {
   const title = buildMovieTitle(movie);
   const description = buildMovieDescription(movie);
 
-  const isPublished = movie?.isPublished !== false;
-
   return {
     title,
     description,
     alternates: { canonical },
-    robots: isPublished ? { index: true, follow: true } : { index: false, follow: false },
+    robots: { index: true, follow: true },
     openGraph: {
-      type: "video.movie",
+      type: movie?.type === 'WebSeries' ? 'video.tv_show' : 'video.movie',
       url: canonical,
+      title,
+      description,
+      images: [movie?.titleImage || movie?.image].filter(Boolean),
+    },
+    twitter: {
+      card: 'summary_large_image',
       title,
       description,
       images: [movie?.titleImage || movie?.image].filter(Boolean),
@@ -70,35 +113,58 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function MoviePage({ params }) {
-  const { movie, source, token } = await getMovieForRequest(params.slug);
+  const slug = params?.slug;
 
+  const movie = await getMovie(slug);
   if (!movie) notFound();
 
-  // ✅ 308 redirect to canonical slug
-  if (movie?.slug && params.slug !== movie.slug) {
+  // ✅ canonical slug redirect (308)
+  if (movie?.slug && slug !== movie.slug) {
     permanentRedirect(`/movie/${movie.slug}`);
   }
 
-  // Related: public for public pages, admin for draft previews (optional)
-  let related = [];
-  if (source === "admin" && token) {
-    related = await getRelatedMoviesAdmin(movie.slug || movie._id, token, 20).catch(() => []);
-  } else {
-    related = await getRelatedMovies(movie.slug || movie._id, 20, {
-      revalidate: 600,
-    }).catch(() => []);
-  }
+  const seg = movie.slug || movie._id;
+
+  const related = await getRelatedMovies(seg, 20, { revalidate: 3600 }).catch(() => []);
 
   const graphLd = buildMovieGraphJsonLd(movie);
+
+  const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
   return (
     <>
       <JsonLd data={graphLd} />
-      <MoviePageClient
-        slug={params.slug}
-        initialMovie={movie}
-        initialRelated={Array.isArray(related) ? related : []}
-      />
+
+      <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
+        {/* ✅ Server-rendered SEO content */}
+        <MovieInfoServer movie={movie} />
+
+        {/* ✅ Keep existing features */}
+        {ADS_ENABLED ? (
+          <div className="my-6">
+            <EffectiveGateNativeBanner refreshKey={`movie-desktop-before-ratings:${seg}`} />
+            <div className="sm:hidden mt-4">
+              <EffectiveGateSquareAd refreshKey={`movie-mobile-before-ratings:${seg}`} />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="my-6">
+          <MovieRatingsStrip movieIdOrSlug={seg} />
+        </div>
+
+        {/* ✅ Server-rendered internal links to related movies */}
+        <RelatedMoviesServer currentId={movie._id} movies={related} />
+
+        {ADS_ENABLED ? (
+          <div className="my-10">
+            <EffectiveGateNativeBanner refreshKey={`movie-desktop-after-related:${seg}`} />
+            <div className="sm:hidden mt-4">
+              <EffectiveGateSquareAd refreshKey={`movie-mobile-after-related:${seg}`} />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }

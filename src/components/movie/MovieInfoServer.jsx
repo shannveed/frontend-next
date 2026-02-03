@@ -1,0 +1,385 @@
+// frontend-next/src/components/movie/MovieInfoServer.jsx
+import Link from 'next/link';
+import { FaFolder, FaRegClock, FaPlay, FaShareAlt, FaCloudDownloadAlt } from 'react-icons/fa';
+import { SiImdb, SiRottentomatoes } from 'react-icons/si';
+
+import MovieAverageStars from './MovieAverageStars'; // client (live avg)
+import MovieShareButtonClient from './MovieShareButtonClient';
+
+import { personSlug } from '../../lib/seo';
+
+const formatTime = (minutes) => {
+  const n = Number(minutes);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const hrs = Math.floor(n / 60);
+  const mins = Math.round(n % 60);
+  const parts = [];
+  if (hrs > 0) parts.push(`${hrs}Hr`);
+  if (mins > 0) parts.push(`${mins}Min`);
+  return parts.join(' ');
+};
+
+const toNumberOrNull = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+function ExternalRatings({ movie }) {
+  const imdb = movie?.externalRatings?.imdb || {};
+  const rt = movie?.externalRatings?.rottenTomatoes || {};
+
+  const imdbRating = toNumberOrNull(imdb.rating);
+  const imdbVotes = toNumberOrNull(imdb.votes);
+
+  const imdbUrl =
+    String(imdb.url || '').trim() ||
+    (movie?.imdbId ? `https://www.imdb.com/title/${movie.imdbId}/` : '') ||
+    (movie?.name ? `https://www.imdb.com/find?q=${encodeURIComponent(movie.name)}` : '');
+
+  const rtRating = toNumberOrNull(rt.rating);
+  const rtUrl =
+    String(rt.url || '').trim() ||
+    (movie?.name
+      ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(movie.name)}`
+      : '');
+
+  const badge =
+    'inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions';
+
+  return (
+    <div className="flex flex-wrap gap-2 mt-3">
+      {imdbUrl ? (
+        <a href={imdbUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+          <SiImdb className="text-[#f5c518]" />
+          <span className="font-semibold">IMDb</span>
+          <span className="text-dryGray">
+            {imdbRating !== null ? `${imdbRating.toFixed(1)}/10` : 'View'}
+            {imdbRating !== null && imdbVotes !== null ? ` (${imdbVotes.toLocaleString()} votes)` : ''}
+          </span>
+        </a>
+      ) : null}
+
+      {rtUrl ? (
+        <a href={rtUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+          <SiRottentomatoes className="text-[#fa320a]" />
+          <span className="font-semibold">Rotten</span>
+          <span className="text-dryGray">{rtRating !== null ? `${rtRating}%` : 'Search'}</span>
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function CastScroller({ casts = [] }) {
+  const list = Array.isArray(casts) ? casts.filter((c) => c?.name).slice(0, 20) : [];
+  if (!list.length) return null;
+
+  return (
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-semibold text-sm">Cast</h3>
+        <span className="text-xs text-dryGray">{list.length} shown</span>
+      </div>
+
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {list.map((c, idx) => {
+          const slug = c?.slug || personSlug(c?.name || '');
+          return (
+            <Link
+              key={`${slug}-${idx}`}
+              href={`/actor/${slug}`}
+              className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions"
+            >
+              <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border">
+                <img
+                  src={c?.image || '/images/placeholder.jpg'}
+                  alt={c?.name || 'Actor'}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
+                {c?.name}
+              </p>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+export default function MovieInfoServer({ movie }) {
+  const seg = movie?.slug || movie?._id;
+
+  const categoryHref = movie?.category
+    ? `/movies?category=${encodeURIComponent(movie.category)}`
+    : '/movies';
+
+  const languageHref = movie?.language
+    ? `/movies?language=${encodeURIComponent(movie.language)}`
+    : '/movies';
+
+  const browseByHref = movie?.browseBy
+    ? `/movies?browseBy=${encodeURIComponent(movie.browseBy)}`
+    : '/movies';
+
+  const directorName = String(movie?.director || '').trim();
+  const directorSlug = movie?.directorSlug || (directorName ? personSlug(directorName) : '');
+  const directorHref = directorSlug ? `/actor/${directorSlug}` : '';
+
+  const heroImage = movie?.titleImage || movie?.image || '/images/placeholder.jpg';
+  const bgImage = movie?.image || heroImage;
+  const posterImage = movie?.titleImage || heroImage;
+
+  return (
+    <div className="w-full text-white">
+      {/* MOBILE */}
+      <section className="sm:hidden px-4 mt-4">
+        <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
+          <img
+            src={heroImage}
+            alt={movie?.name || 'Movie'}
+            className="w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+
+        <div className="mt-3 bg-dry border border-border rounded-xl p-4">
+          <h1 className="text-lg font-bold leading-snug">{movie?.name}</h1>
+
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-dryGray">
+            {movie?.time ? (
+              <span className="inline-flex items-center gap-1">
+                <FaRegClock className="text-subMain w-3 h-3" />
+                {formatTime(movie.time)}
+              </span>
+            ) : null}
+
+            {movie?.year ? (
+              <Link href={`/movies?year=${encodeURIComponent(movie.year)}`} className="hover:text-customPurple transitions">
+                {movie.year}
+              </Link>
+            ) : null}
+
+            {movie?.category ? (
+              <Link href={categoryHref} className="inline-flex items-center gap-1 hover:text-customPurple transitions">
+                <FaFolder className="text-subMain w-3 h-3" />
+                {movie.category}
+              </Link>
+            ) : null}
+
+            {movie?.language ? (
+              <Link href={languageHref} className="hover:text-customPurple transitions">
+                {movie.language}
+              </Link>
+            ) : null}
+
+            {movie?.browseBy ? (
+              <Link href={browseByHref} className="hover:text-customPurple transitions">
+                {movie.browseBy}
+              </Link>
+            ) : null}
+          </div>
+
+          {directorName && directorHref ? (
+            <div className="mt-2 text-xs text-dryGray">
+              Director:{' '}
+              <Link href={directorHref} className="text-customPurple hover:underline">
+                {directorName}
+              </Link>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex gap-2">
+            <Link
+              href={`/watch/${seg}`}
+              className="flex-1 bg-customPurple hover:bg-opacity-90 transition text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+            >
+              <FaPlay className="text-sm" />
+              Watch
+            </Link>
+
+            <MovieShareButtonClient
+              movieName={movie?.name || ''}
+              buttonClassName="w-12 h-12 rounded-lg border border-border bg-main hover:border-customPurple transition flex items-center justify-center"
+            >
+              <FaShareAlt />
+            </MovieShareButtonClient>
+          </div>
+        </div>
+
+        {/* ✅ Description = real server HTML text (indexable) */}
+        {movie?.desc ? (
+          <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+            <h2 className="text-sm font-semibold mb-2">Description</h2>
+            <p className="text-sm text-text leading-6 whitespace-pre-line">{movie.desc}</p>
+          </div>
+        ) : null}
+
+        {/* Rating (server visible + client refresh) */}
+        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-white font-semibold text-sm">Rating</p>
+            <p className="text-xs text-dryGray">
+              {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
+            </p>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <MovieAverageStars movieIdOrSlug={seg} fallback={movie?.rate || 0} />
+            <span className="text-sm text-dryGray">
+              {Number(movie?.rate || 0).toFixed(1)}/5
+            </span>
+          </div>
+
+          <ExternalRatings movie={movie} />
+        </div>
+
+        <CastScroller casts={movie?.casts} />
+      </section>
+
+      {/* DESKTOP/TABLET */}
+      <section className="hidden sm:block">
+        <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
+          <img
+            src={bgImage}
+            alt={movie?.name || 'Movie background'}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-main/95" />
+
+          <div className="relative container mx-auto px-8 py-10 lg:py-14">
+            <div className="grid grid-cols-3 gap-8 items-start">
+              {/* Poster */}
+              <div className="col-span-1">
+                <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
+                  <img
+                    src={posterImage}
+                    alt={movie?.name || 'Movie'}
+                    className="w-full h-auto object-cover"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="col-span-2">
+                <h1 className="text-3xl lg:text-4xl font-bold leading-tight">
+                  {movie?.name}
+                </h1>
+
+                {/* ✅ Category/year/language links (indexable) */}
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-dryGray text-sm">
+                  {movie?.time ? (
+                    <span className="inline-flex items-center gap-1">
+                      <FaRegClock className="text-subMain w-3 h-3" />
+                      {formatTime(movie.time)}
+                    </span>
+                  ) : null}
+
+                  {movie?.year ? (
+                    <Link href={`/movies?year=${encodeURIComponent(movie.year)}`} className="hover:text-customPurple transitions">
+                      {movie.year}
+                    </Link>
+                  ) : null}
+
+                  {movie?.category ? (
+                    <Link href={categoryHref} className="inline-flex items-center gap-1 hover:text-customPurple transitions">
+                      <FaFolder className="text-subMain w-3 h-3" />
+                      {movie.category}
+                    </Link>
+                  ) : null}
+
+                  {movie?.language ? (
+                    <Link href={languageHref} className="hover:text-customPurple transitions">
+                      {movie.language}
+                    </Link>
+                  ) : null}
+
+                  {movie?.browseBy ? (
+                    <Link href={browseByHref} className="hover:text-customPurple transitions">
+                      {movie.browseBy}
+                    </Link>
+                  ) : null}
+
+                  {directorName && directorHref ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-subMain">Director:</span>
+                      <Link href={directorHref} className="text-customPurple hover:underline">
+                        {directorName}
+                      </Link>
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* ✅ Description real text */}
+                {movie?.desc ? (
+                  <div className="mt-5 text-text text-sm leading-7">
+                    <p className="whitespace-pre-line">{movie.desc}</p>
+                  </div>
+                ) : null}
+
+                {/* Watch + Share + Download */}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/watch/${seg}`}
+                    className="bg-customPurple hover:bg-opacity-90 transition text-white px-8 py-3 rounded-lg font-semibold flex items-center gap-2"
+                  >
+                    <FaPlay className="text-sm" />
+                    Watch
+                  </Link>
+
+                  <MovieShareButtonClient
+                    movieName={movie?.name || ''}
+                    buttonClassName="px-6 py-3 rounded-lg border border-border bg-black/30 hover:border-customPurple transition flex items-center gap-2"
+                  >
+                    <FaShareAlt />
+                    Share
+                  </MovieShareButtonClient>
+
+                  {movie?.type === 'Movie' && movie?.downloadUrl ? (
+                    <a
+                      href={movie.downloadUrl}
+                      className="px-6 py-3 rounded-lg border border-customPurple bg-black/30 hover:bg-customPurple hover:text-white transition flex items-center gap-2"
+                    >
+                      <FaCloudDownloadAlt />
+                      Download
+                    </a>
+                  ) : null}
+                </div>
+
+                {/* Rating */}
+                <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-white font-semibold text-sm">Rating</p>
+                    <p className="text-xs text-dryGray">
+                      {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
+                    </p>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <MovieAverageStars movieIdOrSlug={seg} fallback={movie?.rate || 0} />
+                    <span className="text-sm text-dryGray">
+                      {Number(movie?.rate || 0).toFixed(1)}/5
+                    </span>
+                  </div>
+
+                  <ExternalRatings movie={movie} />
+                </div>
+
+                <CastScroller casts={movie?.casts} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
