@@ -1,6 +1,8 @@
-// src/lib/seo.js
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com')
-  .replace(/\/+$/, '');
+// frontend-next/src/lib/seo.js
+
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com'
+).replace(/\/+$/, '');
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 
@@ -32,7 +34,8 @@ export const personSlug = (name = '') =>
     .replace(/^-+|-+$/g, '');
 
 export const actorCanonicalBySlug = (slug) => `${SITE_URL}/actor/${clean(slug)}`;
-export const actorCanonicalByName = (name) => actorCanonicalBySlug(personSlug(name));
+export const actorCanonicalByName = (name) =>
+  actorCanonicalBySlug(personSlug(name));
 
 /* ============================
    Canonicals
@@ -47,7 +50,7 @@ export const watchUrl = (movie) => {
   return `${SITE_URL}/watch/${seg}`;
 };
 
-// /watch is canonical to itself (your choice)
+// /watch canonical to itself
 export const watchCanonical = (movie) => watchUrl(movie);
 
 /* ============================
@@ -78,8 +81,18 @@ export const buildBreadcrumbJsonLd = (movie) => {
     '@id': `${canonical}#breadcrumb`,
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-      { '@type': 'ListItem', position: 2, name: 'Movies', item: `${SITE_URL}/movies` },
-      { '@type': 'ListItem', position: 3, name: clean(movie?.name || 'Movie'), item: canonical },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Movies',
+        item: `${SITE_URL}/movies`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: clean(movie?.name || 'Movie'),
+        item: canonical,
+      },
     ],
   };
 };
@@ -90,83 +103,105 @@ const asNumber = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const minutesToIsoDuration = (minutes) => {
+  const n = asNumber(minutes);
+  if (n === null || n <= 0) return null;
 
+  const hrs = Math.floor(n / 60);
+  const mins = Math.round(n % 60);
+
+  let out = 'PT';
+  if (hrs > 0) out += `${hrs}H`;
+  if (mins > 0) out += `${mins}M`;
+
+  // fallback (shouldn’t happen but safe)
+  if (out === 'PT') out = `PT${Math.round(n)}M`;
+
+  return out;
+};
+
+/**
+ * ✅ IMPORTANT SEO FIX:
+ * We DO NOT output third‑party ratings as schema.org "Review" objects.
+ * Google’s review snippet rules are strict, and your current markup triggers:
+ * "Multiple reviews without aggregateRating".
+ *
+ * Instead, we expose external ratings only as:
+ * - sameAs (links)
+ * - additionalProperty (informational)
+ */
 const buildExternalRatingNodes = (movie) => {
   const imdb = movie?.externalRatings?.imdb || {};
   const rt = movie?.externalRatings?.rottenTomatoes || {};
 
-  // 1. EXTRACT RATINGS FIRST (using the fixed asNumber)
-  const imdbRating = asNumber(imdb.rating);
-  const rtRating = asNumber(rt.rating);
-
-  // 2. CHECK VISIBILITY (Strict null checks)
-  const showImdb = imdbRating !== null;
-  const showRt = rtRating !== null;
-
+  const imdbRating = asNumber(imdb.rating); // 0..10
   const imdbVotes = asNumber(imdb.votes);
-  const imdbUrl = clean(imdb.url) || (movie?.imdbId ? `https://www.imdb.com/title/${movie.imdbId}/` : '');
+  const imdbUrl =
+    clean(imdb.url) ||
+    (movie?.imdbId ? `https://www.imdb.com/title/${clean(movie.imdbId)}/` : '');
 
-  const rtUrl = clean(rt.url) || (movie?.name ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(movie.name)}` : '');
+  const rtRating = asNumber(rt.rating); // 0..100
+  const rtUrl =
+    clean(rt.url) ||
+    (movie?.name
+      ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
+          movie.name
+        )}`
+      : '');
 
-  // Visible-on-page safe fields
   const additionalProperty = [];
+  const sameAs = [];
 
-  // 3. USE THE STRICT FLAGS
-  if (showImdb) {
+  if (imdbUrl) sameAs.push(imdbUrl);
+  if (rtUrl) sameAs.push(rtUrl);
+
+  if (imdbRating !== null) {
     additionalProperty.push({
       '@type': 'PropertyValue',
       name: 'IMDb rating',
-      value: imdbVotes ? `${imdbRating}/10 (${imdbVotes} votes)` : `${imdbRating}/10`,
-      url: imdbUrl || undefined,
+      value:
+        imdbVotes !== null
+          ? `${imdbRating}/10 (${imdbVotes.toLocaleString()} votes)`
+          : `${imdbRating}/10`,
+      ...(imdbUrl ? { url: imdbUrl } : {}),
     });
   }
 
-  if (showRt) {
+  if (rtRating !== null) {
     additionalProperty.push({
       '@type': 'PropertyValue',
       name: 'Rotten Tomatoes',
       value: `${rtRating}%`,
-      url: rtUrl || undefined,
+      ...(rtUrl ? { url: rtUrl } : {}),
     });
   }
 
-  // Optional: also express as “critic reviews”
-  const reviews = [];
-  if (showImdb) {
-    reviews.push({
-      '@type': 'Review',
-      name: 'IMDb user rating',
-      reviewBody: `IMDb users rated this title ${imdbRating}/10.`,
-      author: { '@type': 'Organization', name: 'IMDb' },
-      publisher: { '@type': 'Organization', name: 'IMDb' },
-      url: imdbUrl || undefined,
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: imdbRating,
-        bestRating: '10',
-        worstRating: '1',
-      },
-    });
-  }
+  return { additionalProperty, sameAs };
+};
 
-  if (showRt) {
-    reviews.push({
-      '@type': 'Review',
-      name: 'Rotten Tomatoes score',
-      reviewBody: `Rotten Tomatoes score: ${rtRating}%.`,
-      author: { '@type': 'Organization', name: 'Rotten Tomatoes' },
-      publisher: { '@type': 'Organization', name: 'Rotten Tomatoes' },
-      url: rtUrl || undefined,
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: rtRating,
-        bestRating: '100',
-        worstRating: '0',
-      },
-    });
-  }
+/**
+ * On-site aggregate rating (your own users)
+ * - Only include when count >= 1 and avg > 0
+ * - Keeps Google Review Snippet markup valid
+ */
+const buildSiteAggregateRating = (movie) => {
+  const count = asNumber(movie?.numberOfReviews);
+  const avg = asNumber(movie?.rate);
 
-  return { additionalProperty, reviews };
+  if (!count || count < 1) return null;
+  if (avg === null || avg <= 0) return null;
+
+  // Clamp just in case legacy 0..5 data exists
+  const ratingValue = Math.max(1, Math.min(5, avg));
+
+  return {
+    '@type': 'AggregateRating',
+    ratingValue: ratingValue.toFixed(1),
+    ratingCount: Math.round(count),
+    reviewCount: Math.round(count),
+    bestRating: '5',
+    worstRating: '1',
+  };
 };
 
 /* ============================
@@ -175,20 +210,20 @@ const buildExternalRatingNodes = (movie) => {
 export const buildMovieJsonLd = (movie) => {
   const canonical = movieCanonical(movie);
   const isSeries = movie?.type === 'WebSeries';
-
   const schemaType = isSeries ? 'TVSeries' : 'Movie';
 
-  const image = absoluteUrl(movie?.titleImage || movie?.image || '/images/MOVIEFROST.png');
+  const image = absoluteUrl(
+    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+  );
 
   const directorName = clean(movie?.director);
-  const director =
-    directorName
-      ? {
-          '@type': 'Person',
-          name: directorName,
-          url: actorCanonicalByName(directorName),
-        }
-      : undefined;
+  const director = directorName
+    ? {
+        '@type': 'Person',
+        name: directorName,
+        url: actorCanonicalByName(directorName),
+      }
+    : undefined;
 
   const actors = Array.isArray(movie?.casts)
     ? movie.casts
@@ -207,27 +242,19 @@ export const buildMovieJsonLd = (movie) => {
         }))
     : [];
 
-  // MovieFrost rating (your site)
-  const aggregateRating =
-    typeof movie?.numberOfReviews === 'number' && movie.numberOfReviews > 0
-      ? {
-          '@type': 'AggregateRating',
-          ratingValue: Number(movie?.rate || 0).toFixed(1),
-          reviewCount: movie.numberOfReviews,
-          bestRating: '5',
-          worstRating: '0',
-        }
-      : undefined;
+  const aggregateRating = buildSiteAggregateRating(movie);
 
   const year = movie?.year ? Number(movie.year) : null;
 
-  // WebSeries counts (optional but useful)
+  // WebSeries counts (optional)
   const episodes = Array.isArray(movie?.episodes) ? movie.episodes : [];
   const seasonSet = new Set(episodes.map((e) => Number(e?.seasonNumber || 1)));
   const numberOfSeasons = isSeries ? seasonSet.size || undefined : undefined;
   const numberOfEpisodes = isSeries ? episodes.length || undefined : undefined;
 
-  const { additionalProperty, reviews } = buildExternalRatingNodes(movie);
+  const { additionalProperty, sameAs } = buildExternalRatingNodes(movie);
+
+  const duration = minutesToIsoDuration(movie?.time);
 
   const node = {
     '@type': schemaType,
@@ -240,7 +267,7 @@ export const buildMovieJsonLd = (movie) => {
     inLanguage: clean(movie?.language || ''),
     genre: clean(movie?.category || ''),
     keywords: clean(movie?.seoKeywords || ''),
-    duration: movie?.time ? `PT${Number(movie.time)}M` : undefined,
+    duration: duration || undefined,
     isFamilyFriendly: true,
 
     ...(director ? { director } : {}),
@@ -248,10 +275,9 @@ export const buildMovieJsonLd = (movie) => {
 
     ...(aggregateRating ? { aggregateRating } : {}),
 
-    ...(reviews.length ? { review: reviews } : {}),
     ...(additionalProperty.length ? { additionalProperty } : {}),
+    ...(sameAs.length ? { sameAs } : {}),
 
-    // Engagement (helps SEO graph completeness; no rich result guarantee)
     ...(Number.isFinite(Number(movie?.viewCount))
       ? {
           interactionStatistic: [
@@ -264,7 +290,6 @@ export const buildMovieJsonLd = (movie) => {
         }
       : {}),
 
-    // Watch action
     potentialAction: {
       '@type': 'WatchAction',
       target: watchUrl(movie),

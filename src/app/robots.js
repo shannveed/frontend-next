@@ -13,9 +13,9 @@ export default function robots() {
           '/addmovie',
           '/edit',
           '/bulk-create',
-          '/preview',
           '/get-movies',
           '/update-movies',
+          '/preview',
           '/push-notification',
           '/categories',
           '/users',
@@ -25,6 +25,11 @@ export default function robots() {
           '/api',
         ],
       },
+      // ✅ Explicitly allow Bing/Yandex bots to ensure no accidental blocking
+      {
+        userAgent: ['Bingbot', 'Yandex'], 
+        allow: '/',
+      }
     ],
     sitemap: [
       `${SITE_URL}/sitemap-index.xml`,

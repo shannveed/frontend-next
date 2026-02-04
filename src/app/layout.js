@@ -16,10 +16,8 @@ export const metadata = {
 
   description: 'Watch free movies and web series online in HD on MovieFrost.',
 
-  // ✅ REQUIRED: adds <link rel="manifest" href="/manifest.json" />
   manifest: '/manifest.json',
 
-  // ✅ FIX: use the working path you requested
   icons: {
     icon: [{ url: '/images/favicon1.png', type: 'image/png' }],
     shortcut: ['/images/favicon1.png'],
@@ -30,6 +28,25 @@ export const metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'MovieFrost',
+  },
+
+  // ✅ Q1: Search Engine Verification Configuration
+  verification: {
+    // Google is likely handled via GSC file or analytics, but can be added here too:
+    // google: 'your-google-code',
+    
+    // Yandex
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || undefined,
+    
+    // Yahoo (often uses Bing's code, but allows specific tag)
+    yahoo: process.env.NEXT_PUBLIC_BING_VERIFICATION || undefined,
+    
+    // Other engines (Bing, Baidu, Naver) map to specific meta names
+    other: {
+      ...(process.env.NEXT_PUBLIC_BING_VERIFICATION && {
+        'msvalidate.01': process.env.NEXT_PUBLIC_BING_VERIFICATION,
+      }),
+    },
   },
 };
 
