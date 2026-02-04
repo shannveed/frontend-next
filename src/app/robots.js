@@ -1,4 +1,4 @@
-// src/app/robots.js
+// frontend-next/src/app/robots.js
 import { SITE_URL } from '../lib/seo';
 
 export default function robots() {
@@ -24,12 +24,8 @@ export default function robots() {
           '/favorites',
           '/api',
         ],
+        crawlDelay: 1, // Google ignores; Bing/Yandex may respect it
       },
-      // ✅ Explicitly allow Bing/Yandex bots to ensure no accidental blocking
-      {
-        userAgent: ['Bingbot', 'Yandex'], 
-        allow: '/',
-      }
     ],
     sitemap: [
       `${SITE_URL}/sitemap-index.xml`,

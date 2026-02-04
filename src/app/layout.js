@@ -6,6 +6,31 @@ import { SITE_URL } from '../lib/seo';
 import Providers from './providers';
 import SiteChrome from '../components/layout/SiteChrome';
 
+const buildVerification = () => {
+  const v = {};
+  const other = {};
+
+  // Google Search Console (optional)
+  const google = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+
+  // Yandex
+  const yandex = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION;
+
+  // Bing
+  const bing = process.env.NEXT_PUBLIC_BING_VERIFICATION; // meta name: msvalidate.01
+
+
+  if (google) v.google = google;
+  if (yandex) v.yandex = yandex;
+
+  if (bing) other['msvalidate.01'] = bing;
+
+
+  if (Object.keys(other).length) v.other = other;
+
+  return Object.keys(v).length ? v : undefined;
+};
+
 export const metadata = {
   metadataBase: new URL(SITE_URL),
 
@@ -30,24 +55,8 @@ export const metadata = {
     title: 'MovieFrost',
   },
 
-  // ✅ Q1: Search Engine Verification Configuration
-  verification: {
-    // Google is likely handled via GSC file or analytics, but can be added here too:
-    // google: 'your-google-code',
-    
-    // Yandex
-    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || undefined,
-    
-    // Yahoo (often uses Bing's code, but allows specific tag)
-    yahoo: process.env.NEXT_PUBLIC_BING_VERIFICATION || undefined,
-    
-    // Other engines (Bing, Baidu, Naver) map to specific meta names
-    other: {
-      ...(process.env.NEXT_PUBLIC_BING_VERIFICATION && {
-        'msvalidate.01': process.env.NEXT_PUBLIC_BING_VERIFICATION,
-      }),
-    },
-  },
+  // ✅ NEW: verification tags (Bing/Yandex/Baidu/Naver + optional Google)
+  verification: buildVerification(),
 };
 
 export const viewport = {
