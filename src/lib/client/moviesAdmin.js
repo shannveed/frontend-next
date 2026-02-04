@@ -66,11 +66,11 @@ export const setBannerMovies = (token, movieIds = [], value = true) =>
   });
 
 // ADMIN: reorder within page
-export const reorderMoviesInPage = (token, pageNumber, orderedIds = []) =>
+export const reorderMoviesInPage = (token, pageNumber, orderedIds = [], query = {}) =>
   apiFetch(`/api/movies/admin/reorder-page`, {
     method: 'POST',
     token,
-    body: { pageNumber, orderedIds },
+    body: { pageNumber, orderedIds, query },
   });
 
 // ADMIN: move movies to page

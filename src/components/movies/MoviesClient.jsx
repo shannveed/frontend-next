@@ -193,7 +193,12 @@ export default function MoviesClient({
     if (!isAdmin || !token) return;
     try {
       setSaving(true);
-      await reorderMoviesInPage(token, page, localOrder.map((m) => m._id));
+      await reorderMoviesInPage(
+       token,
+       page,
+       localOrder.map((m) => m._id),
+       initialQuery // includes type=Movie / type=WebSeries
+     );
       toast.success('Order saved for this page');
       setPendingReorder(false);
       router.refresh();
