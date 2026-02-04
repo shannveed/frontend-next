@@ -5,15 +5,14 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import {
   getMovieBySlug,
-  getMovieBySlugAdmin, // ✅ NEW
+  getMovieBySlugAdmin,
   getRelatedMovies,
-  getRelatedMoviesAdmin, // ✅ NEW (optional)
+  getRelatedMoviesAdmin,
 } from "../../../lib/api";
 
 import { buildMovieDescription, buildMovieTitle, watchCanonical } from "../../../lib/seo";
 import WatchClient from "../../../components/watch/WatchClient";
 
-// Public fetch is cacheable
 const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
 
 async function getMovieForRequest(slug) {
@@ -36,14 +35,14 @@ export async function generateMetadata({ params }) {
     return { title: "Not found", robots: { index: false, follow: false } };
   }
 
-  const title = `Watch: ${buildMovieTitle(movie)}`;
+  const title = buildMovieTitle(movie, { maxLen: 60 });
   const description = buildMovieDescription(movie);
   const canonical = watchCanonical(movie);
 
   const isPublished = movie?.isPublished !== false;
 
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: { canonical },
     robots: isPublished ? { index: true, follow: true } : { index: false, follow: false },
@@ -70,9 +69,7 @@ export default async function WatchPage({ params }) {
   if (source === "admin" && token) {
     related = await getRelatedMoviesAdmin(movie.slug || movie._id, token, 20).catch(() => []);
   } else {
-    related = await getRelatedMovies(movie.slug || movie._id, 20, {
-      revalidate: 600,
-    }).catch(() => []);
+    related = await getRelatedMovies(movie.slug || movie._id, 20, { revalidate: 600 }).catch(() => []);
   }
 
   return (

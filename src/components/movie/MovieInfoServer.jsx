@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { FaFolder, FaRegClock, FaPlay, FaShareAlt, FaCloudDownloadAlt } from 'react-icons/fa';
 import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
-import MovieAverageStars from './MovieAverageStars'; // client (live avg)
+import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
 
 import { personSlug } from '../../lib/seo';
@@ -149,7 +149,8 @@ export default function MovieInfoServer({ movie }) {
         </div>
 
         <div className="mt-3 bg-dry border border-border rounded-xl p-4">
-          <h1 className="text-lg font-bold leading-snug">{movie?.name}</h1>
+          {/* ✅ changed h1 -> h2 to keep only ONE h1 on page */}
+          <h2 className="text-lg font-bold leading-snug">{movie?.name}</h2>
 
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-dryGray">
             {movie?.time ? (
@@ -212,7 +213,6 @@ export default function MovieInfoServer({ movie }) {
           </div>
         </div>
 
-        {/* ✅ Description = real server HTML text (indexable) */}
         {movie?.desc ? (
           <div className="mt-4 bg-dry border border-border rounded-xl p-4">
             <h2 className="text-sm font-semibold mb-2">Description</h2>
@@ -220,7 +220,6 @@ export default function MovieInfoServer({ movie }) {
           </div>
         ) : null}
 
-        {/* Rating (server visible + client refresh) */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white font-semibold text-sm">Rating</p>
@@ -256,7 +255,6 @@ export default function MovieInfoServer({ movie }) {
 
           <div className="relative container mx-auto px-8 py-10 lg:py-14">
             <div className="grid grid-cols-3 gap-8 items-start">
-              {/* Poster */}
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
                   <img
@@ -269,13 +267,12 @@ export default function MovieInfoServer({ movie }) {
                 </div>
               </div>
 
-              {/* Details */}
               <div className="col-span-2">
+                {/* ✅ single H1 stays here */}
                 <h1 className="text-3xl lg:text-4xl font-bold leading-tight">
                   {movie?.name}
                 </h1>
 
-                {/* ✅ Category/year/language links (indexable) */}
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-dryGray text-sm">
                   {movie?.time ? (
                     <span className="inline-flex items-center gap-1">
@@ -319,14 +316,12 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
                 </div>
 
-                {/* ✅ Description real text */}
                 {movie?.desc ? (
                   <div className="mt-5 text-text text-sm leading-7">
                     <p className="whitespace-pre-line">{movie.desc}</p>
                   </div>
                 ) : null}
 
-                {/* Watch + Share + Download */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/watch/${seg}`}
@@ -355,7 +350,6 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
                 </div>
 
-                {/* Rating */}
                 <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-white font-semibold text-sm">Rating</p>

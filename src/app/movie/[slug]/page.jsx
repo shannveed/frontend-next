@@ -22,28 +22,17 @@ import JsonLd from '../../../components/seo/JsonLd';
 import MovieInfoServer from '../../../components/movie/MovieInfoServer';
 import RelatedMoviesServer from '../../../components/movie/RelatedMoviesServer';
 
-// kept features (client components)
 import MovieRatingsStrip from '../../../components/movie/MovieRatingsStrip';
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../../../components/ads/EffectiveGateNativeBanner';
 
-/**
- * ✅ Long-term SEO settings:
- * - force-static => SSG/ISR HTML (no cookies/headers here!)
- * - revalidate => stable cache (Google gets real HTML instantly)
- */
 export const dynamic = 'force-static';
 export const dynamicParams = true;
-export const revalidate = 86400; // 24 hours
+export const revalidate = 86400;
 
-// Deduplicate fetch between generateMetadata() + page render
 const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
 
-/**
- * OPTIONAL: Prebuild a small set of high-traffic movies at build time.
- * Everything else will still work via ISR on first request.
- */
 export async function generateStaticParams() {
   try {
     const [banner, latestNew, topRated, page1] = await Promise.all([
@@ -66,10 +55,7 @@ export async function generateStaticParams() {
       if (seg) set.add(String(seg));
     }
 
-    // keep build small
-    return Array.from(set)
-      .slice(0, 200)
-      .map((slug) => ({ slug }));
+    return Array.from(set).slice(0, 200).map((slug) => ({ slug }));
   } catch {
     return [];
   }
@@ -77,7 +63,6 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const slug = params?.slug;
-
   const movie = await getMovie(slug);
 
   if (!movie) {
@@ -88,11 +73,14 @@ export async function generateMetadata({ params }) {
   }
 
   const canonical = movieCanonical(movie);
-  const title = buildMovieTitle(movie);
+
+  // ✅ Short + consistent for all movies/webseries
+  const title = buildMovieTitle(movie, { maxLen: 60 });
   const description = buildMovieDescription(movie);
 
   return {
-    title,
+    // ✅ absolute => no "| MovieFrost" template appended (keeps titles short)
+    title: { absolute: title },
     description,
     alternates: { canonical },
     robots: { index: true, follow: true },
@@ -118,7 +106,6 @@ export default async function MoviePage({ params }) {
   const movie = await getMovie(slug);
   if (!movie) notFound();
 
-  // ✅ canonical slug redirect (308)
   if (movie?.slug && slug !== movie.slug) {
     permanentRedirect(`/movie/${movie.slug}`);
   }
@@ -128,7 +115,6 @@ export default async function MoviePage({ params }) {
   const related = await getRelatedMovies(seg, 20, { revalidate: 3600 }).catch(() => []);
 
   const graphLd = buildMovieGraphJsonLd(movie);
-
   const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
   return (
@@ -136,10 +122,8 @@ export default async function MoviePage({ params }) {
       <JsonLd data={graphLd} />
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-        {/* ✅ Server-rendered SEO content */}
         <MovieInfoServer movie={movie} />
 
-        {/* ✅ Keep existing features */}
         {ADS_ENABLED ? (
           <div className="my-6">
             <EffectiveGateNativeBanner refreshKey={`movie-desktop-before-ratings:${seg}`} />
@@ -153,7 +137,6 @@ export default async function MoviePage({ params }) {
           <MovieRatingsStrip movieIdOrSlug={seg} />
         </div>
 
-        {/* ✅ Server-rendered internal links to related movies */}
         <RelatedMoviesServer currentId={movie._id} movies={related} />
 
         {ADS_ENABLED ? (

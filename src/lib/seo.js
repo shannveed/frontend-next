@@ -53,20 +53,154 @@ export const watchUrl = (movie) => {
 // /watch canonical to itself
 export const watchCanonical = (movie) => watchUrl(movie);
 
+/* ============================================================
+   ✅ Title normalization helpers (NEW)
+   ============================================================ */
+
+const escapeRegex = (value = '') =>
+  String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const includesYearToken = (text, year) => {
+  const y = String(year || '').trim();
+  if (!y) return false;
+  return new RegExp(`\\b${escapeRegex(y)}\\b`).test(String(text || ''));
+};
+
+// Remove leading "Watch", trailing "Online Free" etc if someone put it in name
+const stripObviousPrefixSuffix = (raw = '') => {
+  let t = clean(raw);
+
+  // leading "Watch" / "Watch:"
+  t = t.replace(/^(?:watch)\s*[:\-–—]?\s*/i, '');
+
+  // trailing brand/seo junk if it ever exists in name
+  t = t.replace(/\s*\|\s*moviefrost\s*$/i, '');
+
+  // trailing phrases (only at the END)
+  t = t.replace(
+    /\s+(?:watch\s+online|online\s+free|full\s+movie|full\s+hd|download)\s*$/i,
+    ''
+  );
+
+  return clean(t);
+};
+
+const isMarketingSegment = (seg = '') => {
+  const s = clean(seg).toLowerCase();
+  if (!s) return false;
+
+  // strong “marketing” intent words
+  if (/\bwatch\b/.test(s)) return true;
+  if (/\bonline\b/.test(s)) return true;
+  if (/\bdownload\b/.test(s)) return true;
+  if (/\bstream(?:ing)?\b/.test(s)) return true;
+
+  // "Full/HD/4K/1080p..." + "movie" combo
+  const hasQuality = /\b(full|hd|4k|1080p|720p)\b/.test(s);
+  const hasMovieWord = /\bmovie\b/.test(s);
+
+  if (hasQuality && hasMovieWord) return true;
+
+  // segment is literally "movie" or "full movie"
+  if (/^(?:full\s+)?movie$/.test(s)) return true;
+
+  return false;
+};
+
+// Remove trailing marketing chunks AFTER separators like: "Title - Full HD Movie"
+const stripTrailingMarketingSegments = (raw = '') => {
+  const t = clean(raw);
+  if (!t) return '';
+
+  // split only when the separator has spaces around it (to avoid breaking normal hyphenated words)
+  const parts = t.split(/\s(?:\||-|—|–)\s/);
+  if (parts.length <= 1) return t;
+
+  let end = parts.length;
+  while (end > 1 && isMarketingSegment(parts[end - 1])) end -= 1;
+
+  return clean(parts.slice(0, end).join(' - '));
+};
+
+const normalizeMovieNameForSeo = (movie) => {
+  const nameRaw = movie?.name || '';
+  let name = stripObviousPrefixSuffix(nameRaw);
+  name = stripTrailingMarketingSegments(name);
+  return clean(name);
+};
+
+const buildMovieNameWithYear = (movie) => {
+  const base = normalizeMovieNameForSeo(movie) || 'Movie';
+
+  const y = Number(movie?.year);
+  if (Number.isFinite(y) && y > 0 && !includesYearToken(base, y)) {
+    return `${base} (${y})`;
+  }
+  return base;
+};
+
+// Truncate the name part but try to keep trailing "(YYYY)" if present
+const clampNameKeepTrailingYear = (nameWithYear, maxLen) => {
+  const s = clean(nameWithYear);
+  if (s.length <= maxLen) return s;
+
+  const m = s.match(/\((\d{4})\)\s*$/);
+  if (m) {
+    const yearSuffix = `(${m[1]})`;
+    const body = clean(s.slice(0, m.index));
+
+    const needed = yearSuffix.length + 1; // space + year
+    const avail = maxLen - needed;
+
+    if (avail <= 1) return yearSuffix;
+
+    const bodyClipped =
+      body.length > avail
+        ? body.slice(0, Math.max(1, avail - 1)).trimEnd() + '…'
+        : body;
+
+    return clean(`${bodyClipped} ${yearSuffix}`);
+  }
+
+  return s.slice(0, Math.max(1, maxLen - 1)).trimEnd() + '…';
+};
+
+const buildPatternTitle = (
+  nameWithYear,
+  { maxLen = 60, prefix = 'Watch ', suffix = ' Online Free' } = {}
+) => {
+  const p = String(prefix);
+  const suf = String(suffix);
+
+  const nameMax = Math.max(10, maxLen - p.length - suf.length); // safety floor
+  const clippedName = clampNameKeepTrailingYear(nameWithYear, nameMax);
+
+  return clean(`${p}${clippedName}${suf}`);
+};
+
 /* ============================
    Titles / descriptions
    ============================ */
-export const buildMovieTitle = (movie) => {
-  const name = clean(movie?.seoTitle || movie?.name || 'Movie');
-  const year = movie?.year ? ` (${movie.year})` : '';
-  return `Watch ${name}${year} Online Free`;
+
+/**
+ * ✅ FIXED:
+ * - does NOT use seoTitle (prevents long marketing titles)
+ * - ensures year appears only once
+ * - clamps to safe length
+ * - always produces: "Watch <Name (Year)> Online Free"
+ */
+export const buildMovieTitle = (movie, { maxLen = 60 } = {}) => {
+  const nameWithYear = buildMovieNameWithYear(movie);
+  return buildPatternTitle(nameWithYear, { maxLen });
 };
 
 export const buildMovieDescription = (movie) => {
-  const name = clean(movie?.name || 'Movie');
-  const year = movie?.year ? ` (${movie.year})` : '';
-  const base = `${name}${year} — watch online free in HD on MovieFrost.`;
+  // ✅ also avoid "(2026) (2026)" duplication in descriptions
+  const nameWithYear = buildMovieNameWithYear(movie);
+
+  const base = `${nameWithYear} — watch online free in HD on MovieFrost.`;
   const extra = ` Plot, cast, release year and more.`;
+
   return truncate(movie?.seoDescription || `${base}${extra}`, 160);
 };
 
@@ -114,18 +248,13 @@ const minutesToIsoDuration = (minutes) => {
   if (hrs > 0) out += `${hrs}H`;
   if (mins > 0) out += `${mins}M`;
 
-  // fallback (shouldn’t happen but safe)
   if (out === 'PT') out = `PT${Math.round(n)}M`;
-
   return out;
 };
 
 /**
  * ✅ IMPORTANT SEO FIX:
  * We DO NOT output third‑party ratings as schema.org "Review" objects.
- * Google’s review snippet rules are strict, and your current markup triggers:
- * "Multiple reviews without aggregateRating".
- *
  * Instead, we expose external ratings only as:
  * - sameAs (links)
  * - additionalProperty (informational)
@@ -134,13 +263,13 @@ const buildExternalRatingNodes = (movie) => {
   const imdb = movie?.externalRatings?.imdb || {};
   const rt = movie?.externalRatings?.rottenTomatoes || {};
 
-  const imdbRating = asNumber(imdb.rating); // 0..10
+  const imdbRating = asNumber(imdb.rating);
   const imdbVotes = asNumber(imdb.votes);
   const imdbUrl =
     clean(imdb.url) ||
     (movie?.imdbId ? `https://www.imdb.com/title/${clean(movie.imdbId)}/` : '');
 
-  const rtRating = asNumber(rt.rating); // 0..100
+  const rtRating = asNumber(rt.rating);
   const rtUrl =
     clean(rt.url) ||
     (movie?.name
@@ -181,8 +310,6 @@ const buildExternalRatingNodes = (movie) => {
 
 /**
  * On-site aggregate rating (your own users)
- * - Only include when count >= 1 and avg > 0
- * - Keeps Google Review Snippet markup valid
  */
 const buildSiteAggregateRating = (movie) => {
   const count = asNumber(movie?.numberOfReviews);
@@ -191,7 +318,6 @@ const buildSiteAggregateRating = (movie) => {
   if (!count || count < 1) return null;
   if (avg === null || avg <= 0) return null;
 
-  // Clamp just in case legacy 0..5 data exists
   const ratingValue = Math.max(1, Math.min(5, avg));
 
   return {
@@ -246,7 +372,6 @@ export const buildMovieJsonLd = (movie) => {
 
   const year = movie?.year ? Number(movie.year) : null;
 
-  // WebSeries counts (optional)
   const episodes = Array.isArray(movie?.episodes) ? movie.episodes : [];
   const seasonSet = new Set(episodes.map((e) => Number(e?.seasonNumber || 1)));
   const numberOfSeasons = isSeries ? seasonSet.size || undefined : undefined;
@@ -272,9 +397,7 @@ export const buildMovieJsonLd = (movie) => {
 
     ...(director ? { director } : {}),
     ...(actors.length ? { actor: actors } : {}),
-
     ...(aggregateRating ? { aggregateRating } : {}),
-
     ...(additionalProperty.length ? { additionalProperty } : {}),
     ...(sameAs.length ? { sameAs } : {}),
 
