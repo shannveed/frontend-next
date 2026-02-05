@@ -42,15 +42,11 @@ const nextConfig = {
 
   async redirects() {
     const redirects = [
-      // ✅ Browsers often request /favicon.ico even if you set a PNG favicon.
-      // This lets you remove favicon.ico safely.
       {
         source: '/favicon.ico',
         destination: '/images/favicon1.png',
         permanent: true,
       },
-
-      // ✅ Optional: if anything still links to /favicon1.png
       {
         source: '/favicon1.png',
         destination: '/images/favicon1.png',
@@ -58,7 +54,6 @@ const nextConfig = {
       },
     ];
 
-    // Force moviefrost.com -> www.moviefrost.com if your canonical host is www
     if (new URL(SITE_URL).hostname === 'www.moviefrost.com') {
       redirects.push({
         source: '/:path*',
@@ -80,6 +75,16 @@ const nextConfig = {
       {
         source: '/favicon.ico',
         headers: [{ key: 'Cache-Control', value: faviconCache }],
+      },
+
+      // ✅ SEO: ensure these pages cannot be indexed (headers-level)
+      {
+        source: '/watch/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+      },
+      {
+        source: '/actor/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
 
       // keep your existing headers:

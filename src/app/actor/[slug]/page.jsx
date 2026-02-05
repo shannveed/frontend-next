@@ -1,9 +1,12 @@
-// src/app/actor/[slug]/page.jsx
+// frontend-next/src/app/actor/[slug]/page.jsx
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
 
 import { getActorBySlug } from '../../../lib/api';
-import { SITE_URL, buildActorGraphJsonLd, actorCanonicalBySlug } from '../../../lib/seo';
+import {
+  buildActorGraphJsonLd,
+  actorCanonicalBySlug,
+} from '../../../lib/seo';
 import JsonLd from '../../../components/seo/JsonLd';
 
 import ActorPageClient from '../../../components/actor/ActorPageClient';
@@ -24,6 +27,14 @@ export async function generateMetadata({ params }) {
     title: `${name} — Movies & Web Series`,
     description: `Browse movies and web series featuring ${name} on MovieFrost.`,
     alternates: { canonical },
+
+    // ✅ IMPORTANT: /actor pages should NOT be indexed
+    robots: {
+      index: false,
+      follow: true,
+      googleBot: { index: false, follow: true },
+    },
+
     openGraph: {
       type: 'profile',
       url: canonical,

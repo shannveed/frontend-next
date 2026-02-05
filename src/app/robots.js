@@ -24,14 +24,10 @@ export default function robots() {
           '/favorites',
           '/api',
         ],
-        crawlDelay: 1, // Google ignores; Bing/Yandex may respect it
       },
     ],
-    sitemap: [
-      `${SITE_URL}/sitemap-index.xml`,
-      `${SITE_URL}/sitemap.xml`,
-      `${SITE_URL}/sitemap-videos.xml`,
-      `${SITE_URL}/sitemap-actors.xml`,
-    ],
+
+    // ✅ Q2: only indexable URLs are submitted
+    sitemap: [`${SITE_URL}/sitemap-index.xml`, `${SITE_URL}/sitemap.xml`],
   };
 }
