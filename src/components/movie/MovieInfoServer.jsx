@@ -1,10 +1,17 @@
 // frontend-next/src/components/movie/MovieInfoServer.jsx
 import Link from 'next/link';
-import { FaFolder, FaRegClock, FaPlay, FaShareAlt, FaCloudDownloadAlt } from 'react-icons/fa';
+import {
+  FaFolder,
+  FaRegClock,
+  FaPlay,
+  FaShareAlt,
+  FaCloudDownloadAlt,
+} from 'react-icons/fa';
 import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
+import ExpandableText from '../common/ExpandableText';
 
 import { personSlug } from '../../lib/seo';
 
@@ -35,13 +42,17 @@ function ExternalRatings({ movie }) {
   const imdbUrl =
     String(imdb.url || '').trim() ||
     (movie?.imdbId ? `https://www.imdb.com/title/${movie.imdbId}/` : '') ||
-    (movie?.name ? `https://www.imdb.com/find?q=${encodeURIComponent(movie.name)}` : '');
+    (movie?.name
+      ? `https://www.imdb.com/find?q=${encodeURIComponent(movie.name)}`
+      : '');
 
   const rtRating = toNumberOrNull(rt.rating);
   const rtUrl =
     String(rt.url || '').trim() ||
     (movie?.name
-      ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(movie.name)}`
+      ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
+          movie.name
+        )}`
       : '');
 
   const badge =
@@ -50,21 +61,35 @@ function ExternalRatings({ movie }) {
   return (
     <div className="flex flex-wrap gap-2 mt-3">
       {imdbUrl ? (
-        <a href={imdbUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+        <a
+          href={imdbUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={badge}
+        >
           <SiImdb className="text-[#f5c518]" />
           <span className="font-semibold">IMDb</span>
           <span className="text-dryGray">
             {imdbRating !== null ? `${imdbRating.toFixed(1)}/10` : 'View'}
-            {imdbRating !== null && imdbVotes !== null ? ` (${imdbVotes.toLocaleString()} votes)` : ''}
+            {imdbRating !== null && imdbVotes !== null
+              ? ` (${imdbVotes.toLocaleString()} votes)`
+              : ''}
           </span>
         </a>
       ) : null}
 
       {rtUrl ? (
-        <a href={rtUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+        <a
+          href={rtUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={badge}
+        >
           <SiRottentomatoes className="text-[#fa320a]" />
           <span className="font-semibold">Rotten</span>
-          <span className="text-dryGray">{rtRating !== null ? `${rtRating}%` : 'Search'}</span>
+          <span className="text-dryGray">
+            {rtRating !== null ? `${rtRating}%` : 'Search'}
+          </span>
         </a>
       ) : null}
     </div>
@@ -72,7 +97,9 @@ function ExternalRatings({ movie }) {
 }
 
 function CastScroller({ casts = [] }) {
-  const list = Array.isArray(casts) ? casts.filter((c) => c?.name).slice(0, 20) : [];
+  const list = Array.isArray(casts)
+    ? casts.filter((c) => c?.name).slice(0, 20)
+    : [];
   if (!list.length) return null;
 
   return (
@@ -127,7 +154,8 @@ export default function MovieInfoServer({ movie }) {
     : '/movies';
 
   const directorName = String(movie?.director || '').trim();
-  const directorSlug = movie?.directorSlug || (directorName ? personSlug(directorName) : '');
+  const directorSlug =
+    movie?.directorSlug || (directorName ? personSlug(directorName) : '');
   const directorHref = directorSlug ? `/actor/${directorSlug}` : '';
 
   const heroImage = movie?.titleImage || movie?.image || '/images/placeholder.jpg';
@@ -149,7 +177,7 @@ export default function MovieInfoServer({ movie }) {
         </div>
 
         <div className="mt-3 bg-dry border border-border rounded-xl p-4">
-          {/* ✅ changed h1 -> h2 to keep only ONE h1 on page */}
+          {/* keep only ONE h1 on page (desktop uses h1) */}
           <h2 className="text-lg font-bold leading-snug">{movie?.name}</h2>
 
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-dryGray">
@@ -161,26 +189,38 @@ export default function MovieInfoServer({ movie }) {
             ) : null}
 
             {movie?.year ? (
-              <Link href={`/movies?year=${encodeURIComponent(movie.year)}`} className="hover:text-customPurple transitions">
+              <Link
+                href={`/movies?year=${encodeURIComponent(movie.year)}`}
+                className="hover:text-customPurple transitions"
+              >
                 {movie.year}
               </Link>
             ) : null}
 
             {movie?.category ? (
-              <Link href={categoryHref} className="inline-flex items-center gap-1 hover:text-customPurple transitions">
+              <Link
+                href={categoryHref}
+                className="inline-flex items-center gap-1 hover:text-customPurple transitions"
+              >
                 <FaFolder className="text-subMain w-3 h-3" />
                 {movie.category}
               </Link>
             ) : null}
 
             {movie?.language ? (
-              <Link href={languageHref} className="hover:text-customPurple transitions">
+              <Link
+                href={languageHref}
+                className="hover:text-customPurple transitions"
+              >
                 {movie.language}
               </Link>
             ) : null}
 
             {movie?.browseBy ? (
-              <Link href={browseByHref} className="hover:text-customPurple transitions">
+              <Link
+                href={browseByHref}
+                className="hover:text-customPurple transitions"
+              >
                 {movie.browseBy}
               </Link>
             ) : null}
@@ -189,7 +229,10 @@ export default function MovieInfoServer({ movie }) {
           {directorName && directorHref ? (
             <div className="mt-2 text-xs text-dryGray">
               Director:{' '}
-              <Link href={directorHref} className="text-customPurple hover:underline">
+              <Link
+                href={directorHref}
+                className="text-customPurple hover:underline"
+              >
                 {directorName}
               </Link>
             </div>
@@ -213,10 +256,17 @@ export default function MovieInfoServer({ movie }) {
           </div>
         </div>
 
+        {/* ✅ UPDATED: Description (300 words + Show more) */}
         {movie?.desc ? (
           <div className="mt-4 bg-dry border border-border rounded-xl p-4">
             <h2 className="text-sm font-semibold mb-2">Description</h2>
-            <p className="text-sm text-text leading-6 whitespace-pre-line">{movie.desc}</p>
+
+            <ExpandableText
+              text={movie.desc}
+              wordLimit={300}
+              textClassName="text-sm text-text leading-6 whitespace-pre-line"
+              buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+            />
           </div>
         ) : null}
 
@@ -268,7 +318,6 @@ export default function MovieInfoServer({ movie }) {
               </div>
 
               <div className="col-span-2">
-                {/* ✅ single H1 stays here */}
                 <h1 className="text-3xl lg:text-4xl font-bold leading-tight">
                   {movie?.name}
                 </h1>
@@ -282,26 +331,38 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
 
                   {movie?.year ? (
-                    <Link href={`/movies?year=${encodeURIComponent(movie.year)}`} className="hover:text-customPurple transitions">
+                    <Link
+                      href={`/movies?year=${encodeURIComponent(movie.year)}`}
+                      className="hover:text-customPurple transitions"
+                    >
                       {movie.year}
                     </Link>
                   ) : null}
 
                   {movie?.category ? (
-                    <Link href={categoryHref} className="inline-flex items-center gap-1 hover:text-customPurple transitions">
+                    <Link
+                      href={categoryHref}
+                      className="inline-flex items-center gap-1 hover:text-customPurple transitions"
+                    >
                       <FaFolder className="text-subMain w-3 h-3" />
                       {movie.category}
                     </Link>
                   ) : null}
 
                   {movie?.language ? (
-                    <Link href={languageHref} className="hover:text-customPurple transitions">
+                    <Link
+                      href={languageHref}
+                      className="hover:text-customPurple transitions"
+                    >
                       {movie.language}
                     </Link>
                   ) : null}
 
                   {movie?.browseBy ? (
-                    <Link href={browseByHref} className="hover:text-customPurple transitions">
+                    <Link
+                      href={browseByHref}
+                      className="hover:text-customPurple transitions"
+                    >
                       {movie.browseBy}
                     </Link>
                   ) : null}
@@ -309,16 +370,25 @@ export default function MovieInfoServer({ movie }) {
                   {directorName && directorHref ? (
                     <span className="inline-flex items-center gap-1">
                       <span className="text-subMain">Director:</span>
-                      <Link href={directorHref} className="text-customPurple hover:underline">
+                      <Link
+                        href={directorHref}
+                        className="text-customPurple hover:underline"
+                      >
                         {directorName}
                       </Link>
                     </span>
                   ) : null}
                 </div>
 
+                {/* ✅ UPDATED: Description (300 words + Show more) */}
                 {movie?.desc ? (
                   <div className="mt-5 text-text text-sm leading-7">
-                    <p className="whitespace-pre-line">{movie.desc}</p>
+                    <ExpandableText
+                      text={movie.desc}
+                      wordLimit={300}
+                      textClassName="whitespace-pre-line"
+                      buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+                    />
                   </div>
                 ) : null}
 

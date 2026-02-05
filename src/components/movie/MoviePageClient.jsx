@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { BsCollectionFill } from 'react-icons/bs';
-// Icons removed here as they were only used in the deleted mobile bar
 
 import Loader from '../common/Loader';
 import MovieInfoClient from './MovieInfoClient';
@@ -13,7 +12,6 @@ import ShareModalClient from './ShareModalClient';
 import MovieRatingsStrip from './MovieRatingsStrip';
 import MovieCard from './MovieCard';
 
-// ✅ NEW: ads (same as Watch page)
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../ads/EffectiveGateNativeBanner';
@@ -66,10 +64,8 @@ export default function MoviePageClient({
   const [error, setError] = useState('');
 
   const [shareOpen, setShareOpen] = useState(false);
-  // liked state is still kept if you want to pass it to MovieInfoClient later
   const [liked, setLiked] = useState(false);
 
-  // track userInfo from localStorage (CRA login writes to localStorage)
   useEffect(() => {
     setUserInfo(getUserInfo());
     const onStorage = () => setUserInfo(getUserInfo());
@@ -77,7 +73,6 @@ export default function MoviePageClient({
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // If server couldn't fetch the movie (draft or not found), try on client:
   useEffect(() => {
     let cancelled = false;
 
@@ -127,13 +122,11 @@ export default function MoviePageClient({
     };
   }, [slug, movie, token, isAdmin]);
 
-  // Keep canonical URL
   useEffect(() => {
     if (!movie?.slug || !slug) return;
     if (movie.slug !== slug) router.replace(`/movie/${movie.slug}`);
   }, [movie?.slug, slug, router]);
 
-  // Fetch related if server didn't provide
   useEffect(() => {
     let cancelled = false;
 
@@ -151,7 +144,6 @@ export default function MoviePageClient({
     };
   }, [movie?._id, movie?.slug, related?.length]);
 
-  // Load favorites
   useEffect(() => {
     let cancelled = false;
 
@@ -181,38 +173,11 @@ export default function MoviePageClient({
     };
   }, [token, movie?._id]);
 
-  const handleDownload = (url) => {
-    if (!url) return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.setAttribute('download', '');
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
-  const handleLike = async () => {
-    const tokenNow = getUserInfo()?.token;
-    if (!tokenNow) {
-      toast.error('Please login to add to favorites');
-      window.location.href = '/login';
-      return;
-    }
-
-    try {
-      await likeMovie(tokenNow, { movieId: movie._id });
-      setLiked(true);
-      toast.success('Added to your favorites');
-    } catch (e) {
-      toast.error(e?.message || 'Failed to add to favorites');
-    }
-  };
-
   const relatedToShow = useMemo(() => {
     const list = Array.isArray(related) ? related : [];
     return list
       .filter((m) => String(m?._id) !== String(movie?._id))
-      .slice(0, 10);
+      .slice(0, 20); // ✅ was 10
   }, [related, movie?._id]);
 
   const seg = movie?.slug || movie?._id || slug;
@@ -241,15 +206,8 @@ export default function MoviePageClient({
           </div>
         ) : movie ? (
           <>
-            <MovieInfoClient
-              movie={movie}
-              onShare={() => setShareOpen(true)}
-              onDownload={handleDownload}
-              onBack={() => router.back()}
-              // You can pass onLike={handleLike} here if MovieInfoClient needs it
-            />
+            <MovieInfoClient movie={movie} onShare={() => setShareOpen(true)} />
 
-            {/* ✅ NEW: Ads banner ABOVE user ratings (same style as Watch page) */}
             <EffectiveGateNativeBanner refreshKey={`movie-desktop-before-ratings:${seg}`} />
             <EffectiveGateSquareAd
               refreshKey={`movie-mobile-before-ratings:${seg}`}
@@ -267,19 +225,26 @@ export default function MoviePageClient({
                   <h3 className="text-white font-semibold">Related Movies</h3>
                 </div>
 
-                <div className="grid sm:mt-6 mt-4 xl:grid-cols-5 2xl:grid-cols-5 lg:grid-cols-3 sm:grid-cols-2 mobile:grid-cols-2 grid-cols-1 gap-4 mobile:gap-3">
+                {/* ✅ Match Watch page grid styling */}
+                <div className="grid sm:mt-6 mt-4 xl:grid-cols-5 2xl:grid-cols-5 lg:grid-cols-3 sm:grid-cols-5 mobile:grid-cols-2 mobile:gap-3 gap-4">
                   {relatedToShow.map((m) => (
-                    <MovieCard key={m._id} movie={m} />
+                    <MovieCard key={m._id} movie={m} showLike />
                   ))}
                 </div>
+
+                <div className="flex justify-center mt-10">
+                  <a
+                    href="/movies"
+                    className="bg-customPurple hover:bg-transparent border-2 border-customPurple transitions text-white px-8 py-3 rounded font-medium"
+                  >
+                    Show More
+                  </a>
+                </div>
               </div>
-              
             )}
           </>
         ) : null}
       </div>
-          
-      {/* Mobile Quick Actions block has been removed */}
     </>
   );
 }

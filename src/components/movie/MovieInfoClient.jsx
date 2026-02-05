@@ -1,7 +1,7 @@
 // src/components/movie/MovieInfoClient.jsx
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import {
   FaFolder,
@@ -14,24 +14,7 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import SafeImage from '../common/SafeImage';
-
-const MOBILE_DESC_WORDS = 50;
-const DESKTOP_DESC_WORDS = 100;
-
-const splitWords = (text = '') =>
-  String(text || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(Boolean);
-
-const truncateByWords = (text, maxWords) => {
-  const words = splitWords(text);
-  if (!words.length) return { text: '', isTruncated: false };
-  if (words.length <= maxWords)
-    return { text: words.join(' '), isTruncated: false };
-  return { text: `${words.slice(0, maxWords).join(' ')}…`, isTruncated: true };
-};
+import ExpandableText from '../common/ExpandableText';
 
 const formatTime = (minutes) => {
   const n = Number(minutes);
@@ -139,7 +122,6 @@ function ExternalRatings({ movie }) {
   );
 }
 
-
 function CastScroller({ casts = [] }) {
   const list = Array.isArray(casts)
     ? casts.filter((c) => c?.name).slice(0, 20)
@@ -151,7 +133,7 @@ function CastScroller({ casts = [] }) {
     <section className="mt-6">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-white font-semibold text-sm">Cast</h3>
-        <span className="text-xs text-dryGray">{list.length} shown</span>
+        <span className="text-xs text-dry">{list.length} shown</span>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -161,25 +143,24 @@ function CastScroller({ casts = [] }) {
 
           return (
             <Link
-  key={`${slug}-${idx}`}
-  href={href}
-  className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions"
->
-  <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border flex items-center justify-center">
-    <SafeImage
-      src={c?.image || '/images/placeholder.jpg'}
-      alt={c?.name || 'Actor'}
-      width={100}
-      height={120}
-      className="object-contain"
-    />
-  </div>
+              key={`${slug}-${idx}`}
+              href={href}
+              className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions"
+            >
+              <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border flex items-center justify-center">
+                <SafeImage
+                  src={c?.image || '/images/placeholder.jpg'}
+                  alt={c?.name || 'Actor'}
+                  width={100}
+                  height={120}
+                  className="object-contain"
+                />
+              </div>
 
-  <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
-    {c?.name}
-  </p>
-</Link>
-
+              <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
+                {c?.name}
+              </p>
+            </Link>
           );
         })}
       </div>
@@ -188,21 +169,7 @@ function CastScroller({ casts = [] }) {
 }
 
 export default function MovieInfoClient({ movie, onShare }) {
-  const [descExpanded, setDescExpanded] = useState(false);
-
-  useEffect(() => setDescExpanded(false), [movie?._id]);
-
   const watchSeg = movie?.slug || movie?._id;
-
-  const mobileDesc = useMemo(
-    () => truncateByWords(movie?.desc || '', MOBILE_DESC_WORDS),
-    [movie?.desc]
-  );
-
-  const desktopDesc = useMemo(
-    () => truncateByWords(movie?.desc || '', DESKTOP_DESC_WORDS),
-    [movie?.desc]
-  );
 
   const categoryHref = movie?.category
     ? `/movies?category=${encodeURIComponent(movie.category)}`
@@ -211,12 +178,9 @@ export default function MovieInfoClient({ movie, onShare }) {
   const directorName = String(movie?.director || '').trim();
   const directorHref = directorName ? `/actor/${personSlug(directorName)}` : '';
 
-  /* =========================
-     MOBILE (unchanged)
-     ========================= */
   return (
     <div className="w-full text-white">
-      {/* MOBILE HERO: titleImage 60vh + title/meta + watch button */}
+      {/* MOBILE */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
           <SafeImage
@@ -290,28 +254,19 @@ export default function MovieInfoClient({ movie, onShare }) {
           </div>
         </div>
 
-        {/* BELOW TOP VIEWPORT: Description */}
+        {/* ✅ UPDATED: Description (300 words + Show more) */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <h2 className="text-sm font-semibold mb-2">Description</h2>
 
-          <p className="text-sm text-text leading-6 whitespace-pre-line">
-            {descExpanded || !mobileDesc.isTruncated
-              ? movie?.desc || ''
-              : mobileDesc.text}
-          </p>
-
-          {mobileDesc.isTruncated ? (
-            <button
-              type="button"
-              onClick={() => setDescExpanded((p) => !p)}
-              className="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-            >
-              {descExpanded ? 'Show less' : 'Read more'}
-            </button>
-          ) : null}
+          <ExpandableText
+            text={movie?.desc || ''}
+            wordLimit={300}
+            textClassName="text-sm text-text leading-6 whitespace-pre-line"
+            buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+          />
         </div>
 
-        {/* Rating section */}
+        {/* Rating */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white font-semibold text-sm">Rating</p>
@@ -337,14 +292,9 @@ export default function MovieInfoClient({ movie, onShare }) {
         <CastScroller casts={movie?.casts} />
       </section>
 
-      {/* =========================
-         DESKTOP/TABLET (sm+): background image + poster left + content right
-         Order:
-         info row -> description -> watch/share -> rating -> cast
-         ========================= */}
+      {/* DESKTOP/TABLET */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
-          {/* Background image visible on ALL sm+ */}
           <SafeImage
             src={movie?.image || movie?.titleImage || '/images/placeholder.jpg'}
             alt={movie?.name || 'Movie background'}
@@ -353,20 +303,14 @@ export default function MovieInfoClient({ movie, onShare }) {
             className="object-cover"
           />
 
-          {/* Dark overlay for readability */}
           <div className="absolute inset-0 bg-main/95" />
 
           <div className="relative container mx-auto px-8 py-10 lg:py-14">
             <div className="grid grid-cols-3 gap-8 items-start">
-              {/* Poster / Title image */}
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
                   <SafeImage
-                    src={
-                      movie?.titleImage ||
-                      movie?.image ||
-                      '/images/placeholder.jpg'
-                    }
+                    src={movie?.titleImage || movie?.image || '/images/placeholder.jpg'}
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}
@@ -375,13 +319,11 @@ export default function MovieInfoClient({ movie, onShare }) {
                 </div>
               </div>
 
-              {/* Details */}
               <div className="col-span-2">
                 <h1 className="text-3xl lg:text-4xl  font-bold leading-tight">
                   {movie?.name}
                 </h1>
 
-                {/* Info line: duration, category, language, director */}
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-dryGray text-sm">
                   {movie?.time ? (
                     <span className="inline-flex items-center gap-1">
@@ -420,26 +362,16 @@ export default function MovieInfoClient({ movie, onShare }) {
                   ) : null}
                 </div>
 
-                {/* Description */}
+                {/* ✅ UPDATED: Description (300 words + Show more) */}
                 <div className="mt-5 text-text text-sm leading-7">
-                  <p className="whitespace-pre-line">
-                    {descExpanded || !desktopDesc.isTruncated
-                      ? movie?.desc || ''
-                      : desktopDesc.text}
-                  </p>
-
-                  {desktopDesc.isTruncated ? (
-                    <button
-                      type="button"
-                      onClick={() => setDescExpanded((p) => !p)}
-                      className="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-                    >
-                      {descExpanded ? 'Show less' : 'Read more'}
-                    </button>
-                  ) : null}
+                  <ExpandableText
+                    text={movie?.desc || ''}
+                    wordLimit={300}
+                    textClassName="whitespace-pre-line"
+                    buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
+                  />
                 </div>
 
-                {/* Watch + Share + (Desktop Download if exists) */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/watch/${watchSeg}`}
@@ -470,13 +402,11 @@ export default function MovieInfoClient({ movie, onShare }) {
                   ) : null}
                 </div>
 
-                {/* Rating */}
                 <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-white font-semibold text-sm">Rating</p>
                     <p className="text-xs text-dryGray">
-                      {Number(movie?.numberOfReviews || 0).toLocaleString()}{' '}
-                      reviews
+                      {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
                     </p>
                   </div>
 
@@ -493,7 +423,6 @@ export default function MovieInfoClient({ movie, onShare }) {
                   <ExternalRatings movie={movie} />
                 </div>
 
-                {/* Cast */}
                 <CastScroller casts={movie?.casts} />
               </div>
             </div>
