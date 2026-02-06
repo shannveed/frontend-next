@@ -8,6 +8,7 @@ const ALLOWED_HOSTNAMES = new Set([
   'www.moviefrost.com',
   'moviefrost.com',
   'moviefrost-backend.vercel.app',
+  'image.tmdb.org',
   'fra.cloud.appwrite.io',
   'cloud.appwrite.io',
 ]);

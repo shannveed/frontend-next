@@ -69,7 +69,7 @@ const emptyForm = {
 
   director: '',
   imdbId: '', // ✅ NEW
-  casts: [], // ✅ NEW
+
 
   seoTitle: '',
   seoDescription: '',

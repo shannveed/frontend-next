@@ -16,6 +16,7 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.moviefrost.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'image.tmdb.org', pathname: '/t/p/**' },
       { protocol: 'https', hostname: 'www.moviefrost.com', pathname: '/**' },
       { protocol: 'https', hostname: 'moviefrost.com', pathname: '/**' },
       { protocol: 'https', hostname: 'moviefrost-backend-flax.vercel.app', pathname: '/**' },
