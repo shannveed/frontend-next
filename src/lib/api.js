@@ -1,6 +1,6 @@
 // frontend-next/src/lib/api.js
 const RAW_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://moviefrost-backend.vercel.app";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://moviefrost-backend-flax.vercel.app";
 
 // ✅ normalize: remove trailing slashes + accidental "/api"
 const API_BASE = RAW_BASE.replace(/\/+$/, "").replace(/\/api$/i, "");
