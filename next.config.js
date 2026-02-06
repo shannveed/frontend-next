@@ -33,7 +33,6 @@ const nextConfig = {
 
         // sitemaps are served by backend
         { source: '/sitemap.xml', destination: `${API_BASE}/sitemap.xml` },
-        { source: '/sitemap-videos.xml', destination: `${API_BASE}/sitemap-videos.xml` },
         { source: '/sitemap-index.xml', destination: `${API_BASE}/sitemap-index.xml` },
         { source: '/sitemap-actors.xml', destination: `${API_BASE}/sitemap-actors.xml` },
       ],
@@ -71,7 +70,6 @@ const nextConfig = {
       'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
 
     return [
-      // ✅ New favicon location
       {
         source: '/favicon.ico',
         headers: [{ key: 'Cache-Control', value: faviconCache }],
@@ -87,7 +85,6 @@ const nextConfig = {
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
 
-      // keep your existing headers:
       {
         source: '/service-worker.js',
         headers: [
