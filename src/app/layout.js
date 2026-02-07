@@ -5,6 +5,7 @@ import { SITE_URL } from '../lib/seo';
 
 import Providers from './providers';
 import SiteChrome from '../components/layout/SiteChrome';
+import EzoicScripts from '@/components/ads/EzoicScripts';
 
 const buildVerification = () => {
   const v = {};
@@ -72,6 +73,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
+          {/* ✅ Ezoic verification scripts (toggle via env) */}
+        <EzoicScripts />
         {GA_ID ? (
           <>
             <Script

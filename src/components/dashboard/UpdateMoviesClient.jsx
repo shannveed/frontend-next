@@ -64,9 +64,22 @@ const parseNamesFromInput = (raw = '') => {
 
 const shortId = (id) => String(id || '').slice(0, 8).toUpperCase();
 
+const normalizeFaqsForEditor = (faqs) => {
+  const list = Array.isArray(faqs) ? faqs : [];
+  return list
+    .map((f) => ({
+      question: String(f?.question || '').trim(),
+      answer: String(f?.answer || '').trim(),
+    }))
+    .filter((f) => f.question && f.answer)
+    .slice(0, 5);
+};
+
 /**
  * Build a SAFE editable payload for PUT /api/movies/bulk-exact
  * We intentionally DO NOT include: rate, numberOfReviews, reviews, viewCount, externalRatings, etc.
+ *
+ * ✅ FIXED: include trailerUrl + faqs so Update Movies can edit them.
  */
 const toEditableDoc = (m) => {
   const type = String(m?.type || 'Movie');
@@ -92,6 +105,10 @@ const toEditableDoc = (m) => {
     imdbId: String(m?.imdbId || ''),
 
     casts: Array.isArray(m?.casts) ? m.casts : [],
+
+    // ✅ NEW
+    trailerUrl: String(m?.trailerUrl || ''),
+    faqs: normalizeFaqsForEditor(m?.faqs),
 
     seoTitle: String(m?.seoTitle || ''),
     seoDescription: String(m?.seoDescription || ''),
@@ -304,7 +321,7 @@ function UpdateMoviesInner({ token }) {
         <textarea
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
-          placeholder="Paste movie/web-series names (one per line) OR JSON array..."
+          placeholder="Paste names (one per line) OR JSON array..."
           className="w-full min-h-[220px] bg-black border border-border rounded-lg p-4 text-xs font-mono text-white outline-none focus:border-customPurple"
         />
 
@@ -462,7 +479,7 @@ function UpdateMoviesInner({ token }) {
 
               <button
                 type="button"
-                onClick={formatEditor}
+                onClick={() => formatEditor()}
                 className="ml-auto px-3 py-2 text-xs border border-border rounded hover:bg-main transition"
               >
                 Format JSON
@@ -493,10 +510,10 @@ function UpdateMoviesInner({ token }) {
             />
 
             <div className="text-xs text-dryGray">
-              This JSON is sent to: <code className="text-white">PUT /api/movies/bulk-exact</code>
+              This JSON is sent to:{' '}
+              <code className="text-white">PUT /api/movies/bulk-exact</code>
             </div>
 
-            {/* Update results */}
             {updateResult ? (
               <div className="bg-main border border-border rounded-lg p-3 space-y-2">
                 <div className="flex flex-wrap gap-4 text-sm">
