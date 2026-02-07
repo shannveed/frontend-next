@@ -1,3 +1,4 @@
+// frontend-next/src/components/dashboard/MovieEditorClient.jsx
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -39,6 +40,8 @@ const PREDEFINED_BROWSEBY = [
   'WWE Wrestling',
 ];
 
+const MAX_FAQS = 5;
+
 const emptyEpisode = (episodeNumber = 1) => ({
   _id: undefined,
   seasonNumber: 1,
@@ -56,6 +59,11 @@ const emptyCast = () => ({
   image: '',
 });
 
+const emptyFaq = () => ({
+  question: '',
+  answer: '',
+});
+
 const emptyForm = {
   type: 'Movie',
   name: '',
@@ -68,8 +76,11 @@ const emptyForm = {
   desc: '',
 
   director: '',
-  imdbId: '', // ✅ NEW
+  imdbId: '',
 
+  // ✅ NEW (Q1)
+  trailerUrl: '',
+  faqs: [],
 
   seoTitle: '',
   seoDescription: '',
@@ -90,6 +101,12 @@ const emptyForm = {
 const isLikelyObjectId = (v) => /^[a-f\d]{24}$/i.test(String(v || ''));
 
 const isValidImdbId = (v) => /^tt\d{5,10}$/i.test(String(v || '').trim());
+
+const isValidHttpUrlOrEmpty = (v) => {
+  const s = String(v || '').trim();
+  if (!s) return true;
+  return /^https?:\/\//i.test(s);
+};
 
 export default function MovieEditorClient({ mode = 'create', movieId = null }) {
   return (
@@ -203,6 +220,32 @@ function EditorInner({ mode, movieId, token }) {
     }));
   };
 
+  // ✅ FAQ helpers (Q1)
+  const updateFaq = (idx, k, v) => {
+    setForm((p) => {
+      const faqs = Array.isArray(p.faqs) ? [...p.faqs] : [];
+      const cur = faqs[idx] || emptyFaq();
+      faqs[idx] = { ...cur, [k]: v };
+      return { ...p, faqs };
+    });
+  };
+
+  const addFaq = () => {
+    setForm((p) => {
+      const faqs = Array.isArray(p.faqs) ? [...p.faqs] : [];
+      if (faqs.length >= MAX_FAQS) return p;
+      faqs.push(emptyFaq());
+      return { ...p, faqs };
+    });
+  };
+
+  const removeFaq = (idx) => {
+    setForm((p) => ({
+      ...p,
+      faqs: (p.faqs || []).filter((_, i) => i !== idx),
+    }));
+  };
+
   // Load categories + browseBy + movie(for edit)
   useEffect(() => {
     let cancelled = false;
@@ -275,6 +318,14 @@ function EditorInner({ mode, movieId, token }) {
             }))
           : [];
 
+        // ✅ Q1: FAQs
+        const formattedFaqs = Array.isArray(m.faqs)
+          ? m.faqs.map((f) => ({
+              question: String(f?.question || ''),
+              answer: String(f?.answer || ''),
+            }))
+          : [];
+
         setForm({
           ...emptyForm,
           type: m.type || 'Movie',
@@ -290,6 +341,10 @@ function EditorInner({ mode, movieId, token }) {
           director: m.director || '',
           imdbId: m.imdbId || '',
           casts: formattedCasts,
+
+          // ✅ Q1
+          trailerUrl: m.trailerUrl || '',
+          faqs: formattedFaqs,
 
           seoTitle: m.seoTitle || '',
           seoDescription: m.seoDescription || '',
@@ -370,6 +425,42 @@ function EditorInner({ mode, movieId, token }) {
       return null;
     }
 
+    // ✅ Q1: Trailer URL validation
+    const trailerUrl = String(form.trailerUrl || '').trim();
+    if (!isValidHttpUrlOrEmpty(trailerUrl)) {
+      toast.error('Trailer URL must start with http:// or https://');
+      return null;
+    }
+    if (trailerUrl.length > 2048) {
+      toast.error('Trailer URL is too long');
+      return null;
+    }
+
+    // ✅ Q1: FAQ validation (optional, max 5)
+    const faqsRaw = Array.isArray(form.faqs) ? form.faqs : [];
+    const faqClean = faqsRaw
+      .map((f) => ({
+        question: String(f?.question || '').trim(),
+        answer: String(f?.answer || '').trim(),
+      }))
+      .filter((f) => f.question || f.answer);
+
+    const faqPartial = faqClean.some(
+      (f) => (f.question && !f.answer) || (!f.question && f.answer)
+    );
+    if (faqPartial) {
+      toast.error('Each FAQ must have BOTH question and answer (or remove it).');
+      return null;
+    }
+
+    const faqs = faqClean
+      .filter((f) => f.question && f.answer)
+      .slice(0, MAX_FAQS)
+      .map((f) => ({
+        question: f.question.substring(0, 200),
+        answer: f.answer.substring(0, 800),
+      }));
+
     // ✅ Casts validation (optional, but if provided must be complete)
     const castsRaw = Array.isArray(form.casts) ? form.casts : [];
     const normalizedCasts = castsRaw.map((c) => ({
@@ -405,6 +496,10 @@ function EditorInner({ mode, movieId, token }) {
       director: String(form.director || '').trim(),
       imdbId,
       casts,
+
+      // ✅ Q1
+      trailerUrl,
+      faqs,
 
       seoTitle: String(form.seoTitle || '').trim(),
       seoDescription: String(form.seoDescription || '').trim(),
@@ -801,6 +896,100 @@ function EditorInner({ mode, movieId, token }) {
           />
         </div>
 
+        {/* ✅ NEW (Q1): Trailer + FAQ */}
+        <div className="bg-main border border-border rounded-lg p-4 space-y-4">
+          <h3 className="font-semibold">Trailer & FAQ (optional)</h3>
+
+          <div>
+            <label className="text-sm text-border font-semibold">
+              Trailer URL (YouTube/Vimeo)
+            </label>
+            <input
+              value={form.trailerUrl}
+              onChange={(e) => setField('trailerUrl', e.target.value)}
+              className={`${inputClass} mt-2`}
+              placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
+              spellCheck={false}
+            />
+            <p className="text-xs text-dryGray mt-1">
+              Leave empty to hide Trailer section on the Movie page.
+            </p>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="font-semibold">FAQ (max {MAX_FAQS})</h4>
+
+              <button
+                type="button"
+                onClick={addFaq}
+                disabled={(form.faqs?.length || 0) >= MAX_FAQS}
+                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 transition text-white text-sm font-semibold disabled:opacity-60"
+              >
+                Add Question
+              </button>
+            </div>
+
+            {!form.faqs?.length ? (
+              <p className="text-sm text-border mt-3">No FAQs added.</p>
+            ) : (
+              <div className="space-y-4 mt-4">
+                {form.faqs.map((f, idx) => (
+                  <div
+                    key={idx}
+                    className="border border-border rounded-lg p-4 bg-dry"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">Question {idx + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeFaq(idx)}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 mt-3">
+                      <div>
+                        <label className="text-sm text-border font-semibold">
+                          Question *
+                        </label>
+                        <input
+                          value={f?.question || ''}
+                          onChange={(e) =>
+                            updateFaq(idx, 'question', e.target.value)
+                          }
+                          className={`${inputClass} mt-2`}
+                          placeholder="e.g. Is this movie available in HD?"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm text-border font-semibold">
+                          Answer *
+                        </label>
+                        <textarea
+                          value={f?.answer || ''}
+                          onChange={(e) =>
+                            updateFaq(idx, 'answer', e.target.value)
+                          }
+                          className={`${inputClass} mt-2 min-h-[90px]`}
+                          placeholder="Write the answer..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-dryGray mt-3">
+              The FAQ section shows only when at least 1 complete Q/A exists.
+            </p>
+          </div>
+        </div>
+
         {/* SEO */}
         <div className="grid md:grid-cols-2 gap-4">
           <div>
@@ -879,7 +1068,7 @@ function EditorInner({ mode, movieId, token }) {
           </div>
         </div>
 
-        {/* ✅ NEW: Casts */}
+        {/* Casts */}
         <div className="bg-main border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold">Casts (optional)</h3>

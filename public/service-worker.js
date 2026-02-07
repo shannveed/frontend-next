@@ -1,29 +1,30 @@
 // frontend-next/public/service-worker.js
 const CACHE_PREFIX = 'moviefrost-cache-';
 
-// ✅ stable cache name (don’t use Date.now() here)
-const CACHE_VERSION = 'v1';
+// ✅ Injected at build time by scripts/inject-sw-build-id.js
+// (Fallback is fine in dev if it stays as the placeholder.)
+const CACHE_VERSION = '__MF_BUILD_ID__';
+
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
-  '/images/favicon1.png', // ✅ UPDATED (was /favicon1.png)
+  '/images/favicon1.png',
   '/manifest.json',
   '/images/MOVIEFROST.png',
   '/images/placeholder.jpg',
-
-  // ✅ Match manifest icons
   '/images/desktop-icon-192.png',
   '/images/desktop-icon-512.png',
 ];
 
 const IS_LOCALHOST =
-  self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+  self.location.hostname === 'localhost' ||
+  self.location.hostname === '127.0.0.1';
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-
-  // ✅ Don’t precache in localhost dev (keeps Next hot reload stable)
+  // ✅ IMPORTANT:
+  // Do NOT call skipWaiting() here.
+  // We want user-driven updates via "Update Now".
   if (IS_LOCALHOST) return;
 
   event.waitUntil(
@@ -77,22 +78,24 @@ self.addEventListener('fetch', (event) => {
 
   // Cache-first for same-origin assets
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((resp) => {
-          if (resp.ok && resp.type === 'basic') {
-            const clone = resp.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(request, clone)).catch(() => {});
-          }
-          return resp;
-        })
-    )
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(request).then((resp) => {
+        if (resp.ok && resp.type === 'basic') {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(request, clone)).catch(() => {});
+        }
+        return resp;
+      });
+    })
   );
 });
 
 self.addEventListener('message', (evt) => {
-  if (evt.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if (evt.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 /* ===========================

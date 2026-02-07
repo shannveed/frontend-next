@@ -10,6 +10,11 @@ import { getUserInfo } from '../lib/client/auth';
 import { apiFetch } from '../lib/client/apiFetch';
 import { ensurePushSubscription } from '../lib/client/pushNotifications';
 
+import {
+  SW_UPDATE_AVAILABLE_EVENT,
+  SW_RELOAD_ON_CONTROLLERCHANGE_FLAG,
+} from '../lib/events';
+
 const PENDING_KEY = 'pendingWatchRequest';
 
 const shouldRegisterServiceWorker = () => {
@@ -23,43 +28,87 @@ const shouldRegisterServiceWorker = () => {
   return host === 'localhost' || host === '127.0.0.1';
 };
 
-async function registerServiceWorker() {
+const dispatchSwUpdateAvailable = (registration) => {
+  try {
+    window.dispatchEvent(
+      new CustomEvent(SW_UPDATE_AVAILABLE_EVENT, {
+        detail: { registration },
+      })
+    );
+  } catch {
+    // ignore
+  }
+};
+
+async function initServiceWorker() {
   if (!shouldRegisterServiceWorker()) return;
 
+  // ✅ Guard against React StrictMode double-effects
+  if (window.__MF_SW_INIT__) return;
+  window.__MF_SW_INIT__ = true;
+
   try {
-    // Avoid duplicate SW registrations during dev hot reloads
-    const existing = await navigator.serviceWorker.getRegistration('/');
-    if (existing) {
-      existing.update().catch(() => {});
-      return;
+    // Get existing reg or register
+    let reg = await navigator.serviceWorker.getRegistration('/');
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/service-worker.js', {
+        scope: '/',
+        updateViaCache: 'none',
+      });
     }
 
-    const reg = await navigator.serviceWorker.register('/service-worker.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    });
+    // ✅ Reload ONLY when user requested update
+    if (!window.__MF_SW_CONTROLLERCHANGE_BOUND__) {
+      window.__MF_SW_CONTROLLERCHANGE_BOUND__ = true;
 
-    // Only auto-reload in production (dev HMR will hate this)
-    if (process.env.NODE_ENV === 'production') {
-      const refresh = () => window.location.reload();
-      navigator.serviceWorker.addEventListener('controllerchange', refresh);
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        if (!window[SW_RELOAD_ON_CONTROLLERCHANGE_FLAG]) return;
+
+        window[SW_RELOAD_ON_CONTROLLERCHANGE_FLAG] = false;
+        reloading = true;
+        window.location.reload();
+      });
     }
 
-    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // ✅ If update is already waiting, notify UI
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      dispatchSwUpdateAvailable(reg);
+    }
 
+    // ✅ Listen for new updates
     reg.addEventListener('updatefound', () => {
-      const nw = reg.installing;
-      if (!nw) return;
-      nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-          nw.postMessage({ type: 'SKIP_WAITING' });
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+
+      newWorker.addEventListener('statechange', () => {
+        // installed + controller exists => update available
+        if (
+          newWorker.state === 'installed' &&
+          navigator.serviceWorker.controller
+        ) {
+          dispatchSwUpdateAvailable(reg);
         }
       });
     });
 
-    reg.update().catch(() => {});
+    // ✅ Proactive update checks (so old tabs detect new deployments)
+    const update = () => reg.update().catch(() => {});
+    update();
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') update();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    const onFocus = () => update();
+    window.addEventListener('focus', onFocus);
+
+    // Every 10 minutes check SW update
+    window.setInterval(update, 10 * 60 * 1000);
   } catch (e) {
-    console.warn('[sw] registration failed:', e);
+    console.warn('[sw] init failed:', e);
   }
 }
 
@@ -67,7 +116,7 @@ export default function Providers({ children }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
-    registerServiceWorker();
+    initServiceWorker();
   }, []);
 
   // ✅ Keep existing behavior: auto-submit pending request + ensure push if granted

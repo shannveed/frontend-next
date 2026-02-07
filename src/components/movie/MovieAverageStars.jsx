@@ -1,18 +1,19 @@
+// frontend-next/src/components/movie/MovieAverageStars.jsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Stars from './Stars';
 import { getMovieRatings } from '../../lib/client/ratings';
+
+const RATINGS_UPDATED_EVENT = 'mf-ratings-updated';
 
 /**
  * Displays LIVE average rating stars for a movie/web-series.
  * Source of truth: GET /api/movies/:id/ratings -> aggregate.avg
- *
- * This avoids stale ISR cached `movie.rate` values on /movie pages.
  */
 export default function MovieAverageStars({
   movieIdOrSlug,
-  fallback = 0, // use server value until live fetch returns
+  fallback = 0,
   className = '',
 }) {
   const [avg, setAvg] = useState(() => Number(fallback) || 0);
@@ -22,33 +23,41 @@ export default function MovieAverageStars({
     setAvg(Number(fallback) || 0);
   }, [movieIdOrSlug, fallback]);
 
-  // Fetch live average
-  useEffect(() => {
-    let cancelled = false;
+  const fetchAvg = useCallback(async () => {
+    const key = String(movieIdOrSlug || '').trim();
+    if (!key) return;
 
-    const run = async () => {
-      const key = String(movieIdOrSlug || '').trim();
-      if (!key) return;
-
-      try {
-        // limit=1 keeps payload small; we only need aggregate
-        const data = await getMovieRatings(key, 1, 1);
-
-        if (cancelled) return;
-
-        const nextAvg = Number(data?.aggregate?.avg);
-        if (Number.isFinite(nextAvg)) setAvg(nextAvg);
-      } catch {
-        // ignore: keep fallback
-      }
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const data = await getMovieRatings(key, 1, 1);
+      const nextAvg = Number(data?.aggregate?.avg);
+      if (Number.isFinite(nextAvg)) setAvg(nextAvg);
+    } catch {
+      // keep fallback
+    }
   }, [movieIdOrSlug]);
+
+  // initial fetch
+  useEffect(() => {
+    fetchAvg();
+  }, [fetchAvg]);
+
+  // refresh on event (admin delete etc.)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const key = String(movieIdOrSlug || '').trim();
+    if (!key) return;
+
+    const handler = (evt) => {
+      const detail = String(evt?.detail || '').trim();
+      // if event includes detail, only refresh matching movie
+      if (detail && detail !== key) return;
+      fetchAvg();
+    };
+
+    window.addEventListener(RATINGS_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(RATINGS_UPDATED_EVENT, handler);
+  }, [movieIdOrSlug, fetchAvg]);
 
   return <Stars value={avg} className={className} />;
 }

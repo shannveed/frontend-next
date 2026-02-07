@@ -6,16 +6,24 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 import Footer from './Footer';
-import NavBar from './NavBar';                // ✅ direct import
-import MobileFooter from './MobileFooter';    // ✅ direct import
+import NavBar from './NavBar';
+import MobileFooter from './MobileFooter';
 
 import MovieRequestPopup from '../modals/MovieRequestPopup';
 import ChannelPopup from '../modals/ChannelPopup';
 import InstallPwaPopup from '../modals/InstallPwaPopup';
+import UpdateAvailablePopup from '../modals/UpdateAvailablePopup';
+
 import RouteChangeTracker from '../analytics/RouteChangeTracker';
 import AdsterraScripts from '../ads/AdsterraScripts';
 
-import { OPEN_WATCH_REQUEST_POPUP, PUSH_RECEIVED_EVENT } from '../../lib/events';
+import {
+  OPEN_WATCH_REQUEST_POPUP,
+  PUSH_RECEIVED_EVENT,
+  SW_UPDATE_AVAILABLE_EVENT,
+  SW_RELOAD_ON_CONTROLLERCHANGE_FLAG,
+} from '../../lib/events';
+
 import { getUserInfo } from '../../lib/client/auth';
 
 const POPUP_COOLDOWN_MS = 20000;
@@ -57,6 +65,11 @@ export default function SiteChrome({ children }) {
 
   const isAnyPopupOpenRef = useRef(false);
   const lastPopupClosedAtRef = useRef(0);
+
+  // ✅ NEW: update popup state
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const swRegRef = useRef(null);
 
   useEffect(() => setIsIOS(isIOSDevice()), []);
 
@@ -155,6 +168,60 @@ export default function SiteChrome({ children }) {
     return () => navigator.serviceWorker.removeEventListener('message', onMessage);
   }, []);
 
+  // ✅ NEW: listen for SW update available event (from Providers)
+  useEffect(() => {
+    const onUpdate = (evt) => {
+      swRegRef.current = evt?.detail?.registration || null;
+      setUpdateOpen(true);
+    };
+
+    window.addEventListener(SW_UPDATE_AVAILABLE_EVENT, onUpdate);
+    return () => window.removeEventListener(SW_UPDATE_AVAILABLE_EVENT, onUpdate);
+  }, []);
+
+  const clearCaches = useCallback(async () => {
+    try {
+      if (!('caches' in window)) return;
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleUpdateNow = useCallback(async () => {
+    if (updating) return;
+
+    setUpdating(true);
+
+    try {
+      // optional but helps ensure fresh assets
+      await clearCaches();
+
+      if ('serviceWorker' in navigator) {
+        const reg =
+          swRegRef.current || (await navigator.serviceWorker.getRegistration('/'));
+
+        if (reg?.waiting) {
+          // ✅ tell Providers controllerchange listener to reload
+          window[SW_RELOAD_ON_CONTROLLERCHANGE_FLAG] = true;
+
+          // activate update
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+          // fallback (in case controllerchange doesn't fire)
+          window.setTimeout(() => window.location.reload(), 5000);
+          return;
+        }
+      }
+
+      // No SW waiting => just reload
+      window.location.reload();
+    } catch {
+      window.location.reload();
+    }
+  }, [clearCaches, updating]);
+
   useEffect(() => {
     const onBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -239,7 +306,6 @@ export default function SiteChrome({ children }) {
       {ADS_ENABLED ? <AdsterraScripts /> : null}
       <RouteChangeTracker />
 
-      {/* ✅ Now SSR/hydrates normally instead of waiting for a lazy chunk */}
       <NavBar />
       <div className="min-h-screen pb-20 sm:pb-0">{children}</div>
 
@@ -248,6 +314,17 @@ export default function SiteChrome({ children }) {
       </div>
 
       <MobileFooter />
+
+      {/* ✅ NEW: Update popup */}
+      <UpdateAvailablePopup
+        open={updateOpen}
+        updating={updating}
+        onDismiss={() => {
+          setUpdateOpen(false);
+          setUpdating(false);
+        }}
+        onUpdate={handleUpdateNow}
+      />
 
       <MovieRequestPopup
         open={requestOpen}

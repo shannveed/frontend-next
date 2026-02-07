@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { BsCollectionFill } from 'react-icons/bs';
 
-
 import { BiArrowBack } from 'react-icons/bi';
 import {
   FaCloudDownloadAlt,
@@ -30,7 +29,14 @@ import EffectiveGateNativeBanner, {
 
 import { getUserInfo } from '../../lib/client/auth';
 import { getFavorites, likeMovie } from '../../lib/client/users';
-import { getMyMovieRating, upsertMovieRating } from '../../lib/client/ratings';
+
+// ✅ UPDATED import
+import {
+  getMyMovieRating,
+  upsertMovieRating,
+  createGuestMovieRating,
+} from '../../lib/client/ratings';
+
 import {
   getMovieByIdAdmin,
   getRelatedMoviesAdmin,
@@ -204,9 +210,11 @@ export default function WatchClient({
 
       // if admin token exists, prefer admin-related (matches CRA)
       if (token && isAdmin) {
-        const rel = await getRelatedMoviesAdmin(token, movie.slug || movie._id, 20).catch(
-          () => []
-        );
+        const rel = await getRelatedMoviesAdmin(
+          token,
+          movie.slug || movie._id,
+          20
+        ).catch(() => []);
         if (!cancelled) setRelated(Array.isArray(rel) ? rel : []);
         return;
       }
@@ -251,7 +259,7 @@ export default function WatchClient({
     };
   }, [token, movie?._id]);
 
-  // ✅ modals: lock body scroll like CRA
+  // lock body scroll like CRA
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -304,7 +312,9 @@ export default function WatchClient({
   // WebSeries seasons
   const seasons = useMemo(() => {
     if (movie?.type !== 'WebSeries') return [];
-    return groupEpisodesBySeason(Array.isArray(movie?.episodes) ? movie.episodes : []);
+    return groupEpisodesBySeason(
+      Array.isArray(movie?.episodes) ? movie.episodes : []
+    );
   }, [movie?.type, movie?.episodes]);
 
   const activeSeasonEpisodes = useMemo(() => {
@@ -369,7 +379,6 @@ export default function WatchClient({
     if (!ep) return;
     setCurrentEpisode(ep);
     setShowEpisodePicker(false);
-    // keep playing state; iframe key will change so it reloads
   }, []);
 
   const currentEpisodeIndex = useMemo(() => {
@@ -453,7 +462,7 @@ export default function WatchClient({
     setPlay(true);
   };
 
-  // rating: load my rating
+  // rating: load my rating (only for logged-in)
   useEffect(() => {
     let cancelled = false;
 
@@ -488,14 +497,9 @@ export default function WatchClient({
     };
   }, [movie?._id, movie?.slug, token, slug]);
 
+  // ✅ UPDATED: guest ratings allowed
   const submitRating = async () => {
     if (!movie?._id) return;
-
-    if (!token) {
-      toast.error('Please login to rate');
-      window.location.href = '/login';
-      return;
-    }
 
     if (!ratingValue || ratingValue < 1) {
       toast.error('Please select a star rating');
@@ -506,9 +510,20 @@ export default function WatchClient({
       setRatingSubmitting(true);
 
       const idOrSlug = movie.slug || movie._id || slug;
-      await upsertMovieRating(token, idOrSlug, ratingValue, ratingComment);
 
-      toast.success('Thanks! Your rating has been saved.');
+      // Logged-in: existing behavior
+      if (token) {
+        await upsertMovieRating(token, idOrSlug, ratingValue, ratingComment);
+        toast.success('Thanks! Your rating has been saved.');
+        return;
+      }
+
+      // Guest: NEW endpoint
+      const res = await createGuestMovieRating(idOrSlug, ratingValue, ratingComment);
+      const guestName =
+        res?.rating?.user?.fullName || res?.rating?.guestName || 'Guest';
+
+      toast.success(`Thanks ${guestName}! Your rating has been saved.`);
     } catch (e) {
       toast.error(e?.message || 'Failed to submit rating');
     } finally {
@@ -553,7 +568,6 @@ export default function WatchClient({
 
   const handleBackClick = () => router.back();
 
-  // related list to show
   const relatedToShow = useMemo(() => {
     const list = Array.isArray(related) ? related : [];
     return list.filter((m) => String(m?._id) !== String(movie?._id)).slice(0, 20);
@@ -586,7 +600,7 @@ export default function WatchClient({
 
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-      {/* Guest Login Prompt Modal (CRA style) */}
+      {/* Guest Login Prompt Modal (unchanged) */}
       {!token && showLoginModal && (
         <div className="fixed inset-0 z-[9999] bg-black/80 px-4 py-6 overflow-y-auto">
           <div className="min-h-full flex items-center justify-center mobile:landscape:items-start">
@@ -640,7 +654,7 @@ export default function WatchClient({
         </div>
       )}
 
-      {/* Mobile Episode Picker (CRA style) */}
+      {/* Mobile Episode Picker (unchanged) */}
       {movie?.type === 'WebSeries' && showEpisodePicker && (
         <div
           className="fixed inset-0 z-[9999] bg-black/70"
@@ -790,10 +804,9 @@ export default function WatchClient({
           )}
         </div>
 
-        {/* WebSeries season + episode controls */}
+        {/* WebSeries controls (unchanged) */}
         {movie.type === 'WebSeries' && (
           <div className="mb-4 space-y-3">
-            {/* Desktop season pills */}
             <div className="hidden sm:flex flex-wrap gap-2">
               {seasons.map((s) => (
                 <button
@@ -814,7 +827,6 @@ export default function WatchClient({
               ))}
             </div>
 
-            {/* Mobile season select + episode picker */}
             <div className="sm:hidden flex gap-2">
               <select
                 value={activeSeason}
@@ -841,7 +853,6 @@ export default function WatchClient({
               </button>
             </div>
 
-            {/* current episode + prev/next */}
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-dryGray truncate">
                 {currentEpisode
@@ -876,7 +887,7 @@ export default function WatchClient({
           </div>
         )}
 
-        {/* 3-Server buttons */}
+        {/* Servers (unchanged) */}
         <div className="flex flex-wrap gap-3 mb-4">
           {activeServers.map((server, idx) => {
             const enabled = !!server.url;
@@ -941,7 +952,7 @@ export default function WatchClient({
           )}
         </div>
 
-        {/* Desktop episode list */}
+        {/* Desktop episode list (unchanged) */}
         {movie.type === 'WebSeries' && (
           <div className="hidden sm:block mt-6 bg-main border border-border rounded-lg p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -983,7 +994,7 @@ export default function WatchClient({
           </div>
         )}
 
-        {/* Rating row */}
+        {/* ✅ Rating row (guest allowed) */}
         <div className="mt-6 bg-main border border-border rounded-lg p-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <p className="text-white font-semibold text-sm shrink-0">
@@ -1015,14 +1026,14 @@ export default function WatchClient({
             </button>
           </div>
 
-          {!token && (
+          {!token ? (
             <p className="text-xs text-dryGray mt-2">
-              Login is required to submit a rating.
+              You can rate as a guest. Login only if you want to edit your rating later.
             </p>
-          )}
+          ) : null}
         </div>
 
-        {/* Ads below player (same placement as CRA) */}
+        {/* Ads below player */}
         <EffectiveGateNativeBanner
           refreshKey={`watch-desktop-${movie?.slug || movie?._id || slug}`}
         />
@@ -1059,16 +1070,16 @@ export default function WatchClient({
             <p className="text-border text-sm mt-6">No related titles found.</p>
           )}
         </div>
-        {/* ✅ NEW: Ads below related */}
-          <EffectiveGateNativeBanner
-            refreshKey={`watch-desktop-after-related-${movie?.slug || movie?._id || slug}`}
-          />
-          <EffectiveGateSquareAd
-            refreshKey={`watch-mobile-after-related-${movie?.slug || movie?._id || slug}`}
-            className="sm:hidden"
-          />
+
+        {/* Ads below related */}
+        <EffectiveGateNativeBanner
+          refreshKey={`watch-desktop-after-related-${movie?.slug || movie?._id || slug}`}
+        />
+        <EffectiveGateSquareAd
+          refreshKey={`watch-mobile-after-related-${movie?.slug || movie?._id || slug}`}
+          className="sm:hidden"
+        />
       </div>
     </div>
   );
 }
-

@@ -27,6 +27,10 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../../../components/ads/EffectiveGateNativeBanner';
 
+/* ✅ NEW sections */
+import MovieFaqSection from '../../../components/movie/MovieFaqSection';
+import MovieTrailerSection from '../../../components/movie/MovieTrailerSection';
+
 export const dynamic = 'force-static';
 export const dynamicParams = true;
 export const revalidate = 86400;
@@ -73,13 +77,10 @@ export async function generateMetadata({ params }) {
   }
 
   const canonical = movieCanonical(movie);
-
-  // ✅ Short + consistent for all movies/webseries
   const title = buildMovieTitle(movie, { maxLen: 60 });
   const description = buildMovieDescription(movie);
 
   return {
-    // ✅ absolute => no "| MovieFrost" template appended (keeps titles short)
     title: { absolute: title },
     description,
     alternates: { canonical },
@@ -138,6 +139,10 @@ export default async function MoviePage({ params }) {
         </div>
 
         <RelatedMoviesServer currentId={movie._id} movies={related} />
+
+        {/* ✅ NEW: Only renders if movie has faqs / trailerUrl */}
+        <MovieFaqSection movie={movie} />
+        <MovieTrailerSection movie={movie} />
 
         {ADS_ENABLED ? (
           <div className="my-10">

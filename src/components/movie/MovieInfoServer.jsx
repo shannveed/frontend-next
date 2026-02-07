@@ -11,7 +11,6 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
-import ExpandableText from '../common/ExpandableText';
 
 import { personSlug } from '../../lib/seo';
 
@@ -57,6 +56,8 @@ function ExternalRatings({ movie }) {
 
   const badge =
     'inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions';
+
+  if (!imdbUrl && !rtUrl) return null;
 
   return (
     <div className="flex flex-wrap gap-2 mt-3">
@@ -158,13 +159,18 @@ export default function MovieInfoServer({ movie }) {
     movie?.directorSlug || (directorName ? personSlug(directorName) : '');
   const directorHref = directorSlug ? `/actor/${directorSlug}` : '';
 
-  const heroImage = movie?.titleImage || movie?.image || '/images/placeholder.jpg';
+  const heroImage =
+    movie?.titleImage || movie?.image || '/images/placeholder.jpg';
   const bgImage = movie?.image || heroImage;
   const posterImage = movie?.titleImage || heroImage;
 
+  const descriptionText = String(movie?.desc || '').trim();
+
   return (
     <div className="w-full text-white">
-      {/* MOBILE */}
+      {/* ===========================
+          MOBILE
+         =========================== */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
           <img
@@ -256,20 +262,17 @@ export default function MovieInfoServer({ movie }) {
           </div>
         </div>
 
-        {/* ✅ UPDATED: Description (300 words + Show more) */}
-        {movie?.desc ? (
+        {/* Description (mobile unchanged) */}
+        {descriptionText ? (
           <div className="mt-4 bg-dry border border-border rounded-xl p-4">
             <h2 className="text-sm font-semibold mb-2">Description</h2>
-
-            <ExpandableText
-              text={movie.desc}
-              wordLimit={300}
-              textClassName="text-sm text-text leading-6 whitespace-pre-line"
-              buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-            />
+            <p className="text-sm text-text leading-6 whitespace-pre-line">
+              {descriptionText}
+            </p>
           </div>
         ) : null}
 
+        {/* Rating (mobile unchanged) */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white font-semibold text-sm">Rating</p>
@@ -291,7 +294,10 @@ export default function MovieInfoServer({ movie }) {
         <CastScroller casts={movie?.casts} />
       </section>
 
-      {/* DESKTOP/TABLET */}
+      {/* ===========================
+          DESKTOP / TABLET (sm+)
+          ✅ Q1: rating moved ABOVE description
+         =========================== */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
           <img
@@ -380,18 +386,7 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
                 </div>
 
-                {/* ✅ UPDATED: Description (300 words + Show more) */}
-                {movie?.desc ? (
-                  <div className="mt-5 text-text text-sm leading-7">
-                    <ExpandableText
-                      text={movie.desc}
-                      wordLimit={300}
-                      textClassName="whitespace-pre-line"
-                      buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-                    />
-                  </div>
-                ) : null}
-
+                {/* Buttons */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/watch/${seg}`}
@@ -420,6 +415,7 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
                 </div>
 
+                {/* ✅ Q1: Rating moved here (sm+) */}
                 <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-white font-semibold text-sm">Rating</p>
@@ -438,9 +434,20 @@ export default function MovieInfoServer({ movie }) {
                   <ExternalRatings movie={movie} />
                 </div>
 
+                {/* Cast stays above description */}
                 <CastScroller casts={movie?.casts} />
               </div>
             </div>
+
+            {/* Description full-width */}
+            {descriptionText ? (
+              <div className="mt-8 bg-black/30 border border-border rounded-lg p-6">
+                <h2 className="text-white font-semibold mb-3">Description</h2>
+                <p className="text-text text-sm leading-7 whitespace-pre-line">
+                  {descriptionText}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

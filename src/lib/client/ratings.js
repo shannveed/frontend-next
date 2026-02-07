@@ -1,4 +1,4 @@
-// src/lib/client/ratings.js
+// frontend-next/src/lib/client/ratings.js
 import { apiFetch } from './apiFetch';
 
 const enc = (v) => encodeURIComponent(String(v || '').trim());
@@ -21,9 +21,27 @@ export const upsertMovieRating = (token, idOrSlug, rating, comment = '') => {
   return apiFetch(`/api/movies/${safe}/ratings`, {
     method: 'POST',
     token,
-    body: {
-      rating,
-      comment,
-    },
+    body: { rating, comment },
+  });
+};
+
+// guest rating (no login)
+export const createGuestMovieRating = (idOrSlug, rating, comment = '') => {
+  const safe = enc(idOrSlug);
+
+  return apiFetch(`/api/movies/${safe}/ratings/guest`, {
+    method: 'POST',
+    body: { rating, comment },
+  });
+};
+
+// ✅ NEW: admin delete rating
+export const deleteMovieRatingAdmin = (token, idOrSlug, ratingId) => {
+  const safe = enc(idOrSlug);
+  const rid = enc(ratingId);
+
+  return apiFetch(`/api/movies/${safe}/ratings/${rid}`, {
+    method: 'DELETE',
+    token,
   });
 };

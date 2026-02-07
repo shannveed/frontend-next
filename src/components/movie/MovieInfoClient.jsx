@@ -14,7 +14,6 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import SafeImage from '../common/SafeImage';
-import ExpandableText from '../common/ExpandableText';
 
 const formatTime = (minutes) => {
   const n = Number(minutes);
@@ -72,13 +71,13 @@ function ExternalRatings({ movie }) {
 
   if (!showImdb && !showRt) return null;
 
-  const hasImdb = imdbRating !== null;
-  const hasRt = rtRating !== null;
-
   const badgeBase =
     'inline-flex items-center gap-2 px-3 py-2 rounded bg-main border border-border text-sm text-white hover:border-customPurple transitions';
 
   const badgeMuted = 'opacity-80';
+
+  const hasImdb = imdbRating !== null;
+  const hasRt = rtRating !== null;
 
   return (
     <div className="flex flex-wrap gap-2 mt-3">
@@ -133,7 +132,7 @@ function CastScroller({ casts = [] }) {
     <section className="mt-6">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-white font-semibold text-sm">Cast</h3>
-        <span className="text-xs text-dry">{list.length} shown</span>
+        <span className="text-xs text-dryGray">{list.length} shown</span>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2">
@@ -177,6 +176,11 @@ export default function MovieInfoClient({ movie, onShare }) {
 
   const directorName = String(movie?.director || '').trim();
   const directorHref = directorName ? `/actor/${personSlug(directorName)}` : '';
+
+  const descriptionText = useMemo(
+    () => String(movie?.desc || '').trim(),
+    [movie?.desc]
+  );
 
   return (
     <div className="w-full text-white">
@@ -254,19 +258,17 @@ export default function MovieInfoClient({ movie, onShare }) {
           </div>
         </div>
 
-        {/* ✅ UPDATED: Description (300 words + Show more) */}
-        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
-          <h2 className="text-sm font-semibold mb-2">Description</h2>
+        {/* Description (mobile unchanged) */}
+        {descriptionText ? (
+          <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+            <h2 className="text-sm font-semibold mb-2">Description</h2>
+            <p className="text-sm text-text leading-6 whitespace-pre-line">
+              {descriptionText}
+            </p>
+          </div>
+        ) : null}
 
-          <ExpandableText
-            text={movie?.desc || ''}
-            wordLimit={300}
-            textClassName="text-sm text-text leading-6 whitespace-pre-line"
-            buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-          />
-        </div>
-
-        {/* Rating */}
+        {/* Rating (mobile unchanged) */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white font-semibold text-sm">Rating</p>
@@ -288,7 +290,6 @@ export default function MovieInfoClient({ movie, onShare }) {
           <ExternalRatings movie={movie} />
         </div>
 
-        {/* Cast */}
         <CastScroller casts={movie?.casts} />
       </section>
 
@@ -310,7 +311,11 @@ export default function MovieInfoClient({ movie, onShare }) {
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
                   <SafeImage
-                    src={movie?.titleImage || movie?.image || '/images/placeholder.jpg'}
+                    src={
+                      movie?.titleImage ||
+                      movie?.image ||
+                      '/images/placeholder.jpg'
+                    }
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}
@@ -351,10 +356,10 @@ export default function MovieInfoClient({ movie, onShare }) {
 
                   {directorName ? (
                     <span className="inline-flex items-center gap-1">
-                      <span className="text-subMain">Director:</span>
+                      <span className="text-customPurple">Director:</span>
                       <Link
                         href={directorHref}
-                        className="text-customPurple hover:underline"
+                        className="text-white hover:underline"
                       >
                         {directorName}
                       </Link>
@@ -362,16 +367,7 @@ export default function MovieInfoClient({ movie, onShare }) {
                   ) : null}
                 </div>
 
-                {/* ✅ UPDATED: Description (300 words + Show more) */}
-                <div className="mt-5 text-text text-sm leading-7">
-                  <ExpandableText
-                    text={movie?.desc || ''}
-                    wordLimit={300}
-                    textClassName="whitespace-pre-line"
-                    buttonClassName="mt-2 text-customPurple hover:text-white transitions font-semibold text-sm"
-                  />
-                </div>
-
+                {/* Buttons */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/watch/${watchSeg}`}
@@ -402,6 +398,7 @@ export default function MovieInfoClient({ movie, onShare }) {
                   ) : null}
                 </div>
 
+                {/* ✅ Q1: Rating moved here (sm+) */}
                 <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-white font-semibold text-sm">Rating</p>
@@ -423,9 +420,20 @@ export default function MovieInfoClient({ movie, onShare }) {
                   <ExternalRatings movie={movie} />
                 </div>
 
+                {/* Cast before description */}
                 <CastScroller casts={movie?.casts} />
               </div>
             </div>
+
+            {/* Description full width */}
+            {descriptionText ? (
+              <div className="mt-8 bg-black/30 border border-border rounded-lg p-6">
+                <h2 className="text-white font-semibold mb-3">Description</h2>
+                <p className="text-text text-sm leading-7 whitespace-pre-line">
+                  {descriptionText}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
