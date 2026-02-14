@@ -1,4 +1,3 @@
-// frontend-next/src/components/layout/SiteChrome.jsx
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,6 +15,9 @@ import UpdateAvailablePopup from '../modals/UpdateAvailablePopup';
 
 import RouteChangeTracker from '../analytics/RouteChangeTracker';
 import AdsterraScripts from '../ads/AdsterraScripts';
+
+// ✅ Q3
+import FloatingShareIcons from '../social/FloatingShareIcons';
 
 import {
   OPEN_WATCH_REQUEST_POPUP,
@@ -66,7 +68,7 @@ export default function SiteChrome({ children }) {
   const isAnyPopupOpenRef = useRef(false);
   const lastPopupClosedAtRef = useRef(0);
 
-  // ✅ NEW: update popup state
+  // ✅ update popup state
   const [updateOpen, setUpdateOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const swRegRef = useRef(null);
@@ -165,10 +167,10 @@ export default function SiteChrome({ children }) {
     };
 
     navigator.serviceWorker.addEventListener('message', onMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+    return () =>
+      navigator.serviceWorker.removeEventListener('message', onMessage);
   }, []);
 
-  // ✅ NEW: listen for SW update available event (from Providers)
   useEffect(() => {
     const onUpdate = (evt) => {
       swRegRef.current = evt?.detail?.registration || null;
@@ -195,27 +197,21 @@ export default function SiteChrome({ children }) {
     setUpdating(true);
 
     try {
-      // optional but helps ensure fresh assets
       await clearCaches();
 
       if ('serviceWorker' in navigator) {
         const reg =
-          swRegRef.current || (await navigator.serviceWorker.getRegistration('/'));
+          swRegRef.current ||
+          (await navigator.serviceWorker.getRegistration('/'));
 
         if (reg?.waiting) {
-          // ✅ tell Providers controllerchange listener to reload
           window[SW_RELOAD_ON_CONTROLLERCHANGE_FLAG] = true;
-
-          // activate update
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-          // fallback (in case controllerchange doesn't fire)
           window.setTimeout(() => window.location.reload(), 5000);
           return;
         }
       }
 
-      // No SW waiting => just reload
       window.location.reload();
     } catch {
       window.location.reload();
@@ -258,7 +254,6 @@ export default function SiteChrome({ children }) {
     }
   };
 
-  // Only show popup when install is possible OR iOS manual
   useEffect(() => {
     if (!isIOS && !deferredPrompt) return;
 
@@ -295,7 +290,7 @@ export default function SiteChrome({ children }) {
 
     return schedulePopup({
       storageKey: 'telegramPopupShown',
-      delayMs: 30000,
+      delayMs: 40000,
       open: () => setTelegramOpen(true),
       shouldSkip,
     });
@@ -315,7 +310,9 @@ export default function SiteChrome({ children }) {
 
       <MobileFooter />
 
-      {/* ✅ NEW: Update popup */}
+      {/* ✅ Q3 floating share icons */}
+      <FloatingShareIcons />
+
       <UpdateAvailablePopup
         open={updateOpen}
         updating={updating}
@@ -357,7 +354,9 @@ export default function SiteChrome({ children }) {
           buttonText="Open Telegram"
           url={TELEGRAM_URL}
           Icon={FaTelegramPlane}
-          showMaybeLater={false}
+          // ✅ Q2: show a close button
+          showMaybeLater={true}
+          maybeLaterText="Close"
         />
       ) : null}
     </div>

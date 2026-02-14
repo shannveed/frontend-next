@@ -1,7 +1,7 @@
-// src/components/modals/ChannelPopup.jsx
 'use client';
 
 import React from 'react';
+import { IoClose } from 'react-icons/io5';
 
 export default function ChannelPopup({
   open,
@@ -11,8 +11,13 @@ export default function ChannelPopup({
   url,
   buttonText = 'Open',
   Icon,
+
   showMaybeLater = true,
   maybeLaterText = 'Maybe later',
+
+  // ✅ Q2: close button
+  showCloseButton = true,
+  closeAriaLabel = 'Close',
 }) {
   if (!open) return null;
 
@@ -26,9 +31,28 @@ export default function ChannelPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-md rounded-xl bg-dry border border-border p-5 text-white">
-        <div className="flex items-center gap-3 mb-2">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4"
+      aria-modal="true"
+      role="dialog"
+      onClick={() => onClose?.()} // ✅ click overlay to close
+    >
+      <div
+        className="relative w-full max-w-md rounded-xl bg-dry border border-border p-5 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {showCloseButton ? (
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            className="absolute top-3 right-3 w-9 h-9 flex-colo rounded-md bg-main/60 hover:bg-main border border-border hover:border-customPurple transitions"
+            aria-label={closeAriaLabel}
+          >
+            <IoClose className="text-xl" />
+          </button>
+        ) : null}
+
+        <div className="flex items-center gap-3 mb-2 pr-10">
           {Icon ? (
             <div className="w-10 h-10 rounded-full bg-main border border-border flex items-center justify-center">
               <Icon className="text-customPurple text-xl" />
@@ -66,7 +90,7 @@ export default function ChannelPopup({
           {showMaybeLater ? (
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onClose?.()}
               className="w-full border border-border hover:bg-main transition text-white py-3 rounded-md"
             >
               {maybeLaterText}
