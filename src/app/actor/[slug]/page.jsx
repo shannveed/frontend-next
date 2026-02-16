@@ -3,10 +3,7 @@ import { cache } from 'react';
 import { notFound } from 'next/navigation';
 
 import { getActorBySlug } from '../../../lib/api';
-import {
-  buildActorGraphJsonLd,
-  actorCanonicalBySlug,
-} from '../../../lib/seo';
+import { buildActorGraphJsonLd, actorCanonicalBySlug } from '../../../lib/seo';
 import JsonLd from '../../../components/seo/JsonLd';
 
 import ActorPageClient from '../../../components/actor/ActorPageClient';
@@ -28,16 +25,23 @@ export async function generateMetadata({ params }) {
     description: `Browse movies and web series featuring ${name} on MovieFrost.`,
     alternates: { canonical },
 
-    // ✅ IMPORTANT: /actor pages should NOT be indexed
+    // ✅ Actor pages are now INDEXABLE
     robots: {
-      index: false,
+      index: true,
       follow: true,
-      googleBot: { index: false, follow: true },
+      googleBot: { index: true, follow: true },
     },
 
     openGraph: {
       type: 'profile',
       url: canonical,
+      title: `${name} — Movies & Web Series`,
+      description: `Browse movies and web series featuring ${name} on MovieFrost.`,
+      images: data.actor.image ? [data.actor.image] : [],
+    },
+
+    twitter: {
+      card: 'summary_large_image',
       title: `${name} — Movies & Web Series`,
       description: `Browse movies and web series featuring ${name} on MovieFrost.`,
       images: data.actor.image ? [data.actor.image] : [],

@@ -19,7 +19,11 @@ const nextConfig = {
       { protocol: 'https', hostname: 'image.tmdb.org', pathname: '/t/p/**' },
       { protocol: 'https', hostname: 'www.moviefrost.com', pathname: '/**' },
       { protocol: 'https', hostname: 'moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'moviefrost-backend-flax.vercel.app', pathname: '/**' },
+      {
+        protocol: 'https',
+        hostname: 'moviefrost-backend-flax.vercel.app',
+        pathname: '/**',
+      },
     ],
   },
 
@@ -34,8 +38,14 @@ const nextConfig = {
 
         // sitemaps are served by backend
         { source: '/sitemap.xml', destination: `${API_BASE}/sitemap.xml` },
-        { source: '/sitemap-index.xml', destination: `${API_BASE}/sitemap-index.xml` },
-        { source: '/sitemap-actors.xml', destination: `${API_BASE}/sitemap-actors.xml` },
+        {
+          source: '/sitemap-index.xml',
+          destination: `${API_BASE}/sitemap-index.xml`,
+        },
+        {
+          source: '/sitemap-actors.xml',
+          destination: `${API_BASE}/sitemap-actors.xml`,
+        },
       ],
     };
   },
@@ -79,10 +89,6 @@ const nextConfig = {
       // ✅ SEO: ensure these pages cannot be indexed (headers-level)
       {
         source: '/watch/:path*',
-        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
-      },
-      {
-        source: '/actor/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
 

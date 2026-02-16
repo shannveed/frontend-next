@@ -11,7 +11,6 @@ import { BiArrowBack } from 'react-icons/bi';
 import {
   FaCloudDownloadAlt,
   FaHeart,
-  FaLock,
   FaListUl,
   FaPlay,
 } from 'react-icons/fa';
@@ -112,11 +111,8 @@ export default function WatchClient({
   const [loading, setLoading] = useState(!initialMovie);
   const [error, setError] = useState('');
 
-  // playback + guest limit
+  // playback (✅ login wall removed)
   const [play, setPlay] = useState(false);
-  const [guestWatchTime, setGuestWatchTime] = useState(0);
-  const [hasShownLoginPrompt, setHasShownLoginPrompt] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // like state
   const [liked, setLiked] = useState(false);
@@ -259,55 +255,18 @@ export default function WatchClient({
     };
   }, [token, movie?._id]);
 
-  // lock body scroll like CRA
+  // lock body scroll like CRA (episodes picker only)
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
-    if (showLoginModal || showEpisodePicker) {
+    if (showEpisodePicker) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prev;
       };
     }
-  }, [showLoginModal, showEpisodePicker]);
-
-  // guest 13-minute limit
-  useEffect(() => {
-    let interval;
-
-    if (play && !token) {
-      interval = setInterval(() => {
-        setGuestWatchTime((prev) => {
-          const next = prev + 1;
-
-          if (next >= 780 && !hasShownLoginPrompt) {
-            setHasShownLoginPrompt(true);
-
-            try {
-              localStorage.setItem(
-                'redirectAfterLogin',
-                JSON.stringify({
-                  pathname: `/watch/${movie?.slug || movie?._id || slug}`,
-                  search: '',
-                  hash: '',
-                  scrollY: window.scrollY,
-                })
-              );
-            } catch {}
-
-            setShowLoginModal(true);
-          }
-
-          return next;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [play, token, hasShownLoginPrompt, movie?._id, movie?.slug, slug]);
+  }, [showEpisodePicker]);
 
   // WebSeries seasons
   const seasons = useMemo(() => {
@@ -497,7 +456,7 @@ export default function WatchClient({
     };
   }, [movie?._id, movie?.slug, token, slug]);
 
-  // ✅ UPDATED: guest ratings allowed
+  // ✅ guest ratings allowed
   const submitRating = async () => {
     if (!movie?._id) return;
 
@@ -511,14 +470,14 @@ export default function WatchClient({
 
       const idOrSlug = movie.slug || movie._id || slug;
 
-      // Logged-in: existing behavior
+      // Logged-in
       if (token) {
         await upsertMovieRating(token, idOrSlug, ratingValue, ratingComment);
         toast.success('Thanks! Your rating has been saved.');
         return;
       }
 
-      // Guest: NEW endpoint
+      // Guest
       const res = await createGuestMovieRating(idOrSlug, ratingValue, ratingComment);
       const guestName =
         res?.rating?.user?.fullName || res?.rating?.guestName || 'Guest';
@@ -556,7 +515,7 @@ export default function WatchClient({
   const doDownload = () => {
     if (!movie?.downloadUrl) return;
 
-    // CRA behavior: WatchPage requires login to download
+    // WatchPage requires login to download
     if (!token) {
       toast.error('Please login to download');
       window.location.href = '/login';
@@ -600,60 +559,6 @@ export default function WatchClient({
 
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-      {/* Guest Login Prompt Modal (unchanged) */}
-      {!token && showLoginModal && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 px-4 py-6 overflow-y-auto">
-          <div className="min-h-full flex items-center justify-center mobile:landscape:items-start">
-            <div className="bg-dry rounded-lg shadow-xl border border-border w-full max-w-md max-h-[90vh] overflow-y-auto p-6 mobile:landscape:max-w-lg mobile:landscape:p-4">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-customPurple/20 flex items-center justify-center">
-                  <FaLock className="text-customPurple text-2xl" />
-                </div>
-
-                <h2 className="text-xl font-bold text-white mb-2">
-                  Continue watching - please log in
-                </h2>
-
-                <p className="text-text text-sm mb-4">
-                  Sign in for free to keep watching in HD and access downloads.
-                </p>
-
-                <div className="bg-main rounded-lg p-4 mb-4 text-left">
-                  <p className="text-dryGray text-xs mb-3">
-                    You've reached the preview limit for guests. Log in for free
-                    to continue watching without interruptions, save favorites,
-                    and more.
-                  </p>
-
-                  <ul className="space-y-2 text-sm text-white">
-                    <li className="flex items-center gap-2">
-                      <span className="text-customPurple">✓</span> HD streaming
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-customPurple">✓</span> Watch from where you left
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-customPurple">✓</span> Download available
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-customPurple">✓</span> Add to favorites
-                    </li>
-                  </ul>
-                </div>
-
-                <button
-                  onClick={() => (window.location.href = '/login')}
-                  className="w-full sm:w-auto px-5 py-2 rounded-md bg-customPurple text-white hover:bg-opacity-90 border-2 border-customPurple transitions flex items-center justify-center gap-2"
-                  type="button"
-                >
-                  Login now
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Mobile Episode Picker (unchanged) */}
       {movie?.type === 'WebSeries' && showEpisodePicker && (
         <div
@@ -915,7 +820,10 @@ export default function WatchClient({
         </div>
 
         {/* Player */}
-        <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingTop: '56.25%' }}>
+        <div
+          className="relative w-full overflow-hidden rounded-lg"
+          style={{ paddingTop: '56.25%' }}
+        >
           {play ? (
             <iframe
               key={`${movie?._id}:${movie?.type}:${activeSeason}:${
@@ -994,7 +902,7 @@ export default function WatchClient({
           </div>
         )}
 
-        {/* ✅ Rating row (guest allowed) */}
+        {/* Rating row (guest allowed) */}
         <div className="mt-6 bg-main border border-border rounded-lg p-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <p className="text-white font-semibold text-sm shrink-0">
