@@ -103,6 +103,7 @@ const toEditableDoc = (m) => {
 
     director: String(m?.director || ''),
     imdbId: String(m?.imdbId || ''),
+    videoUrl7: String(m?.videoUrl7 || ''),
 
     casts: Array.isArray(m?.casts) ? m.casts : [],
 

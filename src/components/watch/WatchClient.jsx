@@ -362,26 +362,80 @@ export default function WatchClient({
     selectEpisode(activeSeasonEpisodes[currentEpisodeIndex + 1]);
   };
 
-  // servers (movie or episode)
-  const movieServers = useMemo(
-    () => [
-      { label: 'Server 1', url: movie?.video || '' },
-      { label: 'Server 2', url: movie?.videoUrl2 || '' },
-      { label: 'Server 3', url: movie?.videoUrl3 || '' },
-    ],
-    [movie?.video, movie?.videoUrl2, movie?.videoUrl3]
+ // ✅ Servers (videoUrl7 optional)
+  const hasVideoUrl7 = useMemo(
+    () => !!String(movie?.videoUrl7 || '').trim(),
+    [movie?.videoUrl7]
   );
 
-  const episodeServers = useMemo(
-    () => [
-      { label: 'Server 1', url: currentEpisode?.video || '' },
-      { label: 'Server 2', url: currentEpisode?.videoUrl2 || '' },
-      { label: 'Server 3', url: currentEpisode?.videoUrl3 || '' },
-    ],
-    [currentEpisode?.video, currentEpisode?.videoUrl2, currentEpisode?.videoUrl3]
-  );
+  // Movie servers
+  const movieServers = useMemo(() => {
+    const v7 = String(movie?.videoUrl7 || '').trim();
+    const v1 = String(movie?.video || '').trim();
+    const v2 = String(movie?.videoUrl2 || '').trim();
+    const v3 = String(movie?.videoUrl3 || '').trim();
+
+    // If videoUrl7 exists => it becomes Server 1 and others shift to 2/3/4
+    if (v7) {
+      return [
+        { key: 'videoUrl7', label: 'Server 1', url: v7 },
+        { key: 'video', label: 'Server 2', url: v1 },
+        { key: 'videoUrl2', label: 'Server 3', url: v2 },
+        { key: 'videoUrl3', label: 'Server 4', url: v3 },
+      ];
+    }
+
+    // Default (old behavior)
+    return [
+      { key: 'video', label: 'Server 1', url: v1 },
+      { key: 'videoUrl2', label: 'Server 2', url: v2 },
+      { key: 'videoUrl3', label: 'Server 3', url: v3 },
+    ];
+  }, [movie?.videoUrl7, movie?.video, movie?.videoUrl2, movie?.videoUrl3]);
+
+  // WebSeries servers (Server 1 = videoUrl7, Servers 2/3/4 = per-episode servers)
+  const episodeServers = useMemo(() => {
+    const v7 = String(movie?.videoUrl7 || '').trim();
+    const e1 = String(currentEpisode?.video || '').trim();
+    const e2 = String(currentEpisode?.videoUrl2 || '').trim();
+    const e3 = String(currentEpisode?.videoUrl3 || '').trim();
+
+    if (v7) {
+      return [
+        { key: 'videoUrl7', label: 'Server 1', url: v7 },
+        { key: 'video', label: 'Server 2', url: e1 },
+        { key: 'videoUrl2', label: 'Server 3', url: e2 },
+        { key: 'videoUrl3', label: 'Server 4', url: e3 },
+      ];
+    }
+
+    return [
+      { key: 'video', label: 'Server 1', url: e1 },
+      { key: 'videoUrl2', label: 'Server 2', url: e2 },
+      { key: 'videoUrl3', label: 'Server 3', url: e3 },
+    ];
+  }, [
+    movie?.videoUrl7,
+    currentEpisode?.video,
+    currentEpisode?.videoUrl2,
+    currentEpisode?.videoUrl3,
+  ]);
 
   const activeServers = movie?.type === 'Movie' ? movieServers : episodeServers;
+
+  const isVideoUrl7ServerActive =
+    hasVideoUrl7 && activeServers?.[currentServerIndex]?.key === 'videoUrl7';
+
+  // ✅ WebSeries: hide episode UI when Server 1 (videoUrl7) is active
+  const showEpisodeUi = movie?.type === 'WebSeries' && !isVideoUrl7ServerActive;
+
+  // If videoUrl7 is active, force-close the episode picker
+  useEffect(() => {
+    if (movie?.type !== 'WebSeries') return;
+    if (!isVideoUrl7ServerActive) return;
+    setShowEpisodePicker(false);
+    setEpisodeSearch('');
+  }, [movie?.type, isVideoUrl7ServerActive]);
 
   // ensure current server points to an available URL
   useEffect(() => {
@@ -408,7 +462,7 @@ export default function WatchClient({
   const handlePlayClick = () => {
     if (!movie) return;
 
-    if (movie.type === 'WebSeries' && !currentEpisode) {
+    if (movie.type === 'WebSeries' && showEpisodeUi && !currentEpisode) {
       toast.error('No episode selected');
       return;
     }
@@ -560,7 +614,7 @@ export default function WatchClient({
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       {/* Mobile Episode Picker (unchanged) */}
-      {movie?.type === 'WebSeries' && showEpisodePicker && (
+      {movie?.type === 'WebSeries' && showEpisodeUi && showEpisodePicker && (
         <div
           className="fixed inset-0 z-[9999] bg-black/70"
           onClick={() => setShowEpisodePicker(false)}
@@ -710,7 +764,7 @@ export default function WatchClient({
         </div>
 
         {/* WebSeries controls (unchanged) */}
-        {movie.type === 'WebSeries' && (
+        {movie.type === 'WebSeries' && showEpisodeUi && (
           <div className="mb-4 space-y-3">
             <div className="hidden sm:flex flex-wrap gap-2">
               {seasons.map((s) => (
@@ -819,6 +873,12 @@ export default function WatchClient({
           })}
         </div>
 
+{/* ✅ NEW (Q1): show note when Server 1 (videoUrl7) is active */}
+        {isVideoUrl7ServerActive ? (
+          <p className="text-[12.5px] text-orange-600 mb-2">
+            Use the green buttons on the video to switch languages (English/Hindi) or move between seasons and episodes
+          </p>
+        ) : null}
         {/* Player */}
         <div
           className="relative w-full overflow-hidden rounded-lg"
@@ -826,9 +886,13 @@ export default function WatchClient({
         >
           {play ? (
             <iframe
-              key={`${movie?._id}:${movie?.type}:${activeSeason}:${
-                currentEpisode?._id || 'movie'
-              }:${currentServerIndex}:${activeVideoUrl}`}
+             key={
+                isVideoUrl7ServerActive
+                  ? `${movie?._id}:${movie?.type}:videoUrl7:${activeVideoUrl}`
+                  : `${movie?._id}:${movie?.type}:${activeSeason}:${
+                      currentEpisode?._id || 'movie'
+                    }:${currentServerIndex}:${activeVideoUrl}`
+              }
               title="Player"
               src={activeVideoUrl}
               frameBorder="0"
@@ -861,7 +925,7 @@ export default function WatchClient({
         </div>
 
         {/* Desktop episode list (unchanged) */}
-        {movie.type === 'WebSeries' && (
+        {movie.type === 'WebSeries' && showEpisodeUi && (
           <div className="hidden sm:block mt-6 bg-main border border-border rounded-lg p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className="text-white font-semibold">

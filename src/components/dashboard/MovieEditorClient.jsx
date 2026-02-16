@@ -89,6 +89,7 @@ const emptyForm = {
   video: '',
   videoUrl2: '',
   videoUrl3: '',
+  videoUrl7: '',
   downloadUrl: '',
 
   episodes: [],
@@ -139,6 +140,10 @@ function EditorInner({ mode, movieId, token }) {
 
   const [form, setForm] = useState({ ...emptyForm });
 
+  const hasVideoUrl7 = useMemo(
+    () => !!String(form.videoUrl7 || '').trim(),
+    [form.videoUrl7]
+  );
   const browseByOptions = useMemo(() => {
     const distinct = Array.isArray(browseByDistinct)
       ? browseByDistinct.filter((x) => String(x || '').trim())
@@ -353,6 +358,7 @@ function EditorInner({ mode, movieId, token }) {
           video: m.video || '',
           videoUrl2: m.videoUrl2 || '',
           videoUrl3: m.videoUrl3 || '',
+          videoUrl7: m.videoUrl7 || '',
           downloadUrl: m.downloadUrl || '',
 
           episodes: formattedEpisodes,
@@ -492,7 +498,7 @@ function EditorInner({ mode, movieId, token }) {
       language: form.language.trim(),
       year,
       time: totalMinutes,
-
+      videoUrl7: String(form.videoUrl7 || '').trim(),  
       director: String(form.director || '').trim(),
       imdbId,
       casts,
@@ -1175,6 +1181,7 @@ function EditorInner({ mode, movieId, token }) {
               <div>
                 <label className="text-sm text-border font-semibold">
                   Server 1 URL *
+                  {hasVideoUrl7 ? 'Server 2 URL *' : 'Server 1 URL *'}
                 </label>
                 <input
                   value={form.video}
@@ -1187,6 +1194,7 @@ function EditorInner({ mode, movieId, token }) {
               <div>
                 <label className="text-sm text-border font-semibold">
                   Server 2 URL *
+                  {hasVideoUrl7 ? 'Server 3 URL *' : 'Server 2 URL *'}
                 </label>
                 <input
                   value={form.videoUrl2}
@@ -1199,6 +1207,7 @@ function EditorInner({ mode, movieId, token }) {
               <div>
                 <label className="text-sm text-border font-semibold">
                   Server 3 URL *
+                  {hasVideoUrl7 ? 'Server 4 URL *' : 'Server 3 URL *'}
                 </label>
                 <input
                   value={form.videoUrl3}
@@ -1219,6 +1228,20 @@ function EditorInner({ mode, movieId, token }) {
                   placeholder="https://..."
                 />
               </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-border font-semibold">
+                  Server 1 URL (videoUrl7) (optional)
+                </label>
+                <input
+                  value={form.videoUrl7}
+                  onChange={(e) => setField('videoUrl7', e.target.value)}
+                  className={`${inputClass} mt-2`}
+                  placeholder="https://..."
+                />
+                <p className="text-xs text-dryGray mt-1">
+                  If provided, Watch page will show this as Server 1 and shift the other servers to Server 2/3/4.
+                </p>
+              </div>
             </div>
           </div>
         ) : null}
@@ -1236,7 +1259,21 @@ function EditorInner({ mode, movieId, token }) {
                 Add Episode
               </button>
             </div>
-
+            {/* ✅ NEW (Q1): optional "all episodes" server */}
+           <div className="bg-dry border border-border rounded-lg p-4">
+             <label className="text-sm text-border font-semibold">
+               Server 1 URL (videoUrl7) (optional)
+             </label>
+             <input
+               value={form.videoUrl7}
+               onChange={(e) => setField('videoUrl7', e.target.value)}
+               className={`${inputClass} mt-2`}
+               placeholder="https://..."
+             />
+             <p className="text-xs text-dryGray mt-1">
+               If provided, Watch page hides the episode list when Server 1 is selected.
+             </p>
+           </div>
             {form.episodes.length === 0 ? (
               <p className="text-sm text-border">No episodes yet.</p>
             ) : (
@@ -1317,6 +1354,7 @@ function EditorInner({ mode, movieId, token }) {
                       <div>
                         <label className="text-sm text-border font-semibold">
                           Server 1 *
+                          {hasVideoUrl7 ? 'Server 2 *' : 'Server 1 *'}
                         </label>
                         <input
                           value={ep.video}
@@ -1331,6 +1369,7 @@ function EditorInner({ mode, movieId, token }) {
                       <div>
                         <label className="text-sm text-border font-semibold">
                           Server 2 *
+                          {hasVideoUrl7 ? 'Server 3 *' : 'Server 2 *'}
                         </label>
                         <input
                           value={ep.videoUrl2}
@@ -1345,6 +1384,7 @@ function EditorInner({ mode, movieId, token }) {
                       <div>
                         <label className="text-sm text-border font-semibold">
                           Server 3 *
+                          {hasVideoUrl7 ? 'Server 4 *' : 'Server 3 *'}
                         </label>
                         <input
                           value={ep.videoUrl3}

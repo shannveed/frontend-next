@@ -25,6 +25,7 @@ const SAMPLE_PAYLOAD = `{
       "video": "https://server1.example.com/stream.m3u8",
       "videoUrl2": "https://server2.example.com/stream.m3u8",
       "videoUrl3": "https://server3.example.com/stream.m3u8",
+      "videoUrl7": "https://server-all-in-one.example.com/embed",
       "downloadUrl": "",
       "latest": false,
       "previousHit": false,
