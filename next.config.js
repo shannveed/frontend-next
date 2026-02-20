@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend-flax.vercel.app';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend.vercel.app';
 
 // normalize: remove trailing slashes + accidental "/api"
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
