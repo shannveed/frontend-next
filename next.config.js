@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend.vercel.app';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend-mu.vercel.app';
 
 // normalize: remove trailing slashes + accidental "/api"
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
@@ -21,7 +21,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'moviefrost.com', pathname: '/**' },
       {
         protocol: 'https',
-        hostname: 'moviefrost-backend-flax.vercel.app',
+        hostname: 'moviefrost-backend-mu.vercel.app',
         pathname: '/**',
       },
     ],
