@@ -20,13 +20,10 @@ const buildVerification = () => {
   // Bing
   const bing = process.env.NEXT_PUBLIC_BING_VERIFICATION; // meta name: msvalidate.01
 
-
   if (google) v.google = google;
-  if (yandex) v.yandex = yandex;
+  if (yandex) v.yandex;
 
   if (bing) other['msvalidate.01'] = bing;
-
-
   if (Object.keys(other).length) v.other = other;
 
   return Object.keys(v).length ? v : undefined;
@@ -56,7 +53,6 @@ export const metadata = {
     title: 'MovieFrost',
   },
 
-  // ✅ NEW: verification tags (Bing/Yandex/Baidu/Naver + optional Google)
   verification: buildVerification(),
 };
 
@@ -70,11 +66,13 @@ export const viewport = {
 export default function RootLayout({ children }) {
   const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
   const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-  
+  // ✅ Cloudflare Web Analytics token (public)
+  const CF_TOKEN = process.env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
-{/* ✅ Google AdSense Global Script */}
+        {/* ✅ Google AdSense Global Script */}
         {ADSENSE_CLIENT ? (
           <Script
             id="adsense-js"
@@ -85,8 +83,22 @@ export default function RootLayout({ children }) {
           />
         ) : null}
 
-          {/* ✅ Ezoic verification scripts (toggle via env) */}
+        {/* ✅ Ezoic verification scripts (toggle via env) */}
         <EzoicScripts />
+
+        {/* ✅ Cloudflare Web Analytics (loads site-wide) */}
+        {CF_TOKEN ? (
+          <Script
+            id="cloudflare-web-analytics"
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            // ✅ Optional but recommended for Next.js client-side navigation tracking:
+            data-cf-beacon={JSON.stringify({ token: CF_TOKEN, spa: true })}
+            strategy="afterInteractive"
+          />
+        ) : null}
+
+        {/* ✅ Google Analytics (existing) */}
         {GA_ID ? (
           <>
             <Script
