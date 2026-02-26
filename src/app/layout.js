@@ -69,10 +69,22 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-
+  const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
+{/* ✅ Google AdSense Global Script */}
+        {ADSENSE_CLIENT ? (
+          <Script
+            id="adsense-js"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
+
           {/* ✅ Ezoic verification scripts (toggle via env) */}
         <EzoicScripts />
         {GA_ID ? (

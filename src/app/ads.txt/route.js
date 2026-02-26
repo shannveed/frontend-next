@@ -186,7 +186,13 @@ export async function GET(req) {
 
       // Success: non-empty body
       if (res.ok && text && text.trim()) {
-        const body = text.replace(/\r\n/g, '\n').trimEnd() + '\n';
+
+        const ADSENSE_LINE = 'google.com, pub-3023606197585700, DIRECT, f08c47fec0942fa0';
+
+        const cleaned = text.replace(/\r\n/g, '\n').trimEnd();
+
+        const body = `${ADSENSE_LINE}\n${cleaned}\n`;
+
         return new Response(body, {
           status: 200,
           headers: responseHeaders({
