@@ -5,27 +5,18 @@ import { SITE_URL } from '../lib/seo';
 
 import Providers from './providers';
 import SiteChrome from '../components/layout/SiteChrome';
-import EzoicScripts from '@/components/ads/EzoicScripts';
 
 const buildVerification = () => {
   const v = {};
   const other = {};
 
-  // Google Search Console (optional)
   const google = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
-
-  // Yandex
   const yandex = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION;
-
-  // Bing
   const bing = process.env.NEXT_PUBLIC_BING_VERIFICATION; // meta name: msvalidate.01
-
 
   if (google) v.google = google;
   if (yandex) v.yandex = yandex;
-
   if (bing) other['msvalidate.01'] = bing;
-
 
   if (Object.keys(other).length) v.other = other;
 
@@ -56,7 +47,6 @@ export const metadata = {
     title: 'MovieFrost',
   },
 
-  // ✅ NEW: verification tags (Bing/Yandex/Baidu/Naver + optional Google)
   verification: buildVerification(),
 };
 
@@ -69,11 +59,12 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+  const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
-        {/* ✅ Google AdSense Global Script */}
+        {/* Google AdSense Global Script */}
         {ADSENSE_CLIENT ? (
           <Script
             id="adsense-js"
@@ -83,8 +74,8 @@ const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
             crossOrigin="anonymous"
           />
         ) : null}
-          {/* ✅ Ezoic verification scripts (toggle via env) */}
-        <EzoicScripts />
+
+        {/* Google Analytics */}
         {GA_ID ? (
           <>
             <Script
