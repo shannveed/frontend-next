@@ -42,10 +42,10 @@ const nextConfig = {
           source: '/sitemap-index.xml',
           destination: `${API_BASE}/sitemap-index.xml`,
         },
-        {
-          source: '/sitemap-actors.xml',
-          destination: `${API_BASE}/sitemap-actors.xml`,
-        },
+
+        // ✅ IMPORTANT:
+        // Do NOT rewrite /sitemap-actors.xml anymore.
+        // It is now served by: src/app/sitemap-actors.xml/route.js (410 Gone)
       ],
     };
   },
@@ -86,9 +86,15 @@ const nextConfig = {
         headers: [{ key: 'Cache-Control', value: faviconCache }],
       },
 
-      // ✅ SEO: ensure these pages cannot be indexed (headers-level)
+      // ensure these pages cannot be indexed (headers-level)
       {
         source: '/watch/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+      },
+
+      // ✅ NEW: actor pages cannot be indexed
+      {
+        source: '/actor/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
 

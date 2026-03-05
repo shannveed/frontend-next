@@ -25,11 +25,11 @@ export async function generateMetadata({ params }) {
     description: `Browse movies and web series featuring ${name} on MovieFrost.`,
     alternates: { canonical },
 
-    // ✅ Actor pages are now INDEXABLE
+    // ✅ IMPORTANT: Stop indexing actor pages
     robots: {
-      index: true,
+      index: false,
       follow: true,
-      googleBot: { index: true, follow: true },
+      googleBot: { index: false, follow: true },
     },
 
     openGraph: {
