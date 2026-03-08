@@ -1,11 +1,16 @@
 // src/components/actor/ActorPageClient.jsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import SafeImage from '../common/SafeImage';
 import MovieCard from '../movie/MovieCard';
+import EffectiveGateNativeBanner, {
+  EffectiveGateSquareAd,
+} from '../ads/EffectiveGateNativeBanner';
+
+const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
 export default function ActorPageClient({
   slug,
@@ -15,27 +20,39 @@ export default function ActorPageClient({
   initialPages = 1,
   total = 0,
 }) {
-  const [actor] = useState(initialActor);
-  const [movies, setMovies] = useState(initialMovies);
+  const actor = initialActor || null;
 
-  const [page, setPage] = useState(initialPage);
-  const [pages, setPages] = useState(initialPages);
+  const [movies, setMovies] = useState(
+    Array.isArray(initialMovies) ? initialMovies : []
+  );
+  const [page, setPage] = useState(Number(initialPage) || 1);
+  const [pages, setPages] = useState(Number(initialPages) || 1);
 
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [filter, setFilter] = useState('all'); // all | Movie | WebSeries
   const [search, setSearch] = useState('');
 
+  useEffect(() => {
+    setMovies(Array.isArray(initialMovies) ? initialMovies : []);
+    setPage(Number(initialPage) || 1);
+    setPages(Number(initialPages) || 1);
+    setLoadingMore(false);
+    setFilter('all');
+    setSearch('');
+  }, [slug, initialMovies, initialPage, initialPages]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    return (movies || [])
-      .filter((m) => {
-        if (filter !== 'all' && m.type !== filter) return false;
-        if (!term) return true;
-        return String(m?.name || '').toLowerCase().includes(term);
-      });
+    return (movies || []).filter((m) => {
+      if (filter !== 'all' && m.type !== filter) return false;
+      if (!term) return true;
+      return String(m?.name || '').toLowerCase().includes(term);
+    });
   }, [movies, filter, search]);
+
+  const hasVisibleMovies = filtered.length > 0;
 
   const loadMore = async () => {
     if (loadingMore) return;
@@ -43,21 +60,30 @@ export default function ActorPageClient({
 
     try {
       setLoadingMore(true);
-      const next = page + 1;
 
-      const res = await fetch(`/api/actors/${encodeURIComponent(slug)}?page=${next}&limit=24`);
-      const data = await res.json();
+      const nextPage = page + 1;
+      const res = await fetch(
+        `/api/actors/${encodeURIComponent(slug)}?page=${nextPage}&limit=24`,
+        { cache: 'no-store' }
+      );
 
-      if (!res.ok) throw new Error(data?.message || 'Failed to load more');
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to load more');
+      }
 
       setMovies((prev) => {
-        const map = new Map((prev || []).map((m) => [m._id, m]));
-        (data.movies || []).forEach((m) => map.set(m._id, m));
+        const map = new Map((prev || []).map((m) => [String(m._id), m]));
+        (data?.movies || []).forEach((m) => {
+          if (!m?._id) return;
+          map.set(String(m._id), m);
+        });
         return Array.from(map.values());
       });
 
-      setPage(data.page || next);
-      setPages(data.pages || pages);
+      setPage(Number(data?.page) || nextPage);
+      setPages(Number(data?.pages) || pages);
     } catch (e) {
       toast.error(e?.message || 'Failed to load more');
     } finally {
@@ -67,36 +93,39 @@ export default function ActorPageClient({
 
   const roleLabel =
     Array.isArray(actor?.roles) && actor.roles.length
-      ? actor.roles.map((r) => (r === 'director' ? 'Director' : 'Actor')).join(' • ')
+      ? actor.roles
+        .map((r) => (r === 'director' ? 'Director' : 'Actor'))
+        .join(' • ')
       : 'Actor';
 
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       {/* Header */}
-      <div className="bg-dry border border-border  rounded-lg p-5 sm:p-6">
+      <div className="bg-dry border border-border rounded-lg p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-
           <div className="w-[140px] aspect-[3/4] rounded-lg overflow-hidden border border-border bg-black/40 flex items-center justify-center">
-  <SafeImage
-    src={actor?.image || '/images/placeholder.jpg'}
-    alt={actor?.name || 'Actor'}
-    width={140}
-    height={190}
-    className="object-contain"
-  />
-</div>
-
+            <SafeImage
+              src={actor?.image || '/images/placeholder.jpg'}
+              alt={actor?.name || 'Actor'}
+              width={140}
+              height={190}
+              className="object-contain"
+            />
+          </div>
 
           <div className="flex-1 w-full">
             <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">
-  {actor?.name}
-</h1>
+              {actor?.name || 'Actor'}
+            </h1>
 
             <p className="text-dryGray text-sm mt-1">{roleLabel}</p>
 
             <div className="flex flex-wrap gap-2 mt-4">
               <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
-                Total titles: <span className="text-customPurple font-semibold">{total}</span>
+                Total titles:{' '}
+                <span className="text-customPurple font-semibold">
+                  {Number(total) || 0}
+                </span>
               </span>
             </div>
 
@@ -111,11 +140,10 @@ export default function ActorPageClient({
                   key={b.key}
                   type="button"
                   onClick={() => setFilter(b.key)}
-                  className={`px-4 py-2 rounded border text-sm transitions ${
-                    filter === b.key
+                  className={`px-4 py-2 rounded border text-sm transitions ${filter === b.key
                       ? 'bg-customPurple border-customPurple text-white'
                       : 'bg-main border-border text-white hover:border-customPurple'
-                  }`}
+                    }`}
                 >
                   {b.label}
                 </button>
@@ -134,6 +162,19 @@ export default function ActorPageClient({
           </div>
         </div>
       </div>
+
+      {ADS_ENABLED && hasVisibleMovies ? (
+        <div className="my-6">
+          <EffectiveGateNativeBanner
+            refreshKey={`actor-desktop-before-grid:${slug}`}
+          />
+          <div className="sm:hidden mt-4">
+            <EffectiveGateSquareAd
+              refreshKey={`actor-mobile-before-grid:${slug}`}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {/* Grid */}
       <div className="mt-8 grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-5 gap-4">
@@ -155,6 +196,19 @@ export default function ActorPageClient({
           </button>
         </div>
       )}
+
+      {ADS_ENABLED && hasVisibleMovies ? (
+        <div className="my-10">
+          <EffectiveGateNativeBanner
+            refreshKey={`actor-desktop-after-grid:${slug}`}
+          />
+          <div className="sm:hidden mt-4">
+            <EffectiveGateSquareAd
+              refreshKey={`actor-mobile-after-grid:${slug}`}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,194 +1,65 @@
-// src/components/actor/ActorPageClient.jsx
-'use client';
+// frontend-next/src/app/actor/[slug]/page.jsx
+import { notFound } from 'next/navigation';
 
-import React, { useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
+import ActorPageClient from '../../../components/actor/ActorPageClient';
+import JsonLd from '../../../components/seo/JsonLd';
 
-import SafeImage from '../common/SafeImage';
-import MovieCard from '../movie/MovieCard';
-import EffectiveGateNativeBanner, {
-  EffectiveGateSquareAd,
-} from '../ads/EffectiveGateNativeBanner';
+import { getActorBySlug } from '../../../lib/api';
+import { actorCanonicalBySlug, buildActorGraphJsonLd } from '../../../lib/seo';
 
-const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
+export const revalidate = 300;
+export const dynamicParams = true;
 
-export default function ActorPageClient({
-  slug,
-  initialActor,
-  initialMovies = [],
-  initialPage = 1,
-  initialPages = 1,
-  total = 0,
-}) {
-  const [actor] = useState(initialActor);
-  const [movies, setMovies] = useState(initialMovies);
+export async function generateMetadata({ params }) {
+  const data = await getActorBySlug(params.slug, { revalidate });
 
-  const [page, setPage] = useState(initialPage);
-  const [pages, setPages] = useState(initialPages);
+  if (!data?.actor) {
+    return {
+      title: 'Actor not found',
+      robots: { index: false, follow: false },
+    };
+  }
 
-  const [loadingMore, setLoadingMore] = useState(false);
+  const actorName = String(data.actor?.name || 'Actor').trim();
 
-  const [filter, setFilter] = useState('all'); // all | Movie | WebSeries
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    return (movies || []).filter((m) => {
-      if (filter !== 'all' && m.type !== filter) return false;
-      if (!term) return true;
-      return String(m?.name || '').toLowerCase().includes(term);
-    });
-  }, [movies, filter, search]);
-
-  const hasVisibleMovies = filtered.length > 0;
-
-  const loadMore = async () => {
-    if (loadingMore) return;
-    if (page >= pages) return;
-
-    try {
-      setLoadingMore(true);
-      const next = page + 1;
-
-      const res = await fetch(
-        `/api/actors/${encodeURIComponent(slug)}?page=${next}&limit=24`
-      );
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data?.message || 'Failed to load more');
-
-      setMovies((prev) => {
-        const map = new Map((prev || []).map((m) => [m._id, m]));
-        (data.movies || []).forEach((m) => map.set(m._id, m));
-        return Array.from(map.values());
-      });
-
-      setPage(data.page || next);
-      setPages(data.pages || pages);
-    } catch (e) {
-      toast.error(e?.message || 'Failed to load more');
-    } finally {
-      setLoadingMore(false);
-    }
+  return {
+    title: `${actorName} — Movies & Web Series`,
+    description: `Browse ${actorName} movies and web series on MovieFrost.`,
+    alternates: {
+      canonical: actorCanonicalBySlug(params.slug),
+    },
+    robots: {
+      index: false,
+      follow: true,
+    },
   };
+}
 
-  const roleLabel =
-    Array.isArray(actor?.roles) && actor.roles.length
-      ? actor.roles.map((r) => (r === 'director' ? 'Director' : 'Actor')).join(' • ')
-      : 'Actor';
+export default async function ActorPage({ params }) {
+  const data = await getActorBySlug(params.slug, { revalidate });
+
+  if (!data?.actor) notFound();
+
+  const actor = data.actor;
+  const movies = Array.isArray(data.movies) ? data.movies : [];
+
+  const graph = buildActorGraphJsonLd({
+    actor,
+    movies,
+  });
 
   return (
-    <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-      {/* Header */}
-      <div className="bg-dry border border-border rounded-lg p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-          <div className="w-[140px] aspect-[3/4] rounded-lg overflow-hidden border border-border bg-black/40 flex items-center justify-center">
-            <SafeImage
-              src={actor?.image || '/images/placeholder.jpg'}
-              alt={actor?.name || 'Actor'}
-              width={140}
-              height={190}
-              className="object-contain"
-            />
-          </div>
+    <>
+      <JsonLd data={graph} />
 
-          <div className="flex-1 w-full">
-            <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">
-              {actor?.name}
-            </h1>
-
-            <p className="text-dryGray text-sm mt-1">{roleLabel}</p>
-
-            <div className="flex flex-wrap gap-2 mt-4">
-              <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
-                Total titles:{' '}
-                <span className="text-customPurple font-semibold">{total}</span>
-              </span>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {[
-                { key: 'all', label: 'All' },
-                { key: 'Movie', label: 'Movies' },
-                { key: 'WebSeries', label: 'Web Series' },
-              ].map((b) => (
-                <button
-                  key={b.key}
-                  type="button"
-                  onClick={() => setFilter(b.key)}
-                  className={`px-4 py-2 rounded border text-sm transitions ${filter === b.key
-                    ? 'bg-customPurple border-customPurple text-white'
-                    : 'bg-main border-border text-white hover:border-customPurple'
-                    }`}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search */}
-            <div className="mt-4">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search this filmography..."
-                className="w-full bg-main border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ✅ Q1: Ad above movie cards */}
-      {ADS_ENABLED && hasVisibleMovies ? (
-        <div className="my-6">
-          <EffectiveGateNativeBanner
-            refreshKey={`actor-desktop-before-grid:${slug}`}
-          />
-          <div className="sm:hidden mt-4">
-            <EffectiveGateSquareAd
-              refreshKey={`actor-mobile-before-grid:${slug}`}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Grid */}
-      <div className="mt-8 grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-5 gap-4">
-        {filtered.map((m) => (
-          <MovieCard key={m._id} movie={m} showLike />
-        ))}
-      </div>
-
-      {/* Load more */}
-      {page < pages && (
-        <div className="flex justify-center mt-10">
-          <button
-            type="button"
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="bg-customPurple hover:bg-opacity-90 transition text-white px-8 py-3 rounded font-semibold disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
-        </div>
-      )}
-
-      {/* ✅ Q1: Ad below movie cards section */}
-      {ADS_ENABLED && hasVisibleMovies ? (
-        <div className="my-10">
-          <EffectiveGateNativeBanner
-            refreshKey={`actor-desktop-after-grid:${slug}`}
-          />
-          <div className="sm:hidden mt-4">
-            <EffectiveGateSquareAd
-              refreshKey={`actor-mobile-after-grid:${slug}`}
-            />
-          </div>
-        </div>
-      ) : null}
-    </div>
+      <ActorPageClient
+        slug={params.slug}
+        initialActor={actor}
+        initialMovies={movies}
+        initialPage={Number(data.page) || 1}
+        initialPages={Number(data.pages) || 1}
+        total={Number(data.total) || movies.length}
+      />
+    </>
   );
 }
