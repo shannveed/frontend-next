@@ -59,7 +59,9 @@ export async function generateStaticParams() {
       if (seg) set.add(String(seg));
     }
 
-    return Array.from(set).slice(0, 200).map((slug) => ({ slug }));
+    return Array.from(set)
+      .slice(0, 200)
+      .map((slug) => ({ slug }));
   } catch {
     return [];
   }
@@ -113,7 +115,9 @@ export default async function MoviePage({ params }) {
 
   const seg = movie.slug || movie._id;
 
-  const related = await getRelatedMovies(seg, 20, { revalidate: 3600 }).catch(() => []);
+  const related = await getRelatedMovies(seg, 20, { revalidate: 3600 }).catch(
+    () => []
+  );
 
   const graphLd = buildMovieGraphJsonLd(movie);
   const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
@@ -127,9 +131,13 @@ export default async function MoviePage({ params }) {
 
         {ADS_ENABLED ? (
           <div className="my-6">
-            <EffectiveGateNativeBanner refreshKey={`movie-desktop-before-ratings:${seg}`} />
+            <EffectiveGateNativeBanner
+              refreshKey={`movie-desktop-before-ratings:${seg}`}
+            />
             <div className="sm:hidden mt-4">
-              <EffectiveGateSquareAd refreshKey={`movie-mobile-before-ratings:${seg}`} />
+              <EffectiveGateSquareAd
+                refreshKey={`movie-mobile-before-ratings:${seg}`}
+              />
             </div>
           </div>
         ) : null}
@@ -143,15 +151,6 @@ export default async function MoviePage({ params }) {
         {/* ✅ NEW: Only renders if movie has faqs / trailerUrl */}
         <MovieFaqSection movie={movie} />
         <MovieTrailerSection movie={movie} />
-
-        {ADS_ENABLED ? (
-          <div className="my-10">
-            <EffectiveGateNativeBanner refreshKey={`movie-desktop-after-related:${seg}`} />
-            <div className="sm:hidden mt-4">
-              <EffectiveGateSquareAd refreshKey={`movie-mobile-after-related:${seg}`} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </>
   );
