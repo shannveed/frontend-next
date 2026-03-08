@@ -1,5 +1,4 @@
-'use client';
-
+// src/components/home/Promos.jsx
 import React from 'react';
 
 export default function Promos() {

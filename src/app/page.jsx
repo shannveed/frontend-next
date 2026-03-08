@@ -1,5 +1,6 @@
 // src/app/page.jsx
 import HomeClient from '../components/home/HomeClient';
+import Promos from '../components/home/Promos';
 import {
   getBannerMovies,
   getLatestNewMovies,
@@ -28,6 +29,7 @@ export default async function HomePage() {
       initialLatestNew={Array.isArray(latestNew) ? latestNew : []}
       initialLatestMovies={Array.isArray(moviesPage1?.movies) ? moviesPage1.movies : []}
       initialTopRated={Array.isArray(topRated) ? topRated : []}
+      promosNode={<Promos />}
     />
   );
 }

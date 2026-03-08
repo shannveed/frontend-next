@@ -1,3 +1,4 @@
+// src/components/home/HomeClient.jsx
 'use client';
 
 import React, { useContext, useEffect, useMemo, useState } from 'react';
@@ -19,7 +20,6 @@ import {
 import BannerSlider from './BannerSlider';
 import MovieCard from '../movie/MovieCard';
 import BrowseSwiperSection from './BrowseSwiperSection';
-import Promos from './Promos';
 
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
@@ -30,6 +30,7 @@ export default function HomeClient({
   initialLatestNew = [],
   initialLatestMovies = [],
   initialTopRated = [],
+  promosNode = null,
 }) {
   const { activeMobileTab, activeMobileHomeTab, setActiveMobileHomeTab } =
     useContext(SidebarContext);
@@ -69,12 +70,12 @@ export default function HomeClient({
     try {
       const stored = sessionStorage.getItem('homeDesktopTab');
       if (stored) setActiveDesktopTab(stored);
-    } catch {}
+    } catch { }
   }, []);
   useEffect(() => {
     try {
       sessionStorage.setItem('homeDesktopTab', activeDesktopTab);
-    } catch {}
+    } catch { }
   }, [activeDesktopTab]);
 
   // admin refresh banner + trending lists (so drafts show for admin)
@@ -204,11 +205,10 @@ export default function HomeClient({
         <button
           key={t.key}
           onClick={() => setActiveDesktopTab(t.key)}
-          className={`px-6 py-2.5 rounded-md font-semibold text-sm transitions ${
-            activeDesktopTab === t.key
+          className={`px-6 py-2.5 rounded-md font-semibold text-sm transitions ${activeDesktopTab === t.key
               ? 'bg-customPurple text-white'
               : 'bg-dry text-white hover:bg-customPurple/20 border border-border'
-          }`}
+            }`}
           type="button"
         >
           {t.label}
@@ -237,11 +237,10 @@ export default function HomeClient({
               <button
                 type="button"
                 onClick={() => setEditTrending((p) => !p)}
-                className={`px-4 py-2 text-sm rounded border transitions ${
-                  editTrending
+                className={`px-4 py-2 text-sm rounded border transitions ${editTrending
                     ? 'bg-customPurple border-customPurple text-white'
                     : 'border-customPurple text-white hover:bg-customPurple'
-                }`}
+                  }`}
               >
                 {editTrending ? 'Exit Edit Trending' : 'Edit Trending Order'}
               </button>
@@ -261,11 +260,10 @@ export default function HomeClient({
         )}
 
         <div
-          className={`grid ${
-            mobile
+          className={`grid ${mobile
               ? 'grid-cols-2 gap-2'
               : 'xl:grid-cols-5 lg:grid-cols-4 md:grid-cols-3 gap-4'
-          }`}
+            }`}
         >
           {trendingDisplay.slice(0, 100).map((m) => (
             <div key={m._id} className="relative">
@@ -326,11 +324,10 @@ export default function HomeClient({
     return (
       <>
         <div
-          className={`grid ${
-            mobile
+          className={`grid ${mobile
               ? 'grid-cols-2 gap-2'
               : 'xl:grid-cols-5 lg:grid-cols-4 md:grid-cols-3 gap-4'
-          }`}
+            }`}
         >
           {list.map((m) => (
             <MovieCard key={m._id} movie={m} />
@@ -404,16 +401,15 @@ export default function HomeClient({
         <EffectiveGateNativeBanner refreshKey="home-desktop-browseby" />
       )}
 
-      <Promos />
+      {promosNode}
 
       <div className="my-8">
         <h3 className="text-lg font-semibold mb-4">Top Rated</h3>
         <div
-          className={`grid ${
-            mobile
+          className={`grid ${mobile
               ? 'grid-cols-2 gap-2'
               : 'xl:grid-cols-5 lg:grid-cols-4 md:grid-cols-3 gap-4'
-          }`}
+            }`}
         >
           {topRated.slice(0, 10).map((m) => (
             <MovieCard key={m._id} movie={m} />
@@ -437,7 +433,6 @@ export default function HomeClient({
 
       {/* MOBILE */}
       <div className="sm:hidden my-4 px-4">
-        {/* ✅ FIX: only show BrowseBy when tab is exactly browseBy */}
         {activeMobileTab === 'browseBy' ? (
           <BrowseByContent mobile />
         ) : (
@@ -446,11 +441,10 @@ export default function HomeClient({
               <button
                 type="button"
                 onClick={() => setActiveMobileHomeTab('latestNew')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transitions ${
-                  activeMobileHomeTab === 'latestNew'
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transitions ${activeMobileHomeTab === 'latestNew'
                     ? 'bg-customPurple text-white border-customPurple'
                     : 'bg-dry text-white border-border'
-                }`}
+                  }`}
               >
                 Trending
               </button>
@@ -458,11 +452,10 @@ export default function HomeClient({
               <button
                 type="button"
                 onClick={() => setActiveMobileHomeTab('latestMovies')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transitions ${
-                  activeMobileHomeTab === 'latestMovies'
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold border transitions ${activeMobileHomeTab === 'latestMovies'
                     ? 'bg-customPurple text-white border-customPurple'
                     : 'bg-dry text-white border-border'
-                }`}
+                  }`}
               >
                 New Releases
               </button>

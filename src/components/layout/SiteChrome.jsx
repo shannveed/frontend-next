@@ -1,10 +1,10 @@
+// src/components/layout/SiteChromeClient.jsx
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
 
-import Footer from './Footer';
 import NavBar from './NavBar';
 import MobileFooter from './MobileFooter';
 
@@ -48,7 +48,7 @@ const isIOSDevice = () => {
   return isIOS || isIpadOS;
 };
 
-export default function SiteChrome({ children }) {
+export default function SiteChromeClient({ children, footer = null }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -113,7 +113,7 @@ export default function SiteChrome({ children }) {
       const markShown = () => {
         try {
           sessionStorage.setItem(storageKey, '1');
-        } catch {}
+        } catch { }
       };
 
       const tryOpen = () => {
@@ -230,7 +230,7 @@ export default function SiteChrome({ children }) {
       setDeferredPrompt(null);
       try {
         localStorage.setItem('pwaInstalled', '1');
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -264,7 +264,7 @@ export default function SiteChrome({ children }) {
 
       try {
         if (localStorage.getItem('pwaInstalled') === '1') return true;
-      } catch {}
+      } catch { }
 
       if (!isIOS && !deferredPrompt) return true;
       return false;
@@ -304,9 +304,7 @@ export default function SiteChrome({ children }) {
       <NavBar />
       <div className="min-h-screen pb-20 sm:pb-0">{children}</div>
 
-      <div className="mb-16 sm:mb-0">
-        <Footer />
-      </div>
+      {footer ? <div className="mb-16 sm:mb-0">{footer}</div> : null}
 
       <MobileFooter />
 
@@ -354,7 +352,6 @@ export default function SiteChrome({ children }) {
           buttonText="Open Telegram"
           url={TELEGRAM_URL}
           Icon={FaTelegramPlane}
-          // ✅ Q2: show a close button
           showMaybeLater={true}
           maybeLaterText="Close"
         />

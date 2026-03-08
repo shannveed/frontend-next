@@ -1,5 +1,4 @@
-'use client';
-
+// src/components/layout/Footer.jsx
 import React from 'react';
 import Link from 'next/link';
 
@@ -42,10 +41,10 @@ export default function Footer() {
     {
       title: 'My Account',
       links: [
-        { name: 'Dashboard', link: '/dashboard' },   // CRA fallback
-        { name: 'My Favorites', link: '/favorites' },// CRA fallback
-        { name: 'Profile', link: '/profile' },       // CRA fallback
-        { name: 'Change Password', link: '/password' }, // CRA fallback
+        { name: 'Dashboard', link: '/dashboard' },
+        { name: 'My Favorites', link: '/favorites' },
+        { name: 'Profile', link: '/profile' },
+        { name: 'Change Password', link: '/password' },
       ],
     },
   ];
