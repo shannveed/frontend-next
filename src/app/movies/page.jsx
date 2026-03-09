@@ -1,6 +1,11 @@
+import { redirect } from 'next/navigation';
+
 import MoviesClient from '../../components/movies/MoviesClient';
 import { getBrowseByDistinct, getCategories, getMovies } from '../../lib/api';
-import { SITE_URL } from '../../lib/seo';
+import {
+  buildMoviesQuerySeo,
+  getDedicatedListingPath,
+} from '../../lib/discoveryPages';
 
 const pick = (sp, key) => {
   const v = sp?.[key];
@@ -8,34 +13,25 @@ const pick = (sp, key) => {
 };
 
 export async function generateMetadata({ searchParams }) {
-  const type = pick(searchParams, 'type');
-  const category = pick(searchParams, 'category');
-  const browseBy = pick(searchParams, 'browseBy');
-  const search = pick(searchParams, 'search');
-  const pageNumber = Number(pick(searchParams, 'pageNumber') || 1) || 1;
+  const query = {
+    type: pick(searchParams, 'type'),
+    category: pick(searchParams, 'category'),
+    browseBy: pick(searchParams, 'browseBy'),
+    language: pick(searchParams, 'language'),
+    year: pick(searchParams, 'year'),
+    time: pick(searchParams, 'time'),
+    rate: pick(searchParams, 'rate'),
+    search: pick(searchParams, 'search'),
+    pageNumber: Number(pick(searchParams, 'pageNumber') || 1) || 1,
+  };
 
-  const canonicalUrl = new URL(`${SITE_URL}/movies`);
-  if (type) canonicalUrl.searchParams.set('type', type);
-  if (category) canonicalUrl.searchParams.set('category', category);
-  if (browseBy) canonicalUrl.searchParams.set('browseBy', browseBy);
-  if (search) canonicalUrl.searchParams.set('search', search);
-  if (pageNumber > 1) canonicalUrl.searchParams.set('pageNumber', String(pageNumber));
-
-  const typeLabel =
-    type === 'WebSeries' ? 'Tv Shows' : type === 'Movie' ? 'Movies' : 'Movies';
-
-  const part = search
-    ? `Search: ${search}`
-    : category
-    ? category
-    : browseBy
-    ? browseBy
-    : typeLabel;
+  const seo = buildMoviesQuerySeo(query);
 
   return {
-    title: `${part} (Page ${pageNumber})`,
-    description: `Browse ${part} on MovieFrost. Page ${pageNumber}.`,
-    alternates: { canonical: canonicalUrl.toString() },
+    title: seo.title,
+    description: seo.description,
+    alternates: { canonical: seo.canonical },
+    robots: seo.robots,
   };
 }
 
@@ -52,10 +48,22 @@ export default async function MoviesPage({ searchParams }) {
     pageNumber: Number(pick(searchParams, 'pageNumber') || 1) || 1,
   };
 
+  // ✅ Q1:
+  // Redirect cleanly when the query is basically asking for a dedicated landing page.
+  const dedicatedPath = getDedicatedListingPath(query);
+  if (dedicatedPath) {
+    redirect(dedicatedPath);
+  }
+
   const [cats, browseByDistinct, data] = await Promise.all([
     getCategories({ revalidate: 3600 }).catch(() => []),
     getBrowseByDistinct({ revalidate: 3600 }).catch(() => []),
-    getMovies(query, { revalidate: 60 }).catch(() => ({ movies: [], page: 1, pages: 1, totalMovies: 0 })),
+    getMovies(query, { revalidate: 60 }).catch(() => ({
+      movies: [],
+      page: 1,
+      pages: 1,
+      totalMovies: 0,
+    })),
   ]);
 
   return (

@@ -1,4 +1,4 @@
-// src/components/layout/SiteChromeClient.jsx
+// src/components/layout/SiteChrome.jsx
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 import NavBar from './NavBar';
+import Footer from './Footer';
 import MobileFooter from './MobileFooter';
 
 import MovieRequestPopup from '../modals/MovieRequestPopup';
@@ -83,8 +84,9 @@ export default function SiteChromeClient({ children, footer = null }) {
   }, []);
 
   useEffect(() => {
-    isAnyPopupOpenRef.current = requestOpen || telegramOpen || installOpen;
-  }, [requestOpen, telegramOpen, installOpen]);
+    isAnyPopupOpenRef.current =
+      requestOpen || telegramOpen || installOpen || updateOpen;
+  }, [requestOpen, telegramOpen, installOpen, updateOpen]);
 
   const markPopupClosed = useCallback(() => {
     lastPopupClosedAtRef.current = Date.now();
@@ -296,16 +298,23 @@ export default function SiteChromeClient({ children, footer = null }) {
     });
   }, [pathname, TELEGRAM_URL, isAdmin, schedulePopup]);
 
+  // ✅ Always render footer unless explicitly disabled with footer={false}
+  const footerNode = footer === false ? null : footer || <Footer />;
+
   return (
     <div className="bg-main text-white" suppressHydrationWarning>
       {ADS_ENABLED ? <AdsterraScripts /> : null}
       <RouteChangeTracker />
 
       <NavBar />
-      <div className="min-h-screen pb-20 sm:pb-0">{children}</div>
 
-      {footer ? <div className="mb-16 sm:mb-0">{footer}</div> : null}
+      {/* ✅ keep bottom spacing until lg because MobileFooter is visible below lg */}
+      <div className="min-h-screen pb-20 lg:pb-0">{children}</div>
 
+      {/* ✅ Global footer on all pages */}
+      {footerNode ? <div className="mb-16 lg:mb-0">{footerNode}</div> : null}
+
+      {/* ✅ Global mobile footer on all pages */}
       <MobileFooter />
 
       {/* ✅ Q3 floating share icons */}
@@ -317,6 +326,7 @@ export default function SiteChromeClient({ children, footer = null }) {
         onDismiss={() => {
           setUpdateOpen(false);
           setUpdating(false);
+          markPopupClosed();
         }}
         onUpdate={handleUpdateNow}
       />

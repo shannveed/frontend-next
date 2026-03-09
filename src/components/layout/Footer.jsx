@@ -10,9 +10,16 @@ const NextLinkOrA = ({ href, className, children }) => {
     href === '/profile' ||
     href === '/about-us' ||
     href === '/contact-us' ||
+    href === '/dmca' ||
+    href === '/privacy-policy' ||
+    href === '/terms-of-service' ||
     href.startsWith('/movie/') ||
     href.startsWith('/watch/') ||
-    href.startsWith('/movies');
+    href.startsWith('/movies') ||
+    href.startsWith('/genre/') ||
+    href.startsWith('/industry/') ||
+    href.startsWith('/language/') ||
+    href.startsWith('/year/');
 
   if (!isNext) return <a href={href} className={className}>{children}</a>;
   return <Link href={href} className={className}>{children}</Link>;
@@ -32,10 +39,10 @@ export default function Footer() {
     {
       title: 'Top Categories',
       links: [
-        { name: 'Action', link: '/movies?category=Action' },
-        { name: 'Romantic', link: '/movies?category=Romantic' },
-        { name: 'Drama', link: '/movies?category=Drama' },
-        { name: 'Historical', link: '/movies?category=Historical' },
+        { name: 'Action', link: '/genre/action' },
+        { name: 'Romantic', link: '/genre/romantic' },
+        { name: 'Drama', link: '/genre/drama' },
+        { name: 'Historical', link: '/genre/historical' },
       ],
     },
     {
@@ -47,14 +54,25 @@ export default function Footer() {
         { name: 'Change Password', link: '/password' },
       ],
     },
+    {
+      title: 'Legal',
+      links: [
+        { name: 'DMCA', link: '/dmca' },
+        { name: 'Privacy Policy', link: '/privacy-policy' },
+        { name: 'Terms of Service', link: '/terms-of-service' },
+      ],
+    },
   ];
 
   return (
     <div className="bg-dry border-t-2 border-black">
       <div className="container px-2 mobile:px-4 mobile:pl-6">
-        <div className="grid grid-cols-2 md:grid-cols-7 xl:grid-cols-12 gap-5 sm:gap-9 lg:gap-11 xl:gap-7 py-10 justify-between">
+        <div className="grid grid-cols-2 md:grid-cols-8 xl:grid-cols-14 gap-5 sm:gap-9 lg:gap-11 xl:gap-7 py-10 justify-between">
           {Links.map((link, index) => (
-            <div key={index} className="col-span-1 md:col-span-2 lg:col-span-3 pb-3.5 sm:pb-0">
+            <div
+              key={index}
+              className="col-span-1 md:col-span-2 lg:col-span-3 pb-3.5 sm:pb-0"
+            >
               <h3 className="text-md lg:leading-7 font-medium mb-4 sm:mb-5 lg:mb-6 pb-0.5">
                 {link.title}
               </h3>
@@ -73,7 +91,7 @@ export default function Footer() {
             </div>
           ))}
 
-          <div className="pb-3.5 sm:pb-0 col-span-1 md:col-span-2 lg:col-span-3">
+          <div className="pb-3.5 sm:pb-0 col-span-1 md:col-span-2 lg:col-span-2">
             <Link href="/">
               <img
                 src="/images/MOVIEFROST.png"

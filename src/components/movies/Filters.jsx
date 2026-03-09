@@ -13,6 +13,7 @@ import {
   browseByMovieData,
   browseByWebSeriesData,
 } from '../../data/filterData';
+import { getDedicatedListingPath } from '../../lib/discoveryPages';
 
 const digitsOnly = (value = '') => String(value || '').replace(/\D/g, '');
 const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
@@ -108,10 +109,9 @@ function Dropdown({ selected, items, onSelect }) {
                   setOpen(false);
                 }}
                 className={`w-full text-left text-xs py-2 above-1000:py-1.5 mobile:py-1.5 pl-10 above-1000:pl-8 mobile:pl-6 pr-4 above-1000:pr-3 mobile:pr-2 relative transition
-                  ${
-                    active
-                      ? 'font-semibold bg-customPurple text-white'
-                      : 'font-normal hover:bg-main/70 text-white'
+                  ${active
+                    ? 'font-semibold bg-customPurple text-white'
+                    : 'font-normal hover:bg-main/70 text-white'
                   }`}
               >
                 {item?.title}
@@ -140,12 +140,11 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [], 
     return [{ title: 'All Categories' }, ...cats.map((c) => ({ title: c.title }))];
   }, [categories]);
 
-  // ✅ IMPORTANT: BrowseBy list changes by type
+  // ✅ BrowseBy list changes by type
   const browseItems = useMemo(() => {
     if (typeKey === 'WebSeries') return browseByWebSeriesData;
     if (typeKey === 'Movie') return browseByMovieData;
 
-    // no type -> keep broad dropdown (static + backend distinct extras)
     const distinct = Array.isArray(browseByDistinct) ? browseByDistinct : [];
     const staticTitles = Array.isArray(browseByData)
       ? browseByData.map((b) => b.title).filter(Boolean)
@@ -172,7 +171,6 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [], 
   const [times, setTimes] = useState(TimesData[0]);
   const [rates, setRates] = useState(RatesData[0]);
 
-  // Sync UI from URL query
   const queryKey = useMemo(() => JSON.stringify(query || {}), [query]);
 
   useEffect(() => {
@@ -184,10 +182,7 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [], 
     const qRate = toStr(query?.rate);
 
     setCategory(qCategory ? findByTitle(categoryItems, qCategory, categoryItems[0]) : categoryItems[0]);
-
-    // ✅ Supports title/value mapping (Chinese label -> Chinease Drama value)
     setBrowseBy(qBrowse ? findByParam(browseItems, qBrowse, browseItems[0]) : browseItems[0]);
-
     setLanguage(qLanguage ? findByTitle(LanguageData, qLanguage, LanguageData[0]) : LanguageData[0]);
 
     setYear(findByDigits(YearData, qYear, YearData[0]));
@@ -204,7 +199,7 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [], 
       params.set(k, val);
     };
 
-    // Keep existing query (including type)
+    // Keep existing query
     set('type', query?.type);
     set('category', query?.category);
     set('browseBy', query?.browseBy);
@@ -236,62 +231,115 @@ export default function MoviesFilters({ categories = [], browseByDistinct = [], 
     [router, buildBaseParams]
   );
 
+  const navigateWithMaybeLandingPage = useCallback(
+    (nextPartialQuery, mutateParams) => {
+      const nextQuery = {
+        ...query,
+        ...nextPartialQuery,
+        pageNumber: 1,
+      };
+
+      const dedicatedPath = getDedicatedListingPath(nextQuery);
+
+      if (dedicatedPath) {
+        router.push(dedicatedPath);
+        if (typeof window !== 'undefined') window.scrollTo(0, 0);
+        return;
+      }
+
+      pushParams(mutateParams);
+    },
+    [query, router, pushParams]
+  );
+
   // Handlers
   const selectBrowseBy = (item) => {
     setBrowseBy(item);
 
-    pushParams((params) => {
-      const title = getItemTitle(item);
-      const value = getItemParamValue(item);
+    const title = getItemTitle(item);
+    const value = getItemParamValue(item);
+    const nextBrowseBy = !value || title === 'Browse By' ? '' : value;
 
-      if (!value || title === 'Browse By') params.delete('browseBy');
-      else params.set('browseBy', value);
-    });
+    navigateWithMaybeLandingPage(
+      { browseBy: nextBrowseBy },
+      (params) => {
+        if (!nextBrowseBy) params.delete('browseBy');
+        else params.set('browseBy', nextBrowseBy);
+      }
+    );
   };
 
   const selectCategory = (item) => {
     setCategory(item);
-    pushParams((params) => {
-      const t = String(item?.title || '');
-      if (!t || t === 'All Categories' || t === 'No category found') params.delete('category');
-      else params.set('category', t);
-    });
+
+    const t = String(item?.title || '');
+    const nextCategory =
+      !t || t === 'All Categories' || t === 'No category found' ? '' : t;
+
+    navigateWithMaybeLandingPage(
+      { category: nextCategory },
+      (params) => {
+        if (!nextCategory) params.delete('category');
+        else params.set('category', nextCategory);
+      }
+    );
   };
 
   const selectLanguage = (item) => {
     setLanguage(item);
-    pushParams((params) => {
-      const t = String(item?.title || '');
-      if (!t || t === 'Sort By Language') params.delete('language');
-      else params.set('language', t);
-    });
+
+    const t = String(item?.title || '');
+    const nextLanguage = !t || t === 'Sort By Language' ? '' : t;
+
+    navigateWithMaybeLandingPage(
+      { language: nextLanguage },
+      (params) => {
+        if (!nextLanguage) params.delete('language');
+        else params.set('language', nextLanguage);
+      }
+    );
   };
 
   const selectYear = (item) => {
     setYear(item);
-    pushParams((params) => {
-      const v = digitsOnly(item?.title);
-      if (!v) params.delete('year');
-      else params.set('year', v);
-    });
+
+    const nextYear = digitsOnly(item?.title);
+
+    navigateWithMaybeLandingPage(
+      { year: nextYear || '' },
+      (params) => {
+        if (!nextYear) params.delete('year');
+        else params.set('year', nextYear);
+      }
+    );
   };
 
   const selectTimes = (item) => {
     setTimes(item);
-    pushParams((params) => {
-      const v = digitsOnly(item?.title);
-      if (!v) params.delete('time');
-      else params.set('time', v);
-    });
+
+    const nextTime = digitsOnly(item?.title);
+
+    navigateWithMaybeLandingPage(
+      { time: nextTime || '' },
+      (params) => {
+        if (!nextTime) params.delete('time');
+        else params.set('time', nextTime);
+      }
+    );
   };
 
   const selectRates = (item) => {
     setRates(item);
-    pushParams((params) => {
-      const v = digitsOnly(item?.title);
-      if (!v) params.delete('rate');
-      else params.set('rate', v);
-    });
+
+    const nextRate = digitsOnly(item?.title);
+
+    navigateWithMaybeLandingPage(
+      { rate: nextRate || '' },
+      (params) => {
+        if (!nextRate) params.delete('rate');
+        else params.set('rate', nextRate);
+      }
+    );
   };
 
   const filters = [

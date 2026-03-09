@@ -42,6 +42,10 @@ import {
 } from '../../lib/client/pushNotifications';
 
 import { getFavoriteIdsCache } from '../../lib/client/favoritesCache';
+import {
+  INDUSTRY_PAGES,
+  findIndustryByBrowseByQuery,
+} from '../../lib/discoveryPages';
 
 const DEFAULT_PROFILE_IMAGE = '/images/placeholder.jpg';
 
@@ -72,7 +76,7 @@ const writeBrowseByCache = (list) => {
       BROWSEBY_CACHE_KEY,
       JSON.stringify({ ts: Date.now(), list })
     );
-  } catch {}
+  } catch { }
 };
 
 const normalizeAvatarUrl = (value) => {
@@ -88,13 +92,22 @@ const isNextRoute = (href = '') =>
   href === '/movies' ||
   href === '/favorites' ||
   href === '/profile' ||
+  href === '/dashboard' ||
+  href === '/password' ||
   href === '/login' ||
   href === '/register' ||
+  href === '/about-us' ||
+  href === '/contact-us' ||
+  href === '/dmca' ||
+  href === '/privacy-policy' ||
+  href === '/terms-of-service' ||
   href.startsWith('/movies') ||
   href.startsWith('/movie/') ||
   href.startsWith('/watch/') ||
-  href === '/about-us' ||
-  href === '/contact-us';
+  href.startsWith('/industry/') ||
+  href.startsWith('/genre/') ||
+  href.startsWith('/language/') ||
+  href.startsWith('/year/');
 
 const SmartLink = ({ href, className, children, ...rest }) => {
   if (!isNextRoute(href)) {
@@ -104,6 +117,7 @@ const SmartLink = ({ href, className, children, ...rest }) => {
       </a>
     );
   }
+
   return (
     <Link href={href} className={className} {...rest}>
       {children}
@@ -111,14 +125,24 @@ const SmartLink = ({ href, className, children, ...rest }) => {
   );
 };
 
+const industryPageToItem = (page) => ({
+  label: page.label,
+  href: `/industry/${page.slug}`,
+});
+
+const INDIAN_FALLBACK_SLUGS = new Set([
+  'bollywood',
+  'bollywood-web-series',
+  'south-indian-hindi-dubbed',
+  'punjabi-movies',
+]);
+
 export default function NavBar() {
   const router = useRouter();
 
-  // ✅ Drawer control (opens same MenuDrawer used by MobileFooter)
   const sidebar = useContext(SidebarContext);
   const toggleDrawer = sidebar?.toggleDrawer;
 
-  // ✅ Mobile search open/close
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchInputRef = useRef(null);
 
@@ -133,7 +157,6 @@ export default function NavBar() {
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // ✅ IMPORTANT: separate refs (mobile vs desktop) because both layouts exist in DOM
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
 
@@ -148,7 +171,6 @@ export default function NavBar() {
   const [replyMessage, setReplyMessage] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
 
-  // Sync userInfo
   useEffect(() => {
     setUserInfo(getUserInfo());
     const onStorage = () => setUserInfo(getUserInfo());
@@ -156,7 +178,6 @@ export default function NavBar() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // ✅ Focus input when mobile search opens
   useEffect(() => {
     if (!mobileSearchOpen) return;
     const t = setTimeout(() => {
@@ -165,17 +186,14 @@ export default function NavBar() {
     return () => clearTimeout(t);
   }, [mobileSearchOpen]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const onDown = (e) => {
-      // ✅ search dropdown (mobile OR desktop)
       const inSearch =
         desktopSearchRef.current?.contains(e.target) ||
         mobileSearchRef.current?.contains(e.target);
 
       if (!inSearch) setShowDropdown(false);
 
-      // notifications dropdown
       if (notifyRef.current && !notifyRef.current.contains(e.target)) {
         setNotifyOpen(false);
         setReplyOpenId(null);
@@ -188,17 +206,15 @@ export default function NavBar() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  // ✅ BrowseBy distinct: load from cache instantly + refresh if stale
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
     const cached = readBrowseByCache();
     if (cached.list?.length) setBrowseBy(cached.list);
 
     const shouldFetch = cached.stale || !cached.list?.length;
+    if (!shouldFetch) return;
 
-    if (!shouldFetch) return () => controller.abort();
+    let cancelled = false;
+    const controller = new AbortController();
 
     (async () => {
       try {
@@ -223,7 +239,6 @@ export default function NavBar() {
     };
   }, []);
 
-  // Favorites count: show instantly from cache, then sync from server
   useEffect(() => {
     setFavoritesCount(getFavoriteIdsCache().length);
 
@@ -243,7 +258,7 @@ export default function NavBar() {
           );
         }
       } catch {
-        // ignore (keep cached count)
+        // ignore
       }
     })();
 
@@ -252,7 +267,6 @@ export default function NavBar() {
     };
   }, [token]);
 
-  // Update favorites count when cache changes (likes/unlikes)
   useEffect(() => {
     const handler = () => setFavoritesCount(getFavoriteIdsCache().length);
     window.addEventListener(FAVORITES_UPDATED_EVENT, handler);
@@ -276,7 +290,6 @@ export default function NavBar() {
     [token]
   );
 
-  // Poll notifications
   useEffect(() => {
     if (!token) return;
     refreshNotifications(true);
@@ -284,7 +297,6 @@ export default function NavBar() {
     return () => clearInterval(id);
   }, [token, refreshNotifications]);
 
-  // Push event refresh
   useEffect(() => {
     if (!token) return;
     const handler = () => refreshNotifications(true);
@@ -292,9 +304,9 @@ export default function NavBar() {
     return () => window.removeEventListener(PUSH_RECEIVED_EVENT, handler);
   }, [token, refreshNotifications]);
 
-  // Search suggestions (debounced)
   useEffect(() => {
     const term = search.trim();
+
     if (term.length < 2) {
       setSearchResults([]);
       setShowDropdown(false);
@@ -302,6 +314,7 @@ export default function NavBar() {
     }
 
     const controller = new AbortController();
+
     const t = setTimeout(async () => {
       try {
         const res = await fetch(
@@ -346,8 +359,6 @@ export default function NavBar() {
 
     router.push(`/movies?search=${encodeURIComponent(term)}`);
     setShowDropdown(false);
-
-    // ✅ close search UI on mobile after submit
     setMobileSearchOpen(false);
   };
 
@@ -395,8 +406,10 @@ export default function NavBar() {
 
   const handleNotificationClick = async (notif) => {
     try {
-      if (!notif?.read && token) await markNotificationRead(token, notif._id);
-    } catch {}
+      if (!notif?.read && token) {
+        await markNotificationRead(token, notif._id);
+      }
+    } catch { }
 
     const link = notif?.link;
     setNotifyOpen(false);
@@ -475,6 +488,71 @@ export default function NavBar() {
     return (browseBy || []).filter((x) => x && !h.has(x) && !i.has(x));
   }, [browseBy, hollywoodBrowseBy, indianBrowseBy]);
 
+  const buildBrowseMenuItems = useCallback((values = [], fallbackPages = []) => {
+    const seen = new Set();
+    const out = [];
+
+    for (const raw of values || []) {
+      const value = String(raw || '').trim();
+      if (!value) continue;
+
+      const industry = findIndustryByBrowseByQuery(value);
+      const href = industry
+        ? `/industry/${industry.slug}`
+        : `/movies?browseBy=${encodeURIComponent(value)}`;
+      const label = industry?.label || value;
+
+      if (seen.has(href)) continue;
+      seen.add(href);
+      out.push({ label, href });
+    }
+
+    if (out.length) return out;
+
+    return (fallbackPages || []).map(industryPageToItem);
+  }, []);
+
+  const hollywoodMenuItems = useMemo(
+    () =>
+      buildBrowseMenuItems(
+        hollywoodBrowseBy,
+        INDUSTRY_PAGES.filter((page) => page.slug.startsWith('hollywood'))
+      ),
+    [hollywoodBrowseBy, buildBrowseMenuItems]
+  );
+
+  const indianMenuItems = useMemo(
+    () =>
+      buildBrowseMenuItems(
+        indianBrowseBy,
+        INDUSTRY_PAGES.filter((page) => INDIAN_FALLBACK_SLUGS.has(page.slug))
+      ),
+    [indianBrowseBy, buildBrowseMenuItems]
+  );
+
+  const browseMenuItems = useMemo(
+    () =>
+      buildBrowseMenuItems(
+        leftoverBrowseBy,
+        INDUSTRY_PAGES.filter(
+          (page) =>
+            !page.slug.startsWith('hollywood') &&
+            !INDIAN_FALLBACK_SLUGS.has(page.slug)
+        )
+      ),
+    [leftoverBrowseBy, buildBrowseMenuItems]
+  );
+
+  const contactMenuItems = useMemo(
+    () => [
+      { label: 'Contact Us', href: '/contact-us' },
+      { label: 'DMCA', href: '/dmca' },
+      { label: 'Privacy Policy', href: '/privacy-policy' },
+      { label: 'Terms of Service', href: '/terms-of-service' },
+    ],
+    []
+  );
+
   const hover = 'hover:text-customPurple transitions text-white';
 
   const avatarSrc = useMemo(() => {
@@ -489,13 +567,10 @@ export default function NavBar() {
 
   return (
     <div className="bg-main shadow-md sticky top-0 z-20">
-      {/* =========================================================
-          ✅ MOBILE/TABLET (< lg): icon bar + toggleable search
-         ========================================================= */}
+      {/* MOBILE / TABLET */}
       <div className="lg:hidden border-b border-border">
         {!mobileSearchOpen ? (
           <div className="px-4 py-3 flex items-center justify-between">
-            {/* Left: Search icon */}
             <button
               type="button"
               onClick={openMobileSearch}
@@ -506,7 +581,6 @@ export default function NavBar() {
               <FaSearch className="text-lg text-white" />
             </button>
 
-            {/* Center: Logo */}
             <Link href="/" aria-label="Go to home" className="flex-rows">
               <img
                 src="/images/MOVIEFROST.png"
@@ -515,7 +589,6 @@ export default function NavBar() {
               />
             </Link>
 
-            {/* Right: Menu icon (opens existing drawer) */}
             <button
               type="button"
               onClick={() => {
@@ -533,7 +606,6 @@ export default function NavBar() {
         ) : (
           <div className="px-4 py-3">
             <div className="flex items-center gap-2" ref={mobileSearchRef}>
-              {/* Close search mode */}
               <button
                 type="button"
                 onClick={closeMobileSearch}
@@ -544,7 +616,6 @@ export default function NavBar() {
                 <IoClose className="text-xl text-white" />
               </button>
 
-              {/* Search input (same behavior as before) */}
               <div className="flex-1 relative">
                 <form
                   onSubmit={handleSearchSubmit}
@@ -584,7 +655,6 @@ export default function NavBar() {
                   ) : null}
                 </form>
 
-                {/* Suggestions */}
                 {showDropdown && searchResults.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
                     {searchResults.map((m) => (
@@ -605,6 +675,7 @@ export default function NavBar() {
                             }}
                           />
                         </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-white font-medium truncate">
                             {m.name}
@@ -623,12 +694,9 @@ export default function NavBar() {
         )}
       </div>
 
-      {/* =========================================================
-          DESKTOP (lg+): keep your existing navbar as-is
-         ========================================================= */}
+      {/* DESKTOP */}
       <div className="hidden lg:block">
         <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-10 above-1000:gap-8 grid-cols-7 justify-between items-center">
-          {/* Logo */}
           <div className="col-span-1">
             <Link href="/">
               <img
@@ -639,7 +707,6 @@ export default function NavBar() {
             </Link>
           </div>
 
-          {/* Search (desktop) */}
           <div className="col-span-2 relative" ref={desktopSearchRef}>
             <form
               onSubmit={handleSearchSubmit}
@@ -678,7 +745,6 @@ export default function NavBar() {
               ) : null}
             </form>
 
-            {/* Suggestions */}
             {showDropdown && searchResults.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-1 bg-dry border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
                 {searchResults.map((m) => (
@@ -702,6 +768,7 @@ export default function NavBar() {
                         }}
                       />
                     </div>
+
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white font-medium truncate">
                         {m.name}
@@ -716,8 +783,9 @@ export default function NavBar() {
             )}
           </div>
 
-          {/* Desktop links */}
+          {/* ALL ITEMS FLATTENED TO RESTORE ALIGNMENT */}
           <div className="col-span-4 font-medium text-xs xl:gap-6 2xl:gap-10 justify-between items-center hidden lg:flex">
+
             <Link href="/movies?type=Movie" className={hover}>
               Movies
             </Link>
@@ -731,15 +799,15 @@ export default function NavBar() {
               <button className={`${hover} inline-flex items-center`} type="button">
                 Hollywood
               </button>
-              <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-                {hollywoodBrowseBy.length ? (
-                  hollywoodBrowseBy.map((item) => (
+              <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {hollywoodMenuItems.length ? (
+                  hollywoodMenuItems.map((item) => (
                     <Link
-                      key={item}
-                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      key={item.href}
+                      href={item.href}
                       className="block px-3 py-1.5 hover:text-customPurple"
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   ))
                 ) : (
@@ -753,15 +821,15 @@ export default function NavBar() {
               <button className={`${hover} inline-flex items-center`} type="button">
                 Indian
               </button>
-              <div className="absolute left-0 top-full bg-black text-white min-w-[180px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-                {indianBrowseBy.length ? (
-                  indianBrowseBy.map((item) => (
+              <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {indianMenuItems.length ? (
+                  indianMenuItems.map((item) => (
                     <Link
-                      key={item}
-                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      key={item.href}
+                      href={item.href}
                       className="block px-3 py-1.5 hover:text-customPurple"
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   ))
                 ) : (
@@ -775,15 +843,15 @@ export default function NavBar() {
               <button className={`${hover} inline-flex items-center`} type="button">
                 Browse By
               </button>
-              <div className="absolute left-0 top-full bg-black text-white min-w-[200px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-                {leftoverBrowseBy.length ? (
-                  leftoverBrowseBy.map((item) => (
+              <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {browseMenuItems.length ? (
+                  browseMenuItems.map((item) => (
                     <Link
-                      key={item}
-                      href={`/movies?browseBy=${encodeURIComponent(item)}`}
+                      key={item.href}
+                      href={item.href}
                       className="block px-3 py-1.5 hover:text-customPurple"
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   ))
                 ) : (
@@ -792,14 +860,28 @@ export default function NavBar() {
               </div>
             </div>
 
-            <Link href="/contact-us" className={hover}>
-              Contact Us
-            </Link>
+            {/* Contact / Legal (NEW ADDITION PRESERVED) */}
+            <div className="relative group">
+              <button className={`${hover} inline-flex items-center`} type="button">
+                Contact
+              </button>
+              <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+                {contactMenuItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block px-3 py-1.5 hover:text-customPurple"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
 
             {/* Notifications */}
             <div className="relative" ref={notifyRef}>
               <button
-                className="relative"
+                className="relative flex items-center justify-center"
                 onClick={onBellClick}
                 aria-label="Notifications"
                 type="button"
@@ -847,6 +929,7 @@ export default function NavBar() {
                   ) : notifications.length === 0 ? (
                     <div className="px-2 py-2">
                       <p className="text-sm text-border mb-2">No notifications</p>
+
                       {!isAdmin && (
                         <button
                           onClick={openWatchRequestPopup}
@@ -867,17 +950,15 @@ export default function NavBar() {
                       .map((notif) => (
                         <div
                           key={notif._id}
-                          className={`text-sm text-white px-2 py-2 border-b border-gray-700 last:border-b-0 group ${
-                            !notif.read ? 'bg-gray-800/50' : ''
-                          }`}
+                          className={`text-sm text-white px-2 py-2 border-b border-gray-700 last:border-b-0 group ${!notif.read ? 'bg-gray-800/50' : ''
+                            }`}
                         >
                           <div className="flex justify-between items-start gap-2">
                             <button
                               type="button"
                               onClick={() => handleNotificationClick(notif)}
-                              className={`text-left flex-grow ${
-                                notif.read ? 'opacity-70' : ''
-                              }`}
+                              className={`text-left flex-grow ${notif.read ? 'opacity-70' : ''
+                                }`}
                             >
                               {notif.title ? (
                                 <p className="text-xs font-semibold text-white mb-1">
@@ -910,18 +991,14 @@ export default function NavBar() {
                                 className="text-xs text-customPurple hover:underline"
                                 type="button"
                               >
-                                {replyOpenId === notif._id
-                                  ? 'Close Reply'
-                                  : 'Reply'}
+                                {replyOpenId === notif._id ? 'Close Reply' : 'Reply'}
                               </button>
 
                               {replyOpenId === notif._id && (
                                 <div className="mt-2 space-y-2">
                                   <input
                                     value={replyLink}
-                                    onChange={(e) =>
-                                      setReplyLink(e.target.value)
-                                    }
+                                    onChange={(e) => setReplyLink(e.target.value)}
                                     placeholder="Paste movie link (https://...)"
                                     className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
                                   />
@@ -952,7 +1029,6 @@ export default function NavBar() {
               )}
             </div>
 
-            {/* Profile */}
             <SmartLink
               href={isAdmin ? '/dashboard' : token ? '/profile' : '/login'}
               className={hover}
@@ -975,10 +1051,9 @@ export default function NavBar() {
               )}
             </SmartLink>
 
-            {/* Favorites */}
             <SmartLink
               href="/favorites"
-              className={`${hover} relative`}
+              className={`${hover} relative flex items-center justify-center`}
               aria-label="Favorites"
             >
               <FaHeart className="w-5 h-5" />
@@ -986,6 +1061,7 @@ export default function NavBar() {
                 {favoritesCount}
               </div>
             </SmartLink>
+
           </div>
         </div>
       </div>
