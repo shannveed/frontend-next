@@ -43,9 +43,8 @@ const nextConfig = {
           destination: `${API_BASE}/sitemap-index.xml`,
         },
 
-        // ✅ IMPORTANT:
-        // Do NOT rewrite /sitemap-actors.xml anymore.
-        // It is now served by: src/app/sitemap-actors.xml/route.js (410 Gone)
+        // Do NOT rewrite /sitemap-actors.xml
+        // It is served by frontend route and returns 410
       ],
     };
   },
@@ -86,16 +85,16 @@ const nextConfig = {
         headers: [{ key: 'Cache-Control', value: faviconCache }],
       },
 
-      // ensure these pages cannot be indexed (headers-level)
+      // /watch pages should not be indexed
       {
         source: '/watch/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
 
-      // ✅ NEW: actor pages cannot be indexed
+      // actor pages now return 410; keep robots header strict too
       {
         source: '/actor/:path*',
-        headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
       },
 
       {

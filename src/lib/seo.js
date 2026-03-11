@@ -54,7 +54,7 @@ export const watchUrl = (movie) => {
 export const watchCanonical = (movie) => watchUrl(movie);
 
 /* ============================================================
-   ✅ Title normalization helpers (NEW)
+   Title normalization helpers
    ============================================================ */
 
 const escapeRegex = (value = '') =>
@@ -70,13 +70,8 @@ const includesYearToken = (text, year) => {
 const stripObviousPrefixSuffix = (raw = '') => {
   let t = clean(raw);
 
-  // leading "Watch" / "Watch:"
   t = t.replace(/^(?:watch)\s*[:\-–—]?\s*/i, '');
-
-  // trailing brand/seo junk if it ever exists in name
   t = t.replace(/\s*\|\s*moviefrost\s*$/i, '');
-
-  // trailing phrases (only at the END)
   t = t.replace(
     /\s+(?:watch\s+online|online\s+free|full\s+movie|full\s+hd|download)\s*$/i,
     ''
@@ -89,30 +84,24 @@ const isMarketingSegment = (seg = '') => {
   const s = clean(seg).toLowerCase();
   if (!s) return false;
 
-  // strong “marketing” intent words
   if (/\bwatch\b/.test(s)) return true;
   if (/\bonline\b/.test(s)) return true;
   if (/\bdownload\b/.test(s)) return true;
   if (/\bstream(?:ing)?\b/.test(s)) return true;
 
-  // "Full/HD/4K/1080p..." + "movie" combo
   const hasQuality = /\b(full|hd|4k|1080p|720p)\b/.test(s);
   const hasMovieWord = /\bmovie\b/.test(s);
 
   if (hasQuality && hasMovieWord) return true;
-
-  // segment is literally "movie" or "full movie"
   if (/^(?:full\s+)?movie$/.test(s)) return true;
 
   return false;
 };
 
-// Remove trailing marketing chunks AFTER separators like: "Title - Full HD Movie"
 const stripTrailingMarketingSegments = (raw = '') => {
   const t = clean(raw);
   if (!t) return '';
 
-  // split only when the separator has spaces around it (to avoid breaking normal hyphenated words)
   const parts = t.split(/\s(?:\||-|—|–)\s/);
   if (parts.length <= 1) return t;
 
@@ -149,7 +138,7 @@ const clampNameKeepTrailingYear = (nameWithYear, maxLen) => {
     const yearSuffix = `(${m[1]})`;
     const body = clean(s.slice(0, m.index));
 
-    const needed = yearSuffix.length + 1; // space + year
+    const needed = yearSuffix.length + 1;
     const avail = maxLen - needed;
 
     if (avail <= 1) return yearSuffix;
@@ -172,7 +161,7 @@ const buildPatternTitle = (
   const p = String(prefix);
   const suf = String(suffix);
 
-  const nameMax = Math.max(10, maxLen - p.length - suf.length); // safety floor
+  const nameMax = Math.max(10, maxLen - p.length - suf.length);
   const clippedName = clampNameKeepTrailingYear(nameWithYear, nameMax);
 
   return clean(`${p}${clippedName}${suf}`);
@@ -181,21 +170,12 @@ const buildPatternTitle = (
 /* ============================
    Titles / descriptions
    ============================ */
-
-/**
- * ✅ FIXED:
- * - does NOT use seoTitle (prevents long marketing titles)
- * - ensures year appears only once
- * - clamps to safe length
- * - always produces: "Watch <Name (Year)> Online Free"
- */
 export const buildMovieTitle = (movie, { maxLen = 60 } = {}) => {
   const nameWithYear = buildMovieNameWithYear(movie);
   return buildPatternTitle(nameWithYear, { maxLen });
 };
 
 export const buildMovieDescription = (movie) => {
-  // ✅ also avoid "(2026) (2026)" duplication in descriptions
   const nameWithYear = buildMovieNameWithYear(movie);
 
   const base = `${nameWithYear} — watch online free in HD on MovieFrost.`;
@@ -253,7 +233,7 @@ const minutesToIsoDuration = (minutes) => {
 };
 
 /**
- * ✅ IMPORTANT SEO FIX:
+ * IMPORTANT:
  * We DO NOT output third‑party ratings as schema.org "Review" objects.
  * Instead, we expose external ratings only as:
  * - sameAs (links)
@@ -274,8 +254,8 @@ const buildExternalRatingNodes = (movie) => {
     clean(rt.url) ||
     (movie?.name
       ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
-          movie.name
-        )}`
+        movie.name
+      )}`
       : '');
 
   const additionalProperty = [];
@@ -331,7 +311,7 @@ const buildSiteAggregateRating = (movie) => {
 };
 
 /* ============================
-   Movie/TVSeries node (rich)
+   Movie/TVSeries node
    ============================ */
 export const buildMovieJsonLd = (movie) => {
   const canonical = movieCanonical(movie);
@@ -342,30 +322,28 @@ export const buildMovieJsonLd = (movie) => {
     movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
   );
 
+  // Actor pages are disabled for now, so do not output actor/director URLs
   const directorName = clean(movie?.director);
   const director = directorName
     ? {
-        '@type': 'Person',
-        name: directorName,
-        url: actorCanonicalByName(directorName),
-      }
+      '@type': 'Person',
+      name: directorName,
+    }
     : undefined;
 
   const actors = Array.isArray(movie?.casts)
     ? movie.casts
-        .map((c) => ({
-          name: clean(c?.name),
-          slug: clean(c?.slug) || personSlug(c?.name),
-          image: absoluteUrl(c?.image),
-        }))
-        .filter((c) => c.name)
-        .slice(0, 30)
-        .map((c) => ({
-          '@type': 'Person',
-          name: c.name,
-          url: actorCanonicalBySlug(c.slug),
-          ...(c.image ? { image: c.image } : {}),
-        }))
+      .map((c) => ({
+        name: clean(c?.name),
+        image: absoluteUrl(c?.image),
+      }))
+      .filter((c) => c.name)
+      .slice(0, 30)
+      .map((c) => ({
+        '@type': 'Person',
+        name: c.name,
+        ...(c.image ? { image: c.image } : {}),
+      }))
     : [];
 
   const aggregateRating = buildSiteAggregateRating(movie);
@@ -403,14 +381,14 @@ export const buildMovieJsonLd = (movie) => {
 
     ...(Number.isFinite(Number(movie?.viewCount))
       ? {
-          interactionStatistic: [
-            {
-              '@type': 'InteractionCounter',
-              interactionType: { '@type': 'WatchAction' },
-              userInteractionCount: Number(movie.viewCount),
-            },
-          ],
-        }
+        interactionStatistic: [
+          {
+            '@type': 'InteractionCounter',
+            interactionType: { '@type': 'WatchAction' },
+            userInteractionCount: Number(movie.viewCount),
+          },
+        ],
+      }
       : {}),
 
     potentialAction: {

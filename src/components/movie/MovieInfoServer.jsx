@@ -12,8 +12,6 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
 
-import { personSlug } from '../../lib/seo';
-
 const formatTime = (minutes) => {
   const n = Number(minutes);
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -50,8 +48,8 @@ function ExternalRatings({ movie }) {
     String(rt.url || '').trim() ||
     (movie?.name
       ? `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
-          movie.name
-        )}`
+        movie.name
+      )}`
       : '');
 
   const badge =
@@ -111,29 +109,25 @@ function CastScroller({ casts = [] }) {
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {list.map((c, idx) => {
-          const slug = c?.slug || personSlug(c?.name || '');
-          return (
-            <Link
-              key={`${slug}-${idx}`}
-              href={`/actor/${slug}`}
-              className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions"
-            >
-              <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border">
-                <img
-                  src={c?.image || '/images/placeholder.jpg'}
-                  alt={c?.name || 'Actor'}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
-                {c?.name}
-              </p>
-            </Link>
-          );
-        })}
+        {list.map((c, idx) => (
+          <div
+            key={`${c?.name || 'cast'}-${idx}`}
+            className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2"
+          >
+            <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border">
+              <img
+                src={c?.image || '/images/placeholder.jpg'}
+                alt={c?.name || 'Actor'}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
+              {c?.name}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -155,12 +149,9 @@ export default function MovieInfoServer({ movie }) {
     : '/movies';
 
   const directorName = String(movie?.director || '').trim();
-  const directorSlug =
-    movie?.directorSlug || (directorName ? personSlug(directorName) : '');
-  const directorHref = directorSlug ? `/actor/${directorSlug}` : '';
 
   const heroImage =
-    movie?.titleImage || movie?.image || '/images/placeholder.jpg';
+    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png';
   const bgImage = movie?.image || heroImage;
   const posterImage = movie?.titleImage || heroImage;
 
@@ -168,9 +159,7 @@ export default function MovieInfoServer({ movie }) {
 
   return (
     <div className="w-full text-white">
-      {/* ===========================
-          MOBILE
-         =========================== */}
+      {/* MOBILE */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
           <img
@@ -183,7 +172,6 @@ export default function MovieInfoServer({ movie }) {
         </div>
 
         <div className="mt-3 bg-dry border border-border rounded-xl p-4">
-          {/* keep only ONE h1 on page (desktop uses h1) */}
           <h2 className="text-lg font-bold leading-snug">{movie?.name}</h2>
 
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-dryGray">
@@ -232,15 +220,9 @@ export default function MovieInfoServer({ movie }) {
             ) : null}
           </div>
 
-          {directorName && directorHref ? (
+          {directorName ? (
             <div className="mt-2 text-xs text-dryGray">
-              Director:{' '}
-              <Link
-                href={directorHref}
-                className="text-customPurple hover:underline"
-              >
-                {directorName}
-              </Link>
+              Director: <span className="text-white">{directorName}</span>
             </div>
           ) : null}
 
@@ -262,7 +244,6 @@ export default function MovieInfoServer({ movie }) {
           </div>
         </div>
 
-        {/* Description (mobile unchanged) */}
         {descriptionText ? (
           <div className="mt-4 bg-dry border border-border rounded-xl p-4">
             <h2 className="text-sm font-semibold mb-2">Description</h2>
@@ -272,7 +253,6 @@ export default function MovieInfoServer({ movie }) {
           </div>
         ) : null}
 
-        {/* Rating (mobile unchanged) */}
         <div className="mt-4 bg-dry border border-border rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-white font-semibold text-sm">Rating</p>
@@ -294,10 +274,7 @@ export default function MovieInfoServer({ movie }) {
         <CastScroller casts={movie?.casts} />
       </section>
 
-      {/* ===========================
-          DESKTOP / TABLET (sm+)
-          ✅ Q1: rating moved ABOVE description
-         =========================== */}
+      {/* DESKTOP / TABLET */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
           <img
@@ -373,20 +350,14 @@ export default function MovieInfoServer({ movie }) {
                     </Link>
                   ) : null}
 
-                  {directorName && directorHref ? (
+                  {directorName ? (
                     <span className="inline-flex items-center gap-1">
                       <span className="text-subMain">Director:</span>
-                      <Link
-                        href={directorHref}
-                        className="text-customPurple hover:underline"
-                      >
-                        {directorName}
-                      </Link>
+                      <span className="text-white">{directorName}</span>
                     </span>
                   ) : null}
                 </div>
 
-                {/* Buttons */}
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     href={`/watch/${seg}`}
@@ -415,7 +386,6 @@ export default function MovieInfoServer({ movie }) {
                   ) : null}
                 </div>
 
-                {/* ✅ Q1: Rating moved here (sm+) */}
                 <div className="mt-6 bg-black/30 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-white font-semibold text-sm">Rating</p>
@@ -434,12 +404,10 @@ export default function MovieInfoServer({ movie }) {
                   <ExternalRatings movie={movie} />
                 </div>
 
-                {/* Cast stays above description */}
                 <CastScroller casts={movie?.casts} />
               </div>
             </div>
 
-            {/* Description full-width */}
             {descriptionText ? (
               <div className="mt-8 bg-black/30 border border-border rounded-lg p-6">
                 <h2 className="text-white font-semibold mb-3">Description</h2>
