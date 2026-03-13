@@ -118,13 +118,14 @@ const normalizeMovieNameForSeo = (movie) => {
   return clean(name);
 };
 
-const buildMovieNameWithYear = (movie) => {
+export const buildMovieNameWithYear = (movie) => {
   const base = normalizeMovieNameForSeo(movie) || 'Movie';
 
   const y = Number(movie?.year);
   if (Number.isFinite(y) && y > 0 && !includesYearToken(base, y)) {
     return `${base} (${y})`;
   }
+
   return base;
 };
 
@@ -156,7 +157,7 @@ const clampNameKeepTrailingYear = (nameWithYear, maxLen) => {
 
 const buildPatternTitle = (
   nameWithYear,
-  { maxLen = 60, prefix = 'Watch ', suffix = ' Online Free' } = {}
+  { maxLen = 60, prefix = '', suffix = '' } = {}
 ) => {
   const p = String(prefix);
   const suf = String(suffix);
@@ -167,12 +168,60 @@ const buildPatternTitle = (
   return clean(`${p}${clippedName}${suf}`);
 };
 
+/* ============================================================
+   Stable rotating SEO title patterns
+   ============================================================ */
+
+const MOVIE_TITLE_SUFFIX_VARIATIONS = [
+  ' Full Movie Online Free HD Streaming',
+  ' Full Movie HD | Watch Online Free',
+  ' Full Movie Streaming Online HD',
+];
+
+const WEBSERIES_TITLE_SUFFIX_VARIATIONS = [
+  ' Web Series Online Free HD Streaming',
+  ' Web Series HD | Watch Online Free',
+  ' Web Series Streaming Online HD',
+];
+
+const stablePatternIndex = (value = '', size = 1) => {
+  const text = clean(value);
+  if (!text || size <= 1) return 0;
+
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+
+  return hash % size;
+};
+
+const getTitlePatternKey = (movie) =>
+  clean(
+    movie?._id ||
+    movie?.slug ||
+    `${movie?.name || ''}-${movie?.year || ''}-${movie?.type || ''}`
+  );
+
+const getTitleSuffixVariations = (movie) =>
+  movie?.type === 'WebSeries'
+    ? WEBSERIES_TITLE_SUFFIX_VARIATIONS
+    : MOVIE_TITLE_SUFFIX_VARIATIONS;
+
 /* ============================
    Titles / descriptions
    ============================ */
 export const buildMovieTitle = (movie, { maxLen = 60 } = {}) => {
   const nameWithYear = buildMovieNameWithYear(movie);
-  return buildPatternTitle(nameWithYear, { maxLen });
+  const variations = getTitleSuffixVariations(movie);
+  const idx = stablePatternIndex(getTitlePatternKey(movie), variations.length);
+  const suffix = variations[idx] || variations[0];
+
+  return buildPatternTitle(nameWithYear, {
+    maxLen,
+    prefix: '',
+    suffix,
+  });
 };
 
 export const buildMovieDescription = (movie) => {
@@ -184,11 +233,202 @@ export const buildMovieDescription = (movie) => {
   return truncate(movie?.seoDescription || `${base}${extra}`, 160);
 };
 
+/* ============================================================
+   FAQPage + VideoObject helpers
+   ============================================================ */
+
+const normalizeFaqEntries = (faqs = []) =>
+  (Array.isArray(faqs) ? faqs : [])
+    .map((f) => ({
+      question: clean(f?.question),
+      answer: clean(f?.answer),
+    }))
+    .filter((f) => f.question && f.answer)
+    .slice(0, 5);
+
+const looksLikeDirectVideo = (maybeUrl = '') => {
+  const raw = clean(maybeUrl);
+  if (!raw) return false;
+
+  try {
+    const u = new URL(raw);
+    return /\.(mp4|webm|ogg|m3u8)$/i.test(u.pathname);
+  } catch {
+    return /\.(mp4|webm|ogg|m3u8)$/i.test(raw);
+  }
+};
+
+const getYoutubeId = (value = '') => {
+  const raw = clean(value);
+  if (!raw) return '';
+
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+
+    if (host.includes('youtu.be')) {
+      return clean(u.pathname.split('/').filter(Boolean)[0]);
+    }
+
+    if (host.includes('youtube.com') || host.includes('m.youtube.com')) {
+      const v = clean(u.searchParams.get('v'));
+      if (v) return v;
+
+      const parts = u.pathname.split('/').filter(Boolean);
+
+      const embedIdx = parts.indexOf('embed');
+      if (embedIdx !== -1 && parts[embedIdx + 1]) {
+        return clean(parts[embedIdx + 1]);
+      }
+
+      const shortsIdx = parts.indexOf('shorts');
+      if (shortsIdx !== -1 && parts[shortsIdx + 1]) {
+        return clean(parts[shortsIdx + 1]);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return '';
+};
+
+const getVimeoId = (value = '') => {
+  const raw = clean(value);
+  if (!raw) return '';
+
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+
+    if (host.includes('vimeo.com')) {
+      const parts = u.pathname.split('/').filter(Boolean);
+      const last = clean(parts[parts.length - 1]);
+      if (/^\d+$/.test(last)) return last;
+    }
+  } catch {
+    // ignore
+  }
+
+  return '';
+};
+
+const getEmbeddableTrailerUrl = (maybeUrl = '') => {
+  const raw = clean(maybeUrl);
+  if (!raw) return '';
+
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+
+    if (
+      (host.includes('youtube.com') && /\/embed\//i.test(u.pathname)) ||
+      (host.includes('player.vimeo.com') && /\/video\//i.test(u.pathname)) ||
+      /\/embed\//i.test(u.pathname)
+    ) {
+      return raw;
+    }
+  } catch {
+    // ignore
+  }
+
+  const yt = getYoutubeId(raw);
+  if (yt) return `https://www.youtube.com/embed/${yt}?rel=0`;
+
+  const vimeo = getVimeoId(raw);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo}`;
+
+  return '';
+};
+
+const getSchemaDate = (movie) => {
+  const candidates = [movie?.createdAt, movie?.updatedAt];
+
+  for (const value of candidates) {
+    if (!value) continue;
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+
+  const year = Number(movie?.year);
+  if (Number.isFinite(year) && year > 1800) {
+    return new Date(Date.UTC(year, 0, 1)).toISOString();
+  }
+
+  return undefined;
+};
+
+export const buildMovieFaqPageJsonLd = (movie) => {
+  const canonical = movieCanonical(movie);
+  const faqs = normalizeFaqEntries(movie?.faqs);
+
+  if (!faqs.length) return null;
+
+  return {
+    '@type': 'FAQPage',
+    '@id': `${canonical}#faq`,
+    url: canonical,
+    about: { '@id': canonical },
+    mainEntity: faqs.map((f, idx) => ({
+      '@type': 'Question',
+      '@id': `${canonical}#faq-question-${idx + 1}`,
+      name: f.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: f.answer,
+      },
+    })),
+  };
+};
+
+export const buildMovieTrailerVideoJsonLd = (movie) => {
+  const canonical = movieCanonical(movie);
+  const trailerUrl = clean(movie?.trailerUrl);
+
+  if (!trailerUrl) return null;
+
+  const rawTrailerUrl = absoluteUrl(trailerUrl);
+  if (!rawTrailerUrl) return null;
+
+  const directVideo = looksLikeDirectVideo(rawTrailerUrl);
+  const embedUrl = directVideo
+    ? ''
+    : getEmbeddableTrailerUrl(rawTrailerUrl) || rawTrailerUrl;
+
+  const image = absoluteUrl(
+    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+  );
+
+  const uploadDate = getSchemaDate(movie);
+
+  return {
+    '@type': 'VideoObject',
+    '@id': `${canonical}#trailer`,
+    name: `${buildMovieNameWithYear(movie)} Trailer`,
+    description: truncate(
+      movie?.seoDescription ||
+      movie?.desc ||
+      `${buildMovieNameWithYear(movie)} trailer on MovieFrost.`,
+      300
+    ),
+    url: canonical,
+    ...(image ? { thumbnailUrl: [image] } : {}),
+    ...(uploadDate ? { uploadDate } : {}),
+    ...(directVideo ? { contentUrl: rawTrailerUrl } : {}),
+    ...(!directVideo && embedUrl ? { embedUrl } : {}),
+    ...(clean(movie?.language) ? { inLanguage: clean(movie.language) } : {}),
+    isFamilyFriendly: true,
+    publisher: { '@id': `${SITE_URL}#organization` },
+    about: { '@id': canonical },
+  };
+};
+
 /* ============================
    Breadcrumb
    ============================ */
 export const buildBreadcrumbJsonLd = (movie) => {
   const canonical = movieCanonical(movie);
+  const label = buildMovieNameWithYear(movie) || clean(movie?.name || 'Movie');
 
   return {
     '@type': 'BreadcrumbList',
@@ -204,7 +444,7 @@ export const buildBreadcrumbJsonLd = (movie) => {
       {
         '@type': 'ListItem',
         position: 3,
-        name: clean(movie?.name || 'Movie'),
+        name: label,
         item: canonical,
       },
     ],
@@ -234,7 +474,7 @@ const minutesToIsoDuration = (minutes) => {
 
 /**
  * IMPORTANT:
- * We DO NOT output third‑party ratings as schema.org "Review" objects.
+ * We DO NOT output third-party ratings as schema.org "Review" objects.
  * Instead, we expose external ratings only as:
  * - sameAs (links)
  * - additionalProperty (informational)
@@ -322,7 +562,6 @@ export const buildMovieJsonLd = (movie) => {
     movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
   );
 
-  // Actor pages are disabled for now, so do not output actor/director URLs
   const directorName = clean(movie?.director);
   const director = directorName
     ? {
@@ -358,6 +597,7 @@ export const buildMovieJsonLd = (movie) => {
   const { additionalProperty, sameAs } = buildExternalRatingNodes(movie);
 
   const duration = minutesToIsoDuration(movie?.time);
+  const hasTrailer = !!clean(movie?.trailerUrl);
 
   const node = {
     '@type': schemaType,
@@ -391,6 +631,8 @@ export const buildMovieJsonLd = (movie) => {
       }
       : {}),
 
+    ...(hasTrailer ? { trailer: { '@id': `${canonical}#trailer` } } : {}),
+
     potentialAction: {
       '@type': 'WatchAction',
       target: watchUrl(movie),
@@ -413,8 +655,15 @@ export const buildMovieGraphJsonLd = (movie) => {
   const websiteId = `${SITE_URL}#website`;
   const pageId = `${canonical}#webpage`;
 
-  const movieNode = buildMovieJsonLd(movie);
   const breadcrumb = buildBreadcrumbJsonLd(movie);
+  const movieNode = buildMovieJsonLd(movie);
+  const faqNode = buildMovieFaqPageJsonLd(movie);
+  const trailerNode = buildMovieTrailerVideoJsonLd(movie);
+
+  const pageParts = [
+    ...(faqNode ? [{ '@id': faqNode['@id'] }] : []),
+    ...(trailerNode ? [{ '@id': trailerNode['@id'] }] : []),
+  ];
 
   return {
     '@context': 'https://schema.org',
@@ -451,10 +700,14 @@ export const buildMovieGraphJsonLd = (movie) => {
         name: buildMovieTitle(movie),
         isPartOf: { '@id': websiteId },
         about: { '@id': canonical },
+        mainEntity: { '@id': canonical },
         breadcrumb: { '@id': `${canonical}#breadcrumb` },
+        ...(pageParts.length ? { hasPart: pageParts } : {}),
       },
       breadcrumb,
       movieNode,
+      ...(faqNode ? [faqNode] : []),
+      ...(trailerNode ? [trailerNode] : []),
     ],
   };
 };

@@ -16,9 +16,11 @@ import {
   buildMovieTitle,
   movieCanonical,
   buildMovieGraphJsonLd,
+  buildMovieNameWithYear,
 } from '../../../lib/seo';
 
 import JsonLd from '../../../components/seo/JsonLd';
+import VisibleBreadcrumbs from '../../../components/seo/VisibleBreadcrumbs';
 import MovieInfoServer from '../../../components/movie/MovieInfoServer';
 import RelatedMoviesServer from '../../../components/movie/RelatedMoviesServer';
 
@@ -27,7 +29,7 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../../../components/ads/EffectiveGateNativeBanner';
 
-/* ✅ NEW sections */
+/* ✅ existing sections */
 import MovieFaqSection from '../../../components/movie/MovieFaqSection';
 import MovieTrailerSection from '../../../components/movie/MovieTrailerSection';
 
@@ -122,11 +124,20 @@ export default async function MoviePage({ params }) {
   const graphLd = buildMovieGraphJsonLd(movie);
   const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
+  const breadcrumbItems = [
+    { label: 'Home', href: '/' },
+    { label: 'Movies', href: '/movies' },
+    { label: buildMovieNameWithYear(movie) || movie?.name || 'Movie' },
+  ];
+
   return (
     <>
       <JsonLd data={graphLd} />
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
+        {/* ✅ Q2: visible HTML breadcrumbs */}
+        <VisibleBreadcrumbs items={breadcrumbItems} className="mb-4" />
+
         <MovieInfoServer movie={movie} />
 
         {ADS_ENABLED ? (
@@ -148,7 +159,7 @@ export default async function MoviePage({ params }) {
 
         <RelatedMoviesServer currentId={movie._id} movies={related} />
 
-        {/* ✅ NEW: Only renders if movie has faqs / trailerUrl */}
+        {/* existing visible FAQ + Trailer sections */}
         <MovieFaqSection movie={movie} />
         <MovieTrailerSection movie={movie} />
       </div>
