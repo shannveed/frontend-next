@@ -4,8 +4,6 @@ export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com'
 ).replace(/\/+$/, '');
 
-export const BRAND_NAME = 'MovieFrost';
-
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 
 export const truncate = (text, max = 155) => {
@@ -56,52 +54,8 @@ export const watchUrl = (movie) => {
 export const watchCanonical = (movie) => watchUrl(movie);
 
 /* ============================================================
-   Movie title/meta helpers
-   Q1 SEO update:
-   - move away from spammy "Full Movie Online Free HD Streaming"
-   - turn pages into high-quality movie detail pages
+   Title normalization helpers
    ============================================================ */
-
-const SPAMMY_SEO_PATTERNS = [
-  /\bfull\s+movie\b/i,
-  /\bonline\s+free\b/i,
-  /\bhd\s+stream(?:ing)?\b/i,
-  /\bwatch\b.*\bonline\b/i,
-  /\bwatch\s+online\b/i,
-  /\bfree\s+stream(?:ing)?\b/i,
-  /\bstream(?:ing)?\s+now\b/i,
-  /\bdownload\s+now\b/i,
-];
-
-const DETAIL_TITLE_SUFFIXES_MOVIE_WITH_TRAILER = [
-  ` | Cast, Plot, Trailer & Streaming Info | ${BRAND_NAME}`,
-  ` | Plot, Cast & Trailer | ${BRAND_NAME}`,
-  ` | Cast & Trailer | ${BRAND_NAME}`,
-  ` | ${BRAND_NAME}`,
-];
-
-const DETAIL_TITLE_SUFFIXES_MOVIE_NO_TRAILER = [
-  ` | Cast, Plot & Streaming Info | ${BRAND_NAME}`,
-  ` | Plot & Cast | ${BRAND_NAME}`,
-  ` | Cast Info | ${BRAND_NAME}`,
-  ` | ${BRAND_NAME}`,
-];
-
-const DETAIL_TITLE_SUFFIXES_SERIES_WITH_TRAILER = [
-  ` | Cast, Episodes, Trailer & Streaming Info | ${BRAND_NAME}`,
-  ` | Episodes, Cast & Trailer | ${BRAND_NAME}`,
-  ` | Cast & Trailer | ${BRAND_NAME}`,
-  ` | ${BRAND_NAME}`,
-];
-
-const DETAIL_TITLE_SUFFIXES_SERIES_NO_TRAILER = [
-  ` | Cast, Episodes & Streaming Info | ${BRAND_NAME}`,
-  ` | Episodes & Cast | ${BRAND_NAME}`,
-  ` | Cast Info | ${BRAND_NAME}`,
-  ` | ${BRAND_NAME}`,
-];
-
-const TITLE_MIN_VISIBLE_NAME_CHARS = 18;
 
 const escapeRegex = (value = '') =>
   String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -214,213 +168,90 @@ const buildPatternTitle = (
   return clean(`${p}${clippedName}${suf}`);
 };
 
-const joinHumanList = (items = []) => {
+/* ============================================================
+   Stable rotating SEO title patterns
+   ============================================================ */
+
+const MOVIE_TITLE_SUFFIX_VARIATIONS = [
+  ' Full Movie Online Free HD Streaming',
+  ' Full Movie HD | Watch Online Free',
+  ' Full Movie Streaming Online HD',
+];
+
+const WEBSERIES_TITLE_SUFFIX_VARIATIONS = [
+  ' Web Series Online Free HD Streaming',
+  ' Web Series HD | Watch Online Free',
+  ' Web Series Streaming Online HD',
+];
+
+const stablePatternIndex = (value = '', size = 1) => {
+  const text = clean(value);
+  if (!text || size <= 1) return 0;
+
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+
+  return hash % size;
+};
+
+const getTitlePatternKey = (movie) =>
+  clean(
+    movie?._id ||
+    movie?.slug ||
+    `${movie?.name || ''}-${movie?.year || ''}-${movie?.type || ''}`
+  );
+
+const getTitleSuffixVariations = (movie) =>
+  movie?.type === 'WebSeries'
+    ? WEBSERIES_TITLE_SUFFIX_VARIATIONS
+    : MOVIE_TITLE_SUFFIX_VARIATIONS;
+
+/* ============================================================
+   SEO title pattern for movie pages
+   ============================================================ */
+
+const joinTitleBits = (items = []) => {
   const list = (items || []).map(clean).filter(Boolean);
 
   if (!list.length) return '';
   if (list.length === 1) return list[0];
-  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  if (list.length === 2) return `${list[0]} & ${list[1]}`;
 
-  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+  return `${list.slice(0, -1).join(', ')} & ${list[list.length - 1]}`;
 };
 
-const looksSpammySeoText = (text = '') => {
-  const s = clean(text);
-  if (!s) return false;
-  return SPAMMY_SEO_PATTERNS.some((re) => re.test(s));
+const buildMovieTitleInfo = (movie) => {
+  const bits = ['Cast', movie?.type === 'WebSeries' ? 'Episodes' : 'Plot'];
+
+  // Keep title accurate: only mention Trailer if trailerUrl exists
+  if (clean(movie?.trailerUrl)) bits.push('Trailer');
+
+  bits.push('Streaming Info');
+
+  return joinTitleBits(bits);
 };
 
-const isMirrorOrPrefixOfBaseText = (candidate = '', base = '') => {
-  const a = clean(candidate).toLowerCase();
-  const b = clean(base).toLowerCase();
-
-  if (!a || !b) return false;
-  return a === b || a.startsWith(b) || b.startsWith(a);
-};
-
-const asNumber = (v) => {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-
-const hasPositiveNumber = (v) => {
-  const n = asNumber(v);
-  return n !== null && n > 0;
-};
-
-// Future-proof: if you ever add official/licensed stream support,
-// movie pages can switch to "Watch X | MovieFrost"
-const isLicensedStreamMovie = (movie) => {
-  if (!movie || typeof movie !== 'object') return false;
-
-  if (movie.isLicensedStream === true) return true;
-
-  const streamingMode = clean(movie.streamingMode).toLowerCase();
-  const streamingProvider = clean(movie.streamingProvider).toLowerCase();
-
-  return streamingMode === 'official' || streamingProvider === 'official';
-};
-
-const getDetailTitleSuffixes = (movie) => {
-  const isSeries = movie?.type === 'WebSeries';
-  const hasTrailer = !!clean(movie?.trailerUrl);
-
-  if (isSeries) {
-    return hasTrailer
-      ? DETAIL_TITLE_SUFFIXES_SERIES_WITH_TRAILER
-      : DETAIL_TITLE_SUFFIXES_SERIES_NO_TRAILER;
-  }
-
-  return hasTrailer
-    ? DETAIL_TITLE_SUFFIXES_MOVIE_WITH_TRAILER
-    : DETAIL_TITLE_SUFFIXES_MOVIE_NO_TRAILER;
-};
-
-const pickAdaptiveSuffix = (nameWithYear, suffixes, maxLen) => {
-  const list =
-    Array.isArray(suffixes) && suffixes.length
-      ? suffixes
-      : [` | ${BRAND_NAME}`];
-
-  const nameLen = clean(nameWithYear).length;
-
-  for (const suffix of list) {
-    const nameBudget = maxLen - String(suffix).length;
-
-    // Best case: full name fits with this suffix
-    if (nameBudget >= nameLen) return suffix;
-
-    // Otherwise allow if enough of the title can still remain visible
-    if (nameBudget >= TITLE_MIN_VISIBLE_NAME_CHARS) return suffix;
-  }
-
-  return list[list.length - 1];
-};
-
-const buildGeneratedLicensedTitle = (movie, maxLen = 60) => {
+export const buildMovieTitle = (movie, { maxLen = 100 } = {}) => {
   const nameWithYear = buildMovieNameWithYear(movie);
+  const suffix = ` HD | ${buildMovieTitleInfo(movie)} | MovieFrost`;
+
   return buildPatternTitle(nameWithYear, {
     maxLen,
     prefix: 'Watch ',
-    suffix: ` | ${BRAND_NAME}`,
-  });
-};
-
-const buildGeneratedDetailTitle = (movie, maxLen = 60) => {
-  const nameWithYear = buildMovieNameWithYear(movie);
-  const suffix = pickAdaptiveSuffix(
-    nameWithYear,
-    getDetailTitleSuffixes(movie),
-    maxLen
-  );
-
-  return buildPatternTitle(nameWithYear, {
-    maxLen,
     suffix,
   });
 };
 
-/* ============================
-   Titles / descriptions
-   ============================ */
-
-// Movie detail page title
-export const buildMovieTitle = (movie, { maxLen = 60 } = {}) => {
-  const nameWithYear = buildMovieNameWithYear(movie);
-  if (!nameWithYear) return BRAND_NAME;
-
-  return isLicensedStreamMovie(movie)
-    ? buildGeneratedLicensedTitle(movie, maxLen)
-    : buildGeneratedDetailTitle(movie, maxLen);
-};
-
-// Watch page title (keep watch intent for /watch, while /movie stays detail-style)
-export const buildWatchPageTitle = (movie, { maxLen = 60 } = {}) => {
-  const nameWithYear = buildMovieNameWithYear(movie);
-  if (!nameWithYear) return `Watch | ${BRAND_NAME}`;
-
-  return buildGeneratedLicensedTitle(movie, maxLen);
-};
-
-// Keep custom seoDescription only if it looks intentional and not spammy.
-// If it's just a mirrored copy of desc or contains spammy phrases, ignore it.
-const getTrustedCustomSeoDescription = (movie) => {
-  const custom = clean(movie?.seoDescription);
-  if (!custom) return '';
-
-  if (looksSpammySeoText(custom)) return '';
-  if (isMirrorOrPrefixOfBaseText(custom, movie?.desc)) return '';
-
-  return truncate(custom, 160);
-};
-
-const buildGeneratedLicensedDescription = (movie) => {
-  const nameWithYear = buildMovieNameWithYear(movie);
-  const isSeries = movie?.type === 'WebSeries';
-  const genre = clean(movie?.category);
-  const director = clean(movie?.director);
-  const hasTrailer = !!clean(movie?.trailerUrl);
-  const episodeCount = Array.isArray(movie?.episodes) ? movie.episodes.length : 0;
-
-  const introBits = [];
-  if (genre) introBits.push(`${genre} ${isSeries ? 'series' : 'film'}`);
-  else introBits.push(isSeries ? 'series' : 'film');
-  if (director) introBits.push(`directed by ${director}`);
-
-  const intro = `Stream ${nameWithYear}${introBits.length ? `, a ${introBits.join(' ')}` : ''
-    }.`;
-
-  const detailItems = ['cast', isSeries ? 'story' : 'synopsis'];
-  if (isSeries && episodeCount > 0) detailItems.push('episodes');
-  if (hasPositiveNumber(movie?.time)) {
-    detailItems.push(isSeries ? 'episode runtime' : 'runtime');
-  }
-  if (hasTrailer) detailItems.push('trailer');
-  detailItems.push('streaming details');
-
-  return truncate(
-    `${intro} Explore the ${joinHumanList(detailItems)} on ${BRAND_NAME}.`,
-    160
-  );
-};
-
-const buildGeneratedDetailDescription = (movie) => {
-  const nameWithYear = buildMovieNameWithYear(movie);
-  const isSeries = movie?.type === 'WebSeries';
-  const genre = clean(movie?.category);
-  const director = clean(movie?.director);
-  const hasTrailer = !!clean(movie?.trailerUrl);
-  const episodeCount = Array.isArray(movie?.episodes) ? movie.episodes.length : 0;
-
-  const introBits = [];
-  if (genre) introBits.push(`${genre} ${isSeries ? 'series' : 'film'}`);
-  else introBits.push(isSeries ? 'web series' : 'movie');
-  if (director) introBits.push(`directed by ${director}`);
-
-  const intro = `${nameWithYear} — ${introBits.join(' ')}.`;
-
-  const detailItems = ['cast', isSeries ? 'story' : 'synopsis'];
-  if (isSeries && episodeCount > 0) detailItems.push('episodes');
-  if (hasPositiveNumber(movie?.time)) {
-    detailItems.push(isSeries ? 'episode runtime' : 'runtime');
-  }
-  if (hasTrailer) detailItems.push('trailer');
-  detailItems.push('viewing options');
-
-  return truncate(
-    `${intro} Explore the ${joinHumanList(detailItems)} on ${BRAND_NAME}.`,
-    160
-  );
-};
 
 export const buildMovieDescription = (movie) => {
-  const custom = getTrustedCustomSeoDescription(movie);
-  if (custom) return custom;
+  const nameWithYear = buildMovieNameWithYear(movie);
 
-  return isLicensedStreamMovie(movie)
-    ? buildGeneratedLicensedDescription(movie)
-    : buildGeneratedDetailDescription(movie);
+  const base = `${nameWithYear} — watch online free in HD on MovieFrost.`;
+  const extra = ` Plot, cast, release year and more.`;
+
+  return truncate(movie?.seoDescription || `${base}${extra}`, 160);
 };
 
 /* ============================================================
@@ -590,26 +421,15 @@ export const buildMovieTrailerVideoJsonLd = (movie) => {
   );
 
   const uploadDate = getSchemaDate(movie);
-  const isSeries = movie?.type === 'WebSeries';
-  const episodeCount = Array.isArray(movie?.episodes) ? movie.episodes.length : 0;
-
-  const trailerContextItems = ['cast', isSeries ? 'story' : 'synopsis'];
-  if (isSeries && episodeCount > 0) trailerContextItems.push('episodes');
-  if (hasPositiveNumber(movie?.time)) {
-    trailerContextItems.push(isSeries ? 'episode runtime' : 'runtime');
-  }
-  trailerContextItems.push('viewing options');
 
   return {
     '@type': 'VideoObject',
     '@id': `${canonical}#trailer`,
     name: `${buildMovieNameWithYear(movie)} Trailer`,
     description: truncate(
-      `${buildMovieNameWithYear(
-        movie
-      )} trailer on ${BRAND_NAME}. Explore the ${joinHumanList(
-        trailerContextItems
-      )}.`,
+      movie?.seoDescription ||
+      movie?.desc ||
+      `${buildMovieNameWithYear(movie)} trailer on MovieFrost.`,
       300
     ),
     url: canonical,
@@ -650,6 +470,12 @@ export const buildBreadcrumbJsonLd = (movie) => {
       },
     ],
   };
+};
+
+const asNumber = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 };
 
 const minutesToIsoDuration = (minutes) => {
@@ -800,7 +626,7 @@ export const buildMovieJsonLd = (movie) => {
     name: clean(movie?.name || 'Movie'),
     url: canonical,
     image: image ? [image] : undefined,
-    description: buildMovieDescription(movie),
+    description: clean(movie?.seoDescription || movie?.desc || ''),
     datePublished: year ? `${year}-01-01` : undefined,
     inLanguage: clean(movie?.language || ''),
     genre: clean(movie?.category || ''),
@@ -866,7 +692,7 @@ export const buildMovieGraphJsonLd = (movie) => {
       {
         '@type': 'Organization',
         '@id': orgId,
-        name: BRAND_NAME,
+        name: 'MovieFrost',
         url: SITE_URL,
         logo: {
           '@type': 'ImageObject',
@@ -877,7 +703,7 @@ export const buildMovieGraphJsonLd = (movie) => {
         '@type': 'WebSite',
         '@id': websiteId,
         url: SITE_URL,
-        name: BRAND_NAME,
+        name: 'MovieFrost',
         publisher: { '@id': orgId },
         potentialAction: {
           '@type': 'SearchAction',
@@ -946,7 +772,7 @@ export const buildActorGraphJsonLd = ({ actor, movies = [] }) => {
       {
         '@type': 'Organization',
         '@id': orgId,
-        name: BRAND_NAME,
+        name: 'MovieFrost',
         url: SITE_URL,
         logo: {
           '@type': 'ImageObject',
@@ -957,7 +783,7 @@ export const buildActorGraphJsonLd = ({ actor, movies = [] }) => {
         '@type': 'WebSite',
         '@id': websiteId,
         url: SITE_URL,
-        name: BRAND_NAME,
+        name: 'MovieFrost',
         publisher: { '@id': orgId },
       },
       {

@@ -81,7 +81,10 @@ export async function generateMetadata({ params }) {
   }
 
   const canonical = movieCanonical(movie);
-  const title = buildMovieTitle(movie, { maxLen: 60 });
+
+  // ✅ Q1 title pattern
+  const title = buildMovieTitle(movie, { maxLen: 100 });
+
   const description = buildMovieDescription(movie);
 
   return {

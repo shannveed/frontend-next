@@ -12,7 +12,7 @@ import {
 
 import {
   buildMovieDescription,
-  buildWatchPageTitle,
+  buildMovieTitle,
   movieCanonical,
 } from '../../../lib/seo';
 
@@ -40,7 +40,9 @@ export async function generateMetadata({ params }) {
     return { title: 'Not found', robots: { index: false, follow: false } };
   }
 
-  const title = buildWatchPageTitle(movie, { maxLen: 60 });
+  // ✅ Q1 title pattern
+  const title = buildMovieTitle(movie, { maxLen: 100 });
+
   const description = buildMovieDescription(movie);
 
   // ✅ Canonical points to /movie/... (indexable)
