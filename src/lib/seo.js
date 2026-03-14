@@ -212,6 +212,16 @@ const getTitleSuffixVariations = (movie) =>
    SEO title pattern for movie pages
    ============================================================ */
 
+const joinNaturalList = (items = []) => {
+  const list = (items || []).map(clean).filter(Boolean);
+
+  if (!list.length) return '';
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+
+  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+};
+
 const joinTitleBits = (items = []) => {
   const list = (items || []).map(clean).filter(Boolean);
 
@@ -244,14 +254,31 @@ export const buildMovieTitle = (movie, { maxLen = 100 } = {}) => {
   });
 };
 
-
 export const buildMovieDescription = (movie) => {
+  const custom = clean(movie?.seoDescription);
+  if (custom) return truncate(custom, 160);
+
   const nameWithYear = buildMovieNameWithYear(movie);
+  const director = clean(movie?.director);
+  const isSeries = movie?.type === 'WebSeries';
+  const hasRuntime =
+    Number.isFinite(Number(movie?.time)) && Number(movie?.time) > 0;
+  const hasTrailer = !!clean(movie?.trailerUrl);
 
-  const base = `${nameWithYear} — watch online free in HD on MovieFrost.`;
-  const extra = ` Plot, cast, release year and more.`;
+  const facts = [
+    'cast',
+    isSeries ? 'storyline' : 'plot summary',
+    ...(hasRuntime ? [isSeries ? 'runtime details' : 'runtime'] : []),
+    ...(hasTrailer ? ['trailer'] : []),
+    'ratings',
+    isSeries ? 'season and episode details' : 'viewing options',
+  ];
 
-  return truncate(movie?.seoDescription || `${base}${extra}`, 160);
+  let description = `Explore the ${joinNaturalList(facts)} for ${nameWithYear}`;
+  if (director && !isSeries) description += `, directed by ${director}`;
+  description += '.';
+
+  return truncate(description, 160);
 };
 
 /* ============================================================
