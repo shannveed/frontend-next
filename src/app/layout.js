@@ -64,18 +64,18 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
-        {/* Google AdSense Global Script */}
+        {/* ✅ AdSense is non-critical: load after window load */}
         {ADSENSE_CLIENT ? (
           <Script
             id="adsense-js"
             async
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
             crossOrigin="anonymous"
           />
         ) : null}
 
-        {/* Google Analytics */}
+        {/* Keep GA as-is for analytics stability */}
         {GA_ID ? (
           <>
             <Script

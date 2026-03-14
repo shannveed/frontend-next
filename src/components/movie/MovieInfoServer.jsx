@@ -1,5 +1,6 @@
 // frontend-next/src/components/movie/MovieInfoServer.jsx
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   FaFolder,
   FaRegClock,
@@ -11,6 +12,35 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
+
+const ALLOWED_HOSTNAMES = new Set([
+  'cdn.moviefrost.com',
+  'www.moviefrost.com',
+  'moviefrost.com',
+  'moviefrost-backend.vercel.app',
+  'moviefrost-backend-six.vercel.app',
+  'image.tmdb.org',
+  'fra.cloud.appwrite.io',
+  'cloud.appwrite.io',
+]);
+
+const normalizeImageSrc = (src, fallback = '/images/placeholder.jpg') => {
+  const s = String(src || '').trim();
+  if (!s) return fallback;
+
+  if (s.startsWith('/')) return s;
+
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      if (ALLOWED_HOSTNAMES.has(u.hostname)) return s;
+    } catch {
+      // ignore
+    }
+  }
+
+  return fallback;
+};
 
 const formatTime = (minutes) => {
   const n = Number(minutes);
@@ -99,6 +129,7 @@ function CastScroller({ casts = [] }) {
   const list = Array.isArray(casts)
     ? casts.filter((c) => c?.name).slice(0, 20)
     : [];
+
   if (!list.length) return null;
 
   return (
@@ -114,13 +145,13 @@ function CastScroller({ casts = [] }) {
             key={`${c?.name || 'cast'}-${idx}`}
             className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2"
           >
-            <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border">
-              <img
-                src={c?.image || '/images/placeholder.jpg'}
+            <div className="w-full aspect-[3/4] relative rounded-md overflow-hidden bg-black/40 border border-border">
+              <Image
+                src={normalizeImageSrc(c?.image, '/images/placeholder.jpg')}
                 alt={c?.name || 'Actor'}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-contain"
+                fill
+                sizes="140px"
+                className="object-contain"
               />
             </div>
             <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
@@ -150,10 +181,20 @@ export default function MovieInfoServer({ movie }) {
 
   const directorName = String(movie?.director || '').trim();
 
-  const heroImage =
-    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png';
-  const bgImage = movie?.image || heroImage;
-  const posterImage = movie?.titleImage || heroImage;
+  const heroImage = normalizeImageSrc(
+    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png',
+    '/images/MOVIEFROST.png'
+  );
+
+  const bgImage = normalizeImageSrc(
+    movie?.image || movie?.titleImage || heroImage,
+    heroImage
+  );
+
+  const posterImage = normalizeImageSrc(
+    movie?.titleImage || movie?.image || heroImage,
+    heroImage
+  );
 
   const descriptionText = String(movie?.desc || '').trim();
 
@@ -162,12 +203,12 @@ export default function MovieInfoServer({ movie }) {
       {/* MOBILE */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
-          <img
+          <Image
             src={heroImage}
             alt={movie?.name || 'Movie'}
-            className="w-full h-full object-cover"
-            loading="eager"
-            decoding="async"
+            fill
+            sizes="100vw"
+            className="object-cover"
           />
         </div>
 
@@ -277,12 +318,13 @@ export default function MovieInfoServer({ movie }) {
       {/* DESKTOP / TABLET */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
-          <img
+          <Image
             src={bgImage}
             alt={movie?.name || 'Movie background'}
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="eager"
-            decoding="async"
+            fill
+            sizes="100vw"
+            quality={65}
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-main/95" />
 
@@ -290,12 +332,13 @@ export default function MovieInfoServer({ movie }) {
             <div className="grid grid-cols-3 gap-8 items-start">
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
-                  <img
+                  <Image
                     src={posterImage}
                     alt={movie?.name || 'Movie'}
+                    width={520}
+                    height={780}
+                    sizes="(max-width: 1024px) 33vw, 520px"
                     className="w-full h-auto object-cover"
-                    loading="eager"
-                    decoding="async"
                   />
                 </div>
               </div>

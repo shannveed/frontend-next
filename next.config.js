@@ -13,7 +13,9 @@ const nextConfig = {
   reactStrictMode: true,
 
   images: {
-    unoptimized: true,
+    // ✅ Enable real Next.js optimization
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 7,
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.moviefrost.com', pathname: '/**' },
       { protocol: 'https', hostname: 'image.tmdb.org', pathname: '/t/p/**' },
@@ -24,6 +26,13 @@ const nextConfig = {
         hostname: 'moviefrost-backend-six.vercel.app',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'moviefrost-backend.vercel.app',
+        pathname: '/**',
+      },
+      { protocol: 'https', hostname: 'fra.cloud.appwrite.io', pathname: '/**' },
+      { protocol: 'https', hostname: 'cloud.appwrite.io', pathname: '/**' },
     ],
   },
 

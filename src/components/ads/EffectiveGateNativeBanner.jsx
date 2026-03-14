@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const DEFAULT_SCRIPT_SRC =
   'https://pl27041508.effectivegatecpm.com/019a973cec8ffe0b4ea36cff849dc6cf/invoke.js';
@@ -42,7 +42,7 @@ const buildMediaQuery = ({ minWidthPx, maxWidthPx }) => {
   return parts.length ? parts.join(' and ') : '(min-width: 0px)';
 };
 
-// ✅ SSR-safe: first render always "false"
+// ✅ SSR-safe: first render always false
 const useMediaQuery = (query, enabled = true) => {
   const [matches, setMatches] = useState(false);
 
@@ -67,6 +67,28 @@ const useMediaQuery = (query, enabled = true) => {
   return matches;
 };
 
+function AdShell({ label, className, aspectRatio, minHeight, children, shellRef }) {
+  return (
+    <section className={`w-full my-8 ${className}`} aria-label={label || 'Advertisement'}>
+      <div className="border border-border bg-dry rounded-lg p-3 sm:p-4">
+        {label ? (
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-dryGray">{label}</span>
+          </div>
+        ) : null}
+
+        <div
+          ref={shellRef}
+          className="w-full overflow-hidden rounded-md bg-main"
+          style={{ aspectRatio, minHeight }}
+        >
+          {children}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function EffectiveGateIframeAd({
   scriptSrc = DEFAULT_SCRIPT_SRC,
   containerId = DEFAULT_CONTAINER_ID,
@@ -78,6 +100,9 @@ function EffectiveGateIframeAd({
   // layout
   aspectRatio = '4 / 1',
   minHeight = 90,
+
+  // loading
+  rootMargin = '300px',
 
   // UI
   className = '',
@@ -92,6 +117,10 @@ function EffectiveGateIframeAd({
   );
 
   const [mounted, setMounted] = useState(false);
+  const [shouldLoadFrame, setShouldLoadFrame] = useState(false);
+
+  const shellRef = useRef(null);
+
   useEffect(() => setMounted(true), []);
 
   // Only evaluate media query after mount (prevents SSR/client mismatch)
@@ -106,23 +135,53 @@ function EffectiveGateIframeAd({
     return `${containerId}:${String(refreshKey)}:${scriptSrc}:${query}:${aspectRatio}`;
   }, [containerId, refreshKey, scriptSrc, query, aspectRatio]);
 
-  // ✅ placeholder until mounted (SSR-safe and avoids hydration mismatch)
+  useEffect(() => {
+    if (!mounted || !matches) {
+      setShouldLoadFrame(false);
+      return;
+    }
+
+    if (shouldLoadFrame) return;
+
+    const node = shellRef.current;
+    if (!node) return;
+
+    if (
+      typeof window === 'undefined' ||
+      !('IntersectionObserver' in window)
+    ) {
+      setShouldLoadFrame(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoadFrame(true);
+          observer.disconnect();
+        }
+      },
+      {
+        root: null,
+        rootMargin,
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [mounted, matches, shouldLoadFrame, rootMargin]);
+
+  // SSR-safe placeholder
   if (!mounted) {
     return (
-      <section className={`w-full my-8 ${className}`} aria-label={label || 'Advertisement'}>
-        <div className="border border-border bg-dry rounded-lg p-3 sm:p-4">
-          {label ? (
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-dryGray">{label}</span>
-            </div>
-          ) : null}
-
-          <div
-            className="w-full overflow-hidden rounded-md bg-main"
-            style={{ aspectRatio, minHeight }}
-          />
-        </div>
-      </section>
+      <AdShell
+        label={label}
+        className={className}
+        aspectRatio={aspectRatio}
+        minHeight={minHeight}
+      />
     );
   }
 
@@ -131,31 +190,26 @@ function EffectiveGateIframeAd({
   const title = iframeTitle || `effectivegate-ad-${String(refreshKey || 'default')}`;
 
   return (
-    <section className={`w-full my-8 ${className}`} aria-label={label || 'Advertisement'}>
-      <div className="border border-border bg-dry rounded-lg p-3 sm:p-4">
-        {label ? (
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-dryGray">{label}</span>
-          </div>
-        ) : null}
-
-        <div
-          className="w-full overflow-hidden rounded-md bg-main"
-          style={{ aspectRatio, minHeight }}
-        >
-          <iframe
-            key={iframeKey}
-            title={title}
-            srcDoc={srcDoc}
-            className="w-full h-full"
-            style={{ border: 0, display: 'block' }}
-            scrolling="no"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-cross-origin"
-          />
-        </div>
-      </div>
-    </section>
+    <AdShell
+      label={label}
+      className={className}
+      aspectRatio={aspectRatio}
+      minHeight={minHeight}
+      shellRef={shellRef}
+    >
+      {shouldLoadFrame ? (
+        <iframe
+          key={iframeKey}
+          title={title}
+          srcDoc={srcDoc}
+          className="w-full h-full"
+          style={{ border: 0, display: 'block' }}
+          scrolling="no"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-cross-origin"
+        />
+      ) : null}
+    </AdShell>
   );
 }
 

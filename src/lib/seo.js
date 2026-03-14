@@ -259,27 +259,40 @@ export const buildMovieDescription = (movie) => {
   if (custom) return truncate(custom, 160);
 
   const nameWithYear = buildMovieNameWithYear(movie);
-  const director = clean(movie?.director);
   const isSeries = movie?.type === 'WebSeries';
+  const director = clean(movie?.director);
+
   const hasRuntime =
     Number.isFinite(Number(movie?.time)) && Number(movie?.time) > 0;
+
   const hasTrailer = !!clean(movie?.trailerUrl);
 
-  const facts = [
-    'cast',
-    isSeries ? 'storyline' : 'plot summary',
-    ...(hasRuntime ? [isSeries ? 'runtime details' : 'runtime'] : []),
-    ...(hasTrailer ? ['trailer'] : []),
-    'ratings',
-    isSeries ? 'season and episode details' : 'viewing options',
-  ];
+  const hasEpisodes =
+    isSeries &&
+    Array.isArray(movie?.episodes) &&
+    movie.episodes.some((ep) => Number(ep?.episodeNumber) > 0);
+
+  const facts = ['cast', 'synopsis'];
+
+  if (isSeries) {
+    if (hasEpisodes) {
+      facts.push('season guide');
+      facts.push('episode details');
+    }
+  } else if (hasRuntime) {
+    facts.push('runtime');
+  }
+
+  if (hasTrailer) facts.push('trailer');
+  facts.push('viewing options');
 
   let description = `Explore the ${joinNaturalList(facts)} for ${nameWithYear}`;
-  if (director && !isSeries) description += `, directed by ${director}`;
+  if (director) description += `, directed by ${director}`;
   description += '.';
 
   return truncate(description, 160);
 };
+
 
 /* ============================================================
    FAQPage + VideoObject helpers

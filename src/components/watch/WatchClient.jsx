@@ -21,6 +21,7 @@ import { RiMovie2Line } from 'react-icons/ri';
 import Loader from '../common/Loader';
 import MovieCard from '../movie/MovieCard';
 import StarRatingInput from './StarRatingInput';
+import SafeImage from '../common/SafeImage';
 
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
@@ -362,7 +363,7 @@ export default function WatchClient({
     selectEpisode(activeSeasonEpisodes[currentEpisodeIndex + 1]);
   };
 
- // ✅ Servers (videoUrl7 optional)
+  // ✅ Servers (videoUrl7 optional)
   const hasVideoUrl7 = useMemo(
     () => !!String(movie?.videoUrl7 || '').trim(),
     [movie?.videoUrl7]
@@ -676,11 +677,10 @@ export default function WatchClient({
                       key={ep._id}
                       type="button"
                       onClick={() => selectEpisode(ep)}
-                      className={`text-left p-3 rounded-lg border transitions ${
-                        active
-                          ? 'bg-customPurple border-customPurple text-white'
-                          : 'bg-main border-border text-white hover:border-customPurple'
-                      }`}
+                      className={`text-left p-3 rounded-lg border transitions ${active
+                        ? 'bg-customPurple border-customPurple text-white'
+                        : 'bg-main border-border text-white hover:border-customPurple'
+                        }`}
                     >
                       <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>
                       {ep.title ? (
@@ -715,10 +715,9 @@ export default function WatchClient({
               onClick={doLike}
               disabled={liked || liking}
               className={`sm:hidden w-10 h-10 mobile:w-9 mobile:h-9 flex-colo rounded-md transitions ml-auto flex-shrink-0
-                ${
-                  liked
-                    ? 'bg-customPurple text-white'
-                    : 'bg-dry border border-border text-white hover:bg-customPurple'
+                ${liked
+                  ? 'bg-customPurple text-white'
+                  : 'bg-dry border border-border text-white hover:bg-customPurple'
                 }`}
               type="button"
             >
@@ -731,10 +730,9 @@ export default function WatchClient({
               onClick={doLike}
               disabled={liked || liking}
               className={`w-12 h-12 flex-colo rounded-md transitions
-                ${
-                  liked
-                    ? 'bg-customPurple text-white'
-                    : 'bg-dry border border-border text-white hover:bg-customPurple'
+                ${liked
+                  ? 'bg-customPurple text-white'
+                  : 'bg-dry border border-border text-white hover:bg-customPurple'
                 }`}
               type="button"
             >
@@ -775,11 +773,10 @@ export default function WatchClient({
                     setEpisodeSearch('');
                     setActiveSeason(s.seasonNumber);
                   }}
-                  className={`px-4 py-2 rounded-md font-medium border transitions ${
-                    activeSeason === s.seasonNumber
-                      ? 'bg-customPurple text-white border-customPurple'
-                      : 'bg-main text-white border-border hover:border-customPurple'
-                  }`}
+                  className={`px-4 py-2 rounded-md font-medium border transitions ${activeSeason === s.seasonNumber
+                    ? 'bg-customPurple text-white border-customPurple'
+                    : 'bg-main text-white border-border hover:border-customPurple'
+                    }`}
                 >
                   Season {s.seasonNumber} ({s.episodes.length})
                 </button>
@@ -815,9 +812,8 @@ export default function WatchClient({
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-dryGray truncate">
                 {currentEpisode
-                  ? `Season ${activeSeason} • Episode ${currentEpisode.episodeNumber}${
-                      currentEpisode.title ? ` — ${currentEpisode.title}` : ''
-                    }`
+                  ? `Season ${activeSeason} • Episode ${currentEpisode.episodeNumber}${currentEpisode.title ? ` — ${currentEpisode.title}` : ''
+                  }`
                   : `Season ${activeSeason}`}
               </p>
 
@@ -858,10 +854,9 @@ export default function WatchClient({
                 disabled={!enabled}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-md font-medium transitions border
-                  ${
-                    currentServerIndex === idx
-                      ? 'bg-customPurple text-white border-customPurple'
-                      : 'bg-dry text-white border-border hover:border-customPurple'
+                  ${currentServerIndex === idx
+                    ? 'bg-customPurple text-white border-customPurple'
+                    : 'bg-dry text-white border-border hover:border-customPurple'
                   }
                   ${enabled ? '' : 'opacity-50 cursor-not-allowed'}
                 `}
@@ -873,7 +868,7 @@ export default function WatchClient({
           })}
         </div>
 
-{/* ✅ NEW (Q1): show note when Server 1 (videoUrl7) is active */}
+        {/* ✅ NEW (Q1): show note when Server 1 (videoUrl7) is active */}
         {isVideoUrl7ServerActive ? (
           <p className="text-[12.5px] text-orange-600 mb-2">
             Use the green buttons on the video to switch languages (English/Hindi) or move between seasons and episodes
@@ -886,12 +881,11 @@ export default function WatchClient({
         >a
           {play ? (
             <iframe
-             key={
+              key={
                 isVideoUrl7ServerActive
                   ? `${movie?._id}:${movie?.type}:videoUrl7:${activeVideoUrl}`
-                  : `${movie?._id}:${movie?.type}:${activeSeason}:${
-                      currentEpisode?._id || 'movie'
-                    }:${currentServerIndex}:${activeVideoUrl}`
+                  : `${movie?._id}:${movie?.type}:${activeSeason}:${currentEpisode?._id || 'movie'
+                  }:${currentServerIndex}:${activeVideoUrl}`
               }
               title="Player"
               src={activeVideoUrl}
@@ -902,14 +896,17 @@ export default function WatchClient({
             />
           ) : (
             <div className="absolute top-0 left-0 w-full h-full">
-              <div
-                className="w-full h-full rounded-lg overflow-hidden relative bg-main"
-                style={{
-                  backgroundImage: `url(${poster})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
+              <div className="w-full h-full rounded-lg overflow-hidden relative bg-main">
+                <SafeImage
+                  src={poster}
+                  alt={movie?.name || 'Movie poster'}
+                  fill
+                  priority
+                  quality={75}
+                  sizes="100vw"
+                  className="object-cover"
+                />
+
                 <div className="absolute inset-0 flex-colo bg-black/40">
                   <button
                     onClick={handlePlayClick}
@@ -920,6 +917,7 @@ export default function WatchClient({
                   </button>
                 </div>
               </div>
+
             </div>
           )}
         </div>
@@ -947,11 +945,10 @@ export default function WatchClient({
                     key={ep._id}
                     type="button"
                     onClick={() => selectEpisode(ep)}
-                    className={`text-left p-3 rounded-lg border transitions ${
-                      active
-                        ? 'bg-customPurple border-customPurple text-white'
-                        : 'bg-dry border-border text-white hover:border-customPurple'
-                    }`}
+                    className={`text-left p-3 rounded-lg border transitions ${active
+                      ? 'bg-customPurple border-customPurple text-white'
+                      : 'bg-dry border-border text-white hover:border-customPurple'
+                      }`}
                   >
                     <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>
                     {ep.title ? (
