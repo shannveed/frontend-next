@@ -12,8 +12,8 @@ import {
 
 import {
   buildMovieDescription,
-  buildMovieTitle,
-  movieCanonical, // ✅ NEW
+  buildWatchPageTitle,
+  movieCanonical,
 } from '../../../lib/seo';
 
 import WatchClient from '../../../components/watch/WatchClient';
@@ -40,7 +40,7 @@ export async function generateMetadata({ params }) {
     return { title: 'Not found', robots: { index: false, follow: false } };
   }
 
-  const title = buildMovieTitle(movie, { maxLen: 60 });
+  const title = buildWatchPageTitle(movie, { maxLen: 60 });
   const description = buildMovieDescription(movie);
 
   // ✅ Canonical points to /movie/... (indexable)

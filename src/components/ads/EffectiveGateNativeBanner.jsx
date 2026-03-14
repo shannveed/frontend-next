@@ -150,7 +150,7 @@ function EffectiveGateIframeAd({
             className="w-full h-full"
             style={{ border: 0, display: 'block' }}
             scrolling="no"
-            loading="eager"
+            loading="lazy"
             referrerPolicy="no-referrer-when-cross-origin"
           />
         </div>
