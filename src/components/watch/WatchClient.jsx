@@ -610,8 +610,6 @@ export default function WatchClient({
 
   if (!movie) return null;
 
-  const poster = movie?.image || movie?.titleImage || '/images/placeholder.jpg';
-
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       {/* Mobile Episode Picker (unchanged) */}
@@ -678,8 +676,8 @@ export default function WatchClient({
                       type="button"
                       onClick={() => selectEpisode(ep)}
                       className={`text-left p-3 rounded-lg border transitions ${active
-                        ? 'bg-customPurple border-customPurple text-white'
-                        : 'bg-main border-border text-white hover:border-customPurple'
+                          ? 'bg-customPurple border-customPurple text-white'
+                          : 'bg-main border-border text-white hover:border-customPurple'
                         }`}
                     >
                       <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>
@@ -774,8 +772,8 @@ export default function WatchClient({
                     setActiveSeason(s.seasonNumber);
                   }}
                   className={`px-4 py-2 rounded-md font-medium border transitions ${activeSeason === s.seasonNumber
-                    ? 'bg-customPurple text-white border-customPurple'
-                    : 'bg-main text-white border-border hover:border-customPurple'
+                      ? 'bg-customPurple text-white border-customPurple'
+                      : 'bg-main text-white border-border hover:border-customPurple'
                     }`}
                 >
                   Season {s.seasonNumber} ({s.episodes.length})
@@ -874,11 +872,12 @@ export default function WatchClient({
             Use the green buttons on the video to switch languages (English/Hindi) or move between seasons and episodes
           </p>
         ) : null}
+
         {/* Player */}
         <div
           className="relative w-full overflow-hidden rounded-lg"
           style={{ paddingTop: '56.25%' }}
-        >a
+        >
           {play ? (
             <iframe
               key={
@@ -898,7 +897,8 @@ export default function WatchClient({
             <div className="absolute top-0 left-0 w-full h-full">
               <div className="w-full h-full rounded-lg overflow-hidden relative bg-main">
                 <SafeImage
-                  src={poster}
+                  src={movie?.image}
+                  fallbackCandidates={[movie?.titleImage, '/images/placeholder.jpg']}
                   alt={movie?.name || 'Movie poster'}
                   fill
                   priority
@@ -917,7 +917,6 @@ export default function WatchClient({
                   </button>
                 </div>
               </div>
-
             </div>
           )}
         </div>
@@ -946,8 +945,8 @@ export default function WatchClient({
                     type="button"
                     onClick={() => selectEpisode(ep)}
                     className={`text-left p-3 rounded-lg border transitions ${active
-                      ? 'bg-customPurple border-customPurple text-white'
-                      : 'bg-dry border-border text-white hover:border-customPurple'
+                        ? 'bg-customPurple border-customPurple text-white'
+                        : 'bg-dry border-border text-white hover:border-customPurple'
                       }`}
                   >
                     <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>

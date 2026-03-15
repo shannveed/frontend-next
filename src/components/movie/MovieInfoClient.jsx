@@ -130,12 +130,12 @@ function CastScroller({ casts = [] }) {
             key={`${c?.name || 'cast'}-${idx}`}
             className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2"
           >
-            <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border flex items-center justify-center">
+            <div className="w-full aspect-[3/4] rounded-md overflow-hidden bg-black/40 border border-border flex items-center justify-center relative">
               <SafeImage
-                src={c?.image || '/images/placeholder.jpg'}
+                src={c?.image}
+                fallbackCandidates={['/images/placeholder.jpg']}
                 alt={c?.name || 'Actor'}
-                width={100}
-                height={120}
+                fill
                 className="object-contain"
               />
             </div>
@@ -170,7 +170,8 @@ export default function MovieInfoClient({ movie, onShare }) {
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
           <SafeImage
-            src={movie?.titleImage || movie?.image || '/images/placeholder.jpg'}
+            src={movie?.titleImage}
+            fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie'}
             fill
             priority
@@ -271,7 +272,8 @@ export default function MovieInfoClient({ movie, onShare }) {
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
           <SafeImage
-            src={movie?.image || movie?.titleImage || '/images/placeholder.jpg'}
+            src={movie?.image}
+            fallbackCandidates={[movie?.titleImage, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie background'}
             fill
             sizes="100vw"
@@ -285,11 +287,8 @@ export default function MovieInfoClient({ movie, onShare }) {
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
                   <SafeImage
-                    src={
-                      movie?.titleImage ||
-                      movie?.image ||
-                      '/images/placeholder.jpg'
-                    }
+                    src={movie?.titleImage}
+                    fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}

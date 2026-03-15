@@ -64,8 +64,6 @@ function MovieCard({
     router.prefetch(href);
   }, [router, href]);
 
-  const poster = movie?.titleImage || movie?.image || '/images/placeholder.jpg';
-
   const pagesList = useMemo(() => {
     const n = Number(totalPages);
     if (!Number.isFinite(n) || n <= 1) return [];
@@ -210,9 +208,8 @@ function MovieCard({
                 title="Move / Add"
               >
                 <TbChevronDown
-                  className={`transition-transform ${
-                    dropdownOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
 
@@ -265,7 +262,7 @@ function MovieCard({
         </div>
       )}
 
-      {/* ✅ FIXED thumbnail badge (no multiline quote) */}
+      {/* ✅ FIXED thumbnail badge */}
       {movie?.thumbnailInfo ? (
         <div
           className="absolute top-2 left-2 bg-customPurple text-white text-[10px] px-2 py-0.5 rounded-sm font-semibold z-10 max-w-[90%] truncate whitespace-nowrap overflow-hidden"
@@ -285,7 +282,8 @@ function MovieCard({
         {/* Poster */}
         <div className="relative w-full aspect-[2/3] mobile:aspect-[100/154] bg-black rounded-sm overflow-hidden">
           <SafeImage
-            src={poster}
+            src={movie?.titleImage}
+            fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie poster'}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
@@ -306,9 +304,8 @@ function MovieCard({
             <button
               onClick={handleLike}
               disabled={liked || liking}
-              className={`mobile:hidden h-7 w-7 flex-colo border-2 border-customPurple rounded px-2 py-1 text-white transitions flex-shrink-0 ${
-                liked ? 'bg-transparent' : 'bg-customPurple hover:bg-transparent'
-              } ${liking ? 'opacity-60 cursor-wait' : ''}`}
+              className={`mobile:hidden h-7 w-7 flex-colo border-2 border-customPurple rounded px-2 py-1 text-white transitions flex-shrink-0 ${liked ? 'bg-transparent' : 'bg-customPurple hover:bg-transparent'
+                } ${liking ? 'opacity-60 cursor-wait' : ''}`}
               type="button"
               aria-label={liked ? 'Already in favorites' : 'Add to favorites'}
               title={liked ? 'In favorites' : 'Add to favorites'}

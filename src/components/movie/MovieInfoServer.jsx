@@ -1,6 +1,5 @@
 // frontend-next/src/components/movie/MovieInfoServer.jsx
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   FaFolder,
   FaRegClock,
@@ -12,35 +11,7 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
-
-const ALLOWED_HOSTNAMES = new Set([
-  'cdn.moviefrost.com',
-  'www.moviefrost.com',
-  'moviefrost.com',
-  'moviefrost-backend.vercel.app',
-  'moviefrost-backend-six.vercel.app',
-  'image.tmdb.org',
-  'fra.cloud.appwrite.io',
-  'cloud.appwrite.io',
-]);
-
-const normalizeImageSrc = (src, fallback = '/images/placeholder.jpg') => {
-  const s = String(src || '').trim();
-  if (!s) return fallback;
-
-  if (s.startsWith('/')) return s;
-
-  if (/^https?:\/\//i.test(s)) {
-    try {
-      const u = new URL(s);
-      if (ALLOWED_HOSTNAMES.has(u.hostname)) return s;
-    } catch {
-      // ignore
-    }
-  }
-
-  return fallback;
-};
+import SafeImage from '../common/SafeImage';
 
 const formatTime = (minutes) => {
   const n = Number(minutes);
@@ -146,8 +117,9 @@ function CastScroller({ casts = [] }) {
             className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2"
           >
             <div className="w-full aspect-[3/4] relative rounded-md overflow-hidden bg-black/40 border border-border">
-              <Image
-                src={normalizeImageSrc(c?.image, '/images/placeholder.jpg')}
+              <SafeImage
+                src={c?.image}
+                fallbackCandidates={['/images/placeholder.jpg']}
                 alt={c?.name || 'Actor'}
                 fill
                 sizes="140px"
@@ -180,22 +152,6 @@ export default function MovieInfoServer({ movie }) {
     : '/movies';
 
   const directorName = String(movie?.director || '').trim();
-
-  const heroImage = normalizeImageSrc(
-    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png',
-    '/images/MOVIEFROST.png'
-  );
-
-  const bgImage = normalizeImageSrc(
-    movie?.image || movie?.titleImage || heroImage,
-    heroImage
-  );
-
-  const posterImage = normalizeImageSrc(
-    movie?.titleImage || movie?.image || heroImage,
-    heroImage
-  );
-
   const descriptionText = String(movie?.desc || '').trim();
 
   return (
@@ -203,8 +159,9 @@ export default function MovieInfoServer({ movie }) {
       {/* MOBILE */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
-          <Image
-            src={heroImage}
+          <SafeImage
+            src={movie?.titleImage}
+            fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
             alt={movie?.name || 'Movie'}
             fill
             sizes="100vw"
@@ -318,12 +275,12 @@ export default function MovieInfoServer({ movie }) {
       {/* DESKTOP / TABLET */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
-          <Image
-            src={bgImage}
+          <SafeImage
+            src={movie?.image}
+            fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
             alt={movie?.name || 'Movie background'}
             fill
             sizes="100vw"
-            quality={65}
             className="object-cover"
           />
           <div className="absolute inset-0 bg-main/95" />
@@ -332,8 +289,9 @@ export default function MovieInfoServer({ movie }) {
             <div className="grid grid-cols-3 gap-8 items-start">
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
-                  <Image
-                    src={posterImage}
+                  <SafeImage
+                    src={movie?.titleImage}
+                    fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}

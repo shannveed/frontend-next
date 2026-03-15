@@ -2,69 +2,129 @@
 
 import Image from 'next/image';
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  canUseNextImage,
+  DEFAULT_PLACEHOLDER_IMAGE,
+  normalizeImageCandidates,
+  normalizeImageUrl,
+} from '../../lib/image';
 
-const ALLOWED_HOSTNAMES = new Set([
-  'cdn.moviefrost.com',
-  'www.moviefrost.com',
-  'moviefrost.com',
-  'moviefrost-backend.vercel.app',
-  'moviefrost-backend-six.vercel.app',
-  'image.tmdb.org',
-  'fra.cloud.appwrite.io',
-  'cloud.appwrite.io',
-]);
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null) return [];
+  return [value];
+};
 
-const normalizeSrc = (src, fallback) => {
-  const s = typeof src === 'string' ? src.trim() : '';
-  if (!s) return fallback;
+const buildSourceList = (
+  src,
+  fallbackCandidates = [],
+  fallbackSrc = DEFAULT_PLACEHOLDER_IMAGE
+) => {
+  const normalized = normalizeImageCandidates([
+    src,
+    ...toArray(fallbackCandidates),
+    fallbackSrc,
+  ]);
 
-  // local image
-  if (s.startsWith('/')) return s;
-
-  // remote image
-  if (/^https?:\/\//i.test(s)) {
-    try {
-      const u = new URL(s);
-      if (!ALLOWED_HOSTNAMES.has(u.hostname)) return fallback;
-      return s;
-    } catch {
-      return fallback;
-    }
-  }
-
-  return fallback;
+  if (!normalized.length) return [DEFAULT_PLACEHOLDER_IMAGE];
+  return normalized;
 };
 
 export default function SafeImage({
   src,
   alt = '',
-  fallbackSrc = '/images/placeholder.jpg',
+  fallbackSrc = DEFAULT_PLACEHOLDER_IMAGE,
+  fallbackCandidates = [],
   onError,
-  ...props
+  fill = false,
+  priority = false,
+  loading,
+  className = '',
+  style,
+  sizes,
+  width,
+  height,
+  quality,
+  unoptimized,
+  ...rest
 }) {
-  const safeSrc = useMemo(() => normalizeSrc(src, fallbackSrc), [src, fallbackSrc]);
+  const sourceKey = useMemo(
+    () =>
+      JSON.stringify([
+        src,
+        ...toArray(fallbackCandidates),
+        fallbackSrc || DEFAULT_PLACEHOLDER_IMAGE,
+      ]),
+    [src, fallbackCandidates, fallbackSrc]
+  );
 
-  const [useFallback, setUseFallback] = useState(false);
+  const sources = useMemo(
+    () => buildSourceList(src, fallbackCandidates, fallbackSrc),
+    [sourceKey]
+  );
 
-  // reset when src changes
+  const [activeIndex, setActiveIndex] = useState(0);
+
   useEffect(() => {
-    setUseFallback(false);
-  }, [safeSrc]);
+    setActiveIndex(0);
+  }, [sourceKey]);
 
-  const finalSrc = useFallback ? fallbackSrc : safeSrc;
+  const currentSrc =
+    sources[activeIndex] ||
+    normalizeImageUrl(fallbackSrc, DEFAULT_PLACEHOLDER_IMAGE);
+
+  const nextSafe = canUseNextImage(currentSrc);
+
+  const handleError = (e) => {
+    if (activeIndex < sources.length - 1) {
+      setActiveIndex((prev) => prev + 1);
+    }
+    onError?.(e);
+  };
+
+  const imgStyle = fill
+    ? {
+      position: 'absolute',
+      inset: 0,
+      width: '100%',
+      height: '100%',
+      ...style,
+    }
+    : style;
+
+  if (nextSafe) {
+    return (
+      <Image
+        src={currentSrc}
+        alt={alt}
+        fill={fill}
+        width={!fill ? width : undefined}
+        height={!fill ? height : undefined}
+        priority={priority}
+        loading={priority ? undefined : loading}
+        sizes={sizes}
+        quality={quality}
+        unoptimized={unoptimized}
+        className={className}
+        style={style}
+        onError={handleError}
+        {...rest}
+      />
+    );
+  }
 
   return (
-    <Image
-      src={finalSrc}
+    <img
+      src={currentSrc}
       alt={alt}
-      onError={(e) => {
-        // If remote fails (404 etc.), switch to placeholder
-        if (!useFallback && safeSrc !== fallbackSrc) {
-          setUseFallback(true);
-        }
-        onError?.(e);
-      }}
-      {...props}
+      width={!fill ? width : undefined}
+      height={!fill ? height : undefined}
+      className={className}
+      style={imgStyle}
+      loading={priority ? 'eager' : loading || 'lazy'}
+      decoding="async"
+      onError={handleError}
+      {...rest}
     />
   );
 }

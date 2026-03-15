@@ -77,7 +77,6 @@ function BannerSlider({ movies = [], onRemoveFromBanner, removingBannerId }) {
       >
         {list.map((movie, index) => {
           const seg = movie.slug || movie._id;
-          const img = movie.image || movie.titleImage || '/images/placeholder.jpg';
 
           return (
             <SwiperSlide key={movie._id || index} className="relative w-full h-full">
@@ -104,12 +103,13 @@ function BannerSlider({ movies = [], onRemoveFromBanner, removingBannerId }) {
 
               {/* Background */}
               <SafeImage
-                src={img}
+                src={movie?.image}
+                fallbackCandidates={[movie?.titleImage, '/images/placeholder.jpg']}
                 alt={movie?.name || 'Banner'}
                 fill
-                className="object-cover"
                 priority={index === 0}
                 sizes="100vw"
+                className="object-cover"
               />
 
               {/* Mobile dark overlay */}
@@ -117,16 +117,13 @@ function BannerSlider({ movies = [], onRemoveFromBanner, removingBannerId }) {
 
               {/* Desktop overlay */}
               <div className="hidden sm:flex absolute linear-bg xl:pl-52 sm:pl-32 pl-8 top-0 bottom-0 right-0 left-0 flex-col justify-center lg:gap-4 md:gap-3 gap-2">
-
                 <h2 className="xl:text-3xl sm:text-xl text-lg font-bold leading-tight">
-
                   {movie?.name}
                 </h2>
 
                 <FlexMovieItems movie={movie} />
 
                 <div className="flex gap-3 items-center">
-
                   <Link
                     href={`/movie/${seg}`}
                     className="bg-customPurple hover:text-main transitions text-white px-8 py-2 rounded font-semibold text-sm"
@@ -152,14 +149,11 @@ function BannerSlider({ movies = [], onRemoveFromBanner, removingBannerId }) {
 
               {/* Mobile overlay */}
               <div className="sm:hidden absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-3 py-2 flex flex-col gap-1.5 z-10">
-
                 <h2 className="text-sm font-semibold leading-tight line-clamp-3 text-white">
-
                   {movie?.name}
                 </h2>
 
                 <FlexMovieItems movie={movie} className="text-sm leading-tight" />
-
 
                 <div className="flex items-center gap-3">
                   <Link
