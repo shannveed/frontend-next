@@ -8,6 +8,13 @@ const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_ORIGIN;
 const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_ORIGIN;
 const RAW_CDN_BASE = process.env.NEXT_PUBLIC_CDN_BASE_URL || DEFAULT_CDN_ORIGIN;
 
+// Optional emergency switch.
+// If you ever set NEXT_PUBLIC_DISABLE_IMAGE_OPTIMIZATION=true,
+// SafeImage will bypass Next optimizer for every image.
+const FORCE_UNOPTIMIZED =
+  String(process.env.NEXT_PUBLIC_DISABLE_IMAGE_OPTIMIZATION || '').toLowerCase() ===
+  'true';
+
 const normalizeOrigin = (value, fallback, { stripApi = false } = {}) => {
   let v = String(value || fallback || '').trim();
   if (!v) return '';
@@ -43,6 +50,7 @@ const NEXT_IMAGE_SAFE_HOSTS = new Set([
 ]);
 
 const BARE_IMAGE_FILE_RE = /^[^/\\]+\.(avif|gif|jpe?g|png|svg|webp)$/i;
+const ABSOLUTE_HTTP_RE = /^https?:\/\//i;
 
 const clean = (value = '') => String(value ?? '').trim().replace(/\\/g, '/');
 
@@ -64,6 +72,14 @@ const toHttpsUrl = (raw = '') => {
   }
 };
 
+export const isRemoteHttpUrl = (value = '') => ABSOLUTE_HTTP_RE.test(clean(value));
+
+/**
+ * Can we safely render this URL with next/image?
+ * - local /images/... => yes
+ * - allowlisted remote hosts => yes
+ * - data/blob => no
+ */
 export const canUseNextImage = (value = '') => {
   const src = clean(value);
   if (!src) return false;
@@ -72,14 +88,37 @@ export const canUseNextImage = (value = '') => {
   if (src.startsWith('data:') || src.startsWith('blob:')) return false;
 
   try {
-    const u = new URL(src);
+    const u = new URL(src.startsWith('//') ? `https:${src}` : src);
+    const protocol = String(u.protocol || '').toLowerCase();
+    const host = String(u.hostname || '').toLowerCase();
+
     return (
-      u.protocol === 'https:' &&
-      NEXT_IMAGE_SAFE_HOSTS.has(String(u.hostname || '').toLowerCase())
+      protocol === 'https:' &&
+      NEXT_IMAGE_SAFE_HOSTS.has(host)
     );
   } catch {
     return false;
   }
+};
+
+/**
+ * IMPORTANT FIX:
+ * Vercel is returning 402 for /_next/image optimized remote requests.
+ * So for absolute remote URLs we bypass Next image optimization and
+ * load directly from the source CDN/origin.
+ *
+ * Local images (/images/...) still keep normal Next behavior.
+ */
+export const shouldBypassNextImageOptimization = (value = '') => {
+  if (FORCE_UNOPTIMIZED) return true;
+
+  const src = clean(value);
+  if (!src) return false;
+
+  if (src.startsWith('data:') || src.startsWith('blob:')) return true;
+  if (src.startsWith('//')) return true;
+
+  return ABSOLUTE_HTTP_RE.test(src);
 };
 
 export const normalizeImageUrl = (
@@ -93,7 +132,7 @@ export const normalizeImageUrl = (
   if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
 
   // Full URL
-  if (/^https?:\/\//i.test(raw)) {
+  if (ABSOLUTE_HTTP_RE.test(raw)) {
     return toHttpsUrl(raw);
   }
 

@@ -31,7 +31,7 @@ self.addEventListener('install', (event) => {
     caches
       .open(CACHE_NAME)
       .then((c) => c.addAll(STATIC_ASSETS))
-      .catch(() => {})
+      .catch(() => { })
   );
 });
 
@@ -59,6 +59,12 @@ self.addEventListener('fetch', (event) => {
   // ✅ Never cache API
   if (url.pathname.startsWith('/api/')) return;
 
+  // ✅ IMPORTANT:
+  // Do NOT intercept cross-origin requests.
+  // This avoids noisy service-worker fetch errors for ads, analytics,
+  // CDN files, and blocked third-party resources.
+  if (url.origin !== self.location.origin) return;
+
   // ✅ In Next dev: don't intercept Next internals/HMR
   if (
     IS_LOCALHOST &&
@@ -72,7 +78,11 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first for navigations
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/')));
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match('/').then((resp) => resp || Response.error())
+      )
+    );
     return;
   }
 
@@ -81,13 +91,15 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       if (cached) return cached;
 
-      return fetch(request).then((resp) => {
-        if (resp.ok && resp.type === 'basic') {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone)).catch(() => {});
-        }
-        return resp;
-      });
+      return fetch(request)
+        .then((resp) => {
+          if (resp.ok && resp.type === 'basic') {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone)).catch(() => { });
+          }
+          return resp;
+        })
+        .catch(() => cached || Response.error());
     })
   );
 });

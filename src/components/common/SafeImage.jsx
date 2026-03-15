@@ -1,3 +1,4 @@
+// frontend-next/src/components/common/SafeImage.jsx
 'use client';
 
 import Image from 'next/image';
@@ -7,6 +8,7 @@ import {
   DEFAULT_PLACEHOLDER_IMAGE,
   normalizeImageCandidates,
   normalizeImageUrl,
+  shouldBypassNextImageOptimization,
 } from '../../lib/image';
 
 const toArray = (value) => {
@@ -75,6 +77,14 @@ export default function SafeImage({
 
   const nextSafe = canUseNextImage(currentSrc);
 
+  // ✅ Main fix:
+  // Remote absolute URLs (CDN/TMDb/etc) bypass Vercel /_next/image optimization
+  // so production stops throwing 402 OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED.
+  const resolvedUnoptimized =
+    typeof unoptimized === 'boolean'
+      ? unoptimized
+      : shouldBypassNextImageOptimization(currentSrc);
+
   const handleError = (e) => {
     if (activeIndex < sources.length - 1) {
       setActiveIndex((prev) => prev + 1);
@@ -104,7 +114,7 @@ export default function SafeImage({
         loading={priority ? undefined : loading}
         sizes={sizes}
         quality={quality}
-        unoptimized={unoptimized}
+        unoptimized={resolvedUnoptimized}
         className={className}
         style={style}
         onError={handleError}

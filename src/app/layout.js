@@ -47,6 +47,12 @@ export const metadata = {
     title: 'MovieFrost',
   },
 
+  // ✅ Removes browser warning:
+  // <meta name="apple-mobile-web-app-capable"> is deprecated unless mobile-web-app-capable is also present
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+
   verification: buildVerification(),
 };
 
