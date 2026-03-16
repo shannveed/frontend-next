@@ -1,4 +1,5 @@
 // frontend-next/src/lib/discoveryPages.js
+import { LanguageData } from '../data/filterData';
 import { SITE_URL, clean, truncate } from './seo';
 
 const normalizeKey = (value = '') =>
@@ -19,11 +20,162 @@ export const slugifySegment = (value = '') =>
 const buildCanonical = (pathname = '') =>
   `${SITE_URL}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
 
+const normalizePageNumber = (value = 1) => {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+$/.test(raw)) return 1;
+
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 1 ? Math.floor(n) : 1;
+};
+
+const appendPaginatedPath = (basePath = '', pageNumber = 1) => {
+  const p = normalizePageNumber(pageNumber);
+  if (p <= 1) return basePath;
+  return `${basePath.replace(/\/+$/, '')}/page/${p}`;
+};
+
 const splitBrowseByQuery = (value = '') =>
   String(value || '')
     .split(',')
     .map((v) => clean(v))
     .filter(Boolean);
+
+const normalizeTypeParam = (value = '') => {
+  const v = normalizeKey(value).replace(/[-\s]+/g, '');
+  if (!v) return '';
+
+  if (v === 'movie' || v === 'movies') return 'Movie';
+
+  if (
+    v === 'webseries' ||
+    v === 'tvshow' ||
+    v === 'tvshows' ||
+    v === 'series'
+  ) {
+    return 'WebSeries';
+  }
+
+  return '';
+};
+
+const isSimpleCategoryPageCandidate = (value = '') => {
+  const v = clean(value);
+  if (!v) return false;
+  return !/[,/|;&]/.test(v);
+};
+
+const isYearPageCandidate = (value = '') =>
+  /^\d{4}$/.test(String(value || '').trim());
+
+export const TYPE_PAGES = [
+  {
+    slug: 'movie',
+    type: 'Movie',
+    label: 'Movies',
+    description:
+      'Watch movies online free in HD on MovieFrost. Browse action, drama, comedy, thriller, romance, and new releases.',
+  },
+  {
+    slug: 'web-series',
+    type: 'WebSeries',
+    label: 'Web Series',
+    description:
+      'Watch web series online free in HD on MovieFrost. Explore trending series, seasons, episodes, and fresh releases.',
+  },
+];
+
+const TYPE_BY_SLUG = new Map(
+  TYPE_PAGES.map((page) => [normalizeKey(page.slug), page])
+);
+
+const TYPE_BY_TYPE = new Map(
+  TYPE_PAGES.map((page) => [normalizeKey(page.type), page])
+);
+
+export const SUPPORTED_LANGUAGE_PAGES = LanguageData.map((item) =>
+  clean(item?.title)
+).filter((title) => title && !/^sort by/i.test(title));
+
+const SUPPORTED_LANGUAGE_SET = new Set(
+  SUPPORTED_LANGUAGE_PAGES.map((title) => normalizeKey(title))
+);
+
+export const isSupportedLanguagePage = (language = '') =>
+  SUPPORTED_LANGUAGE_SET.has(normalizeKey(language));
+
+export const getTypePageBySlug = (slug) =>
+  TYPE_BY_SLUG.get(normalizeKey(slug)) || null;
+
+export const getTypePageByType = (type) => {
+  const normalized = normalizeTypeParam(type);
+  if (!normalized) return null;
+  return TYPE_BY_TYPE.get(normalizeKey(normalized)) || null;
+};
+
+export const buildAllMoviesPagePath = (pageNumber = 1) =>
+  appendPaginatedPath('/movies', pageNumber);
+
+export const buildTypePagePath = (typeOrPage, pageNumber = 1) => {
+  const page =
+    typeof typeOrPage === 'object'
+      ? typeOrPage
+      : getTypePageByType(typeOrPage) || getTypePageBySlug(typeOrPage);
+
+  if (!page) return '/movies';
+
+  return appendPaginatedPath(`/movies/type/${page.slug}`, pageNumber);
+};
+
+export const buildGenrePagePath = (category, pageNumber = 1) => {
+  const slug = slugifySegment(category);
+  if (!slug) return '/movies';
+  return appendPaginatedPath(`/genre/${slug}`, pageNumber);
+};
+
+export const buildIndustryPagePath = (slugOrPage, pageNumber = 1) => {
+  const rawSlug =
+    typeof slugOrPage === 'object' ? clean(slugOrPage?.slug) : clean(slugOrPage);
+  const slug = slugifySegment(rawSlug);
+
+  if (!slug) return '/movies';
+
+  return appendPaginatedPath(`/industry/${slug}`, pageNumber);
+};
+
+export const buildLanguagePagePath = (language, pageNumber = 1) => {
+  const slug = slugifySegment(language);
+  if (!slug) return '/movies';
+  return appendPaginatedPath(`/language/${slug}`, pageNumber);
+};
+
+export const buildYearPagePath = (year, pageNumber = 1) => {
+  const y = String(year || '').trim();
+  if (!y) return '/movies';
+  return appendPaginatedPath(`/year/${y}`, pageNumber);
+};
+
+const withPaginatedMeta = (base, canonicalPath, pageNumber = 1) => {
+  const p = normalizePageNumber(pageNumber);
+  const canonical = buildCanonical(canonicalPath);
+
+  if (p <= 1) {
+    return { ...base, canonical };
+  }
+
+  const pageLabel = `Page ${p}`;
+
+  return {
+    ...base,
+    title: truncate(`${clean(base.title)} - ${pageLabel}`, 60),
+    description: truncate(`${clean(base.description)} ${pageLabel}.`, 160),
+    canonical,
+    heading: `${clean(base.heading)} - ${pageLabel}`,
+    body: truncate(
+      `${clean(base.body)} Continue browsing ${pageLabel.toLowerCase()} on MovieFrost.`,
+      240
+    ),
+  };
+};
 
 /**
  * Dedicated Industry landing pages
@@ -56,7 +208,6 @@ export const INDUSTRY_PAGES = [
   },
   {
     slug: 'bollywood',
-    aliases: ['bollywood-hindi'],
     label: 'Bollywood Movies',
     description:
       'Watch Bollywood movies online free in HD on MovieFrost. Browse romance, action, comedy, drama, and new Hindi releases.',
@@ -138,20 +289,8 @@ const INDUSTRY_BY_SLUG = new Map(
   INDUSTRY_PAGES.map((page) => [normalizeKey(page.slug), page])
 );
 
-const INDUSTRY_ALIAS_TO_PAGE = new Map();
-for (const page of INDUSTRY_PAGES) {
-  for (const alias of page?.aliases || []) {
-    const k = normalizeKey(alias);
-    if (k && !INDUSTRY_ALIAS_TO_PAGE.has(k)) {
-      INDUSTRY_ALIAS_TO_PAGE.set(k, page);
-    }
-  }
-}
-
 export const getIndustryBySlug = (slug) =>
-  INDUSTRY_BY_SLUG.get(normalizeKey(slug)) ||
-  INDUSTRY_ALIAS_TO_PAGE.get(normalizeKey(slug)) ||
-  null;
+  INDUSTRY_BY_SLUG.get(normalizeKey(slug)) || null;
 
 export const findIndustryByBrowseByQuery = (browseBy = '') => {
   const parts = splitBrowseByQuery(browseBy).map(normalizeKey);
@@ -162,7 +301,6 @@ export const findIndustryByBrowseByQuery = (browseBy = '') => {
       const values = page.browseByValues.map(normalizeKey);
       const valueSet = new Set(values);
 
-      // exact set match
       if (
         parts.length === values.length &&
         parts.every((part) => valueSet.has(part))
@@ -170,7 +308,6 @@ export const findIndustryByBrowseByQuery = (browseBy = '') => {
         return true;
       }
 
-      // single browseBy value belongs to this landing page
       if (parts.length === 1 && valueSet.has(parts[0])) {
         return true;
       }
@@ -180,37 +317,78 @@ export const findIndustryByBrowseByQuery = (browseBy = '') => {
   );
 };
 
-export const getIndustryPathByBrowseByQuery = (browseBy = '') => {
-  const industry = findIndustryByBrowseByQuery(browseBy);
-  return industry ? `/industry/${industry.slug}` : '';
-};
-
-export const getBrowseByRelativeHref = (browseBy = '') => {
+export const getBrowseByListingPath = (browseBy = '', pageNumber = 1) => {
   const value = clean(browseBy);
   if (!value) return '/movies';
 
-  return (
-    getIndustryPathByBrowseByQuery(value) ||
-    `/movies?browseBy=${encodeURIComponent(value)}`
-  );
+  const industry = findIndustryByBrowseByQuery(value);
+  if (industry) return buildIndustryPagePath(industry, pageNumber);
+
+  const params = new URLSearchParams();
+  params.set('browseBy', value);
+
+  const p = normalizePageNumber(pageNumber);
+  if (p > 1) params.set('pageNumber', String(p));
+
+  return `/movies?${params.toString()}`;
 };
 
-export const buildGenreCanonical = (category) =>
-  buildCanonical(`/genre/${slugifySegment(category)}`);
+export const buildAllMoviesCanonical = (pageNumber = 1) =>
+  buildCanonical(buildAllMoviesPagePath(pageNumber));
 
-export const buildIndustryCanonical = (slug) =>
-  buildCanonical(`/industry/${slugifySegment(slug)}`);
+export const buildTypeCanonical = (typeOrPage, pageNumber = 1) =>
+  buildCanonical(buildTypePagePath(typeOrPage, pageNumber));
 
-export const buildLanguageCanonical = (language) =>
-  buildCanonical(`/language/${slugifySegment(language)}`);
+export const buildGenreCanonical = (category, pageNumber = 1) =>
+  buildCanonical(buildGenrePagePath(category, pageNumber));
 
-export const buildYearCanonical = (year) =>
-  buildCanonical(`/year/${String(year || '').trim()}`);
+export const buildIndustryCanonical = (slugOrPage, pageNumber = 1) =>
+  buildCanonical(buildIndustryPagePath(slugOrPage, pageNumber));
 
-export const buildGenrePageMeta = (category) => {
+export const buildLanguageCanonical = (language, pageNumber = 1) =>
+  buildCanonical(buildLanguagePagePath(language, pageNumber));
+
+export const buildYearCanonical = (year, pageNumber = 1) =>
+  buildCanonical(buildYearPagePath(year, pageNumber));
+
+export const buildAllMoviesPageMeta = (pageNumber = 1) => {
+  const base = {
+    title: 'Movies',
+    description:
+      'Browse movies and web series by category, language, year, and more on MovieFrost.',
+    canonical: `${SITE_URL}/movies`,
+    heading: 'Movies',
+    body: 'Browse movies and web series by category, language, year, and more on MovieFrost.',
+  };
+
+  return withPaginatedMeta(base, buildAllMoviesPagePath(pageNumber), pageNumber);
+};
+
+export const buildTypePageMeta = (typeOrPage, pageNumber = 1) => {
+  const page =
+    typeof typeOrPage === 'object'
+      ? typeOrPage
+      : getTypePageByType(typeOrPage) || getTypePageBySlug(typeOrPage);
+
+  if (!page) {
+    return buildAllMoviesPageMeta(pageNumber);
+  }
+
+  const base = {
+    title: truncate(`Watch ${page.label} Online Free`, 60),
+    description: truncate(page.description, 160),
+    canonical: buildTypeCanonical(page),
+    heading: page.label,
+    body: page.description,
+  };
+
+  return withPaginatedMeta(base, buildTypePagePath(page, pageNumber), pageNumber);
+};
+
+export const buildGenrePageMeta = (category, pageNumber = 1) => {
   const name = clean(category) || 'Genre';
 
-  return {
+  const base = {
     title: truncate(`Watch ${name} Movies Online Free`, 60),
     description: truncate(
       `Stream ${name} movies and web series online free in HD on MovieFrost. Browse the latest ${name} releases, classics, and fan favorites.`,
@@ -220,27 +398,35 @@ export const buildGenrePageMeta = (category) => {
     heading: `${name} Movies`,
     body: `Explore ${name} movies and web series available on MovieFrost. Browse fresh releases, classic favorites, and trending titles in the ${name} category.`,
   };
+
+  return withPaginatedMeta(base, buildGenrePagePath(name, pageNumber), pageNumber);
 };
 
-export const buildIndustryPageMeta = (page) => {
+export const buildIndustryPageMeta = (page, pageNumber = 1) => {
   const label = clean(page?.label || 'Industry Collection');
   const description =
     clean(page?.description) ||
     `Stream ${label} online free in HD on MovieFrost.`;
 
-  return {
+  const base = {
     title: truncate(`Watch ${label} Online Free`, 60),
     description: truncate(description, 160),
     canonical: buildIndustryCanonical(page?.slug || ''),
     heading: label,
     body: description,
   };
+
+  return withPaginatedMeta(
+    base,
+    buildIndustryPagePath(page?.slug || '', pageNumber),
+    pageNumber
+  );
 };
 
-export const buildLanguagePageMeta = (language) => {
+export const buildLanguagePageMeta = (language, pageNumber = 1) => {
   const name = clean(language) || 'Language';
 
-  return {
+  const base = {
     title: truncate(`Watch ${name} Movies Online Free`, 60),
     description: truncate(
       `Watch ${name} movies and web series online free in HD on MovieFrost. Browse titles available in ${name}.`,
@@ -250,12 +436,18 @@ export const buildLanguagePageMeta = (language) => {
     heading: `${name} Movies & Web Series`,
     body: `Browse movies and web series available in ${name} on MovieFrost. Discover trending titles, new releases, and more in HD.`,
   };
+
+  return withPaginatedMeta(
+    base,
+    buildLanguagePagePath(name, pageNumber),
+    pageNumber
+  );
 };
 
-export const buildYearPageMeta = (year) => {
+export const buildYearPageMeta = (year, pageNumber = 1) => {
   const y = String(year || '').trim() || 'Year';
 
-  return {
+  const base = {
     title: truncate(`Watch ${y} Movies Online Free`, 60),
     description: truncate(
       `Watch ${y} movies and web series online free in HD on MovieFrost. Explore releases from ${y}, trending titles, and new favorites.`,
@@ -265,6 +457,8 @@ export const buildYearPageMeta = (year) => {
     heading: `${y} Movies & Web Series`,
     body: `Discover movies and web series released in ${y} on MovieFrost. Browse popular titles, new arrivals, and fan favorites in HD.`,
   };
+
+  return withPaginatedMeta(base, buildYearPagePath(y, pageNumber), pageNumber);
 };
 
 const buildMoviesFilterCanonical = (query = {}) => {
@@ -292,15 +486,8 @@ const buildMoviesFilterCanonical = (query = {}) => {
   return qs ? `${SITE_URL}/movies?${qs}` : `${SITE_URL}/movies`;
 };
 
-/**
- * Used by /movies page to redirect cleanly to dedicated landing pages
- * when the query is effectively just a landing-page request.
- *
- * Rules:
- * - browseBy -> industry page (type ignored)
- * - category/language/year -> dedicated page only when type is NOT used
- */
 export const getDedicatedListingPath = (query = {}) => {
+  const type = clean(query?.type);
   const category = clean(query?.category);
   const browseBy = clean(query?.browseBy);
   const language = clean(query?.language);
@@ -308,43 +495,44 @@ export const getDedicatedListingPath = (query = {}) => {
   const time = clean(query?.time);
   const rate = clean(query?.rate);
   const search = clean(query?.search);
-  const type = clean(query?.type);
-  const pageNumber = Number(query?.pageNumber || 1) || 1;
+  const pageNumber = normalizePageNumber(query?.pageNumber || 1);
 
-  const browseByOnly =
-    !search &&
-    !time &&
-    !rate &&
-    pageNumber === 1 &&
-    !!browseBy &&
-    !category &&
-    !language &&
-    !year;
+  const hasSeoFilter = [type, category, browseBy, language, year].some(Boolean);
 
-  if (browseByOnly) {
-    const industryPath = getIndustryPathByBrowseByQuery(browseBy);
-    if (industryPath) return industryPath;
+  // plain paginated /movies/page/N
+  if (!search && !time && !rate && !hasSeoFilter && pageNumber > 1) {
+    return buildAllMoviesPagePath(pageNumber);
   }
 
-  const dedicatedOnly = !search && !time && !rate && !type && pageNumber === 1;
+  // single dedicated landing pages only
+  if (search || time || rate) return '';
 
-  if (dedicatedOnly && category && !browseBy && !language && !year) {
-    return `/genre/${slugifySegment(category)}`;
+  const activeSeoFilters = [type, category, browseBy, language, year].filter(Boolean);
+  if (activeSeoFilters.length !== 1) return '';
+
+  if (type) {
+    const page = getTypePageByType(type);
+    return page ? buildTypePagePath(page, pageNumber) : '';
   }
 
-  if (dedicatedOnly && language && !category && !browseBy && !year) {
-    return `/language/${slugifySegment(language)}`;
+  if (category) {
+    if (!isSimpleCategoryPageCandidate(category)) return '';
+    return buildGenrePagePath(category, pageNumber);
   }
 
-  if (
-    dedicatedOnly &&
-    year &&
-    !category &&
-    !browseBy &&
-    !language &&
-    /^\d{4}$/.test(year)
-  ) {
-    return `/year/${year}`;
+  if (browseBy) {
+    const industry = findIndustryByBrowseByQuery(browseBy);
+    return industry ? buildIndustryPagePath(industry, pageNumber) : '';
+  }
+
+  if (language) {
+    return isSupportedLanguagePage(language)
+      ? buildLanguagePagePath(language, pageNumber)
+      : '';
+  }
+
+  if (year) {
+    return isYearPageCandidate(year) ? buildYearPagePath(year, pageNumber) : '';
   }
 
   return '';
@@ -353,9 +541,8 @@ export const getDedicatedListingPath = (query = {}) => {
 /**
  * For /movies page SEO:
  * - plain /movies => indexable
- * - filtered query pages => noindex
- * - browseBy-only query => prefers dedicated industry page even if type exists
- * - category/language/year dedicated pages are preferred only when type is absent
+ * - dedicated simple query pages => canonical to static route + noindex on query URL
+ * - filtered query combos => noindex
  */
 export const buildMoviesQuerySeo = (query = {}) => {
   const category = clean(query?.category);
@@ -389,48 +576,67 @@ export const buildMoviesQuerySeo = (query = {}) => {
     };
   }
 
-  const browseByOnly =
+  // plain paginated movies query => canonical to /movies/page/N
+  if (
     !search &&
     !time &&
     !rate &&
-    pageNumber === 1 &&
-    !!browseBy &&
+    !type &&
     !category &&
+    !browseBy &&
     !language &&
-    !year;
+    !year &&
+    pageNumber > 1
+  ) {
+    const meta = buildAllMoviesPageMeta(pageNumber);
+    return {
+      ...meta,
+      robots: { index: false, follow: true },
+    };
+  }
 
-  if (browseByOnly) {
-    const industry = findIndustryByBrowseByQuery(browseBy);
-    if (industry) {
-      const meta = buildIndustryPageMeta(industry);
+  const dedicatedPath = getDedicatedListingPath(query);
+
+  if (dedicatedPath) {
+    if (type) {
+      const meta = buildTypePageMeta(type, pageNumber);
+      return { ...meta, robots: { index: false, follow: true } };
+    }
+
+    if (category && isSimpleCategoryPageCandidate(category)) {
+      const meta = buildGenrePageMeta(category, pageNumber);
+      return { ...meta, robots: { index: false, follow: true } };
+    }
+
+    if (browseBy) {
+      const industry = findIndustryByBrowseByQuery(browseBy);
+      if (industry) {
+        const meta = buildIndustryPageMeta(industry, pageNumber);
+        return { ...meta, robots: { index: false, follow: true } };
+      }
+    }
+
+    if (language && isSupportedLanguagePage(language)) {
+      const meta = buildLanguagePageMeta(language, pageNumber);
+      return { ...meta, robots: { index: false, follow: true } };
+    }
+
+    if (year && isYearPageCandidate(year)) {
+      const meta = buildYearPageMeta(year, pageNumber);
       return { ...meta, robots: { index: false, follow: true } };
     }
   }
 
-  const dedicatedOnly = !search && !time && !rate && !type && pageNumber === 1;
-
-  if (dedicatedOnly && category && !browseBy && !language && !year) {
-    const meta = buildGenrePageMeta(category);
-    return { ...meta, robots: { index: false, follow: true } };
-  }
-
-  if (dedicatedOnly && language && !category && !browseBy && !year) {
-    const meta = buildLanguagePageMeta(language);
-    return { ...meta, robots: { index: false, follow: true } };
-  }
-
-  if (dedicatedOnly && year && !category && !browseBy && !language) {
-    const meta = buildYearPageMeta(year);
-    return { ...meta, robots: { index: false, follow: true } };
-  }
+  const typeLabel = getTypePageByType(type)?.label || '';
+  const industryLabel = findIndustryByBrowseByQuery(browseBy)?.label || browseBy;
 
   const label =
     search ||
     category ||
     language ||
     year ||
-    browseBy ||
-    type ||
+    industryLabel ||
+    typeLabel ||
     'Filtered Movies';
 
   return {

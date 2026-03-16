@@ -1,3 +1,4 @@
+// frontend-next/src/components/movies/MoviesClient.jsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ import {
   setBannerMovies,
   setLatestNewMovies,
 } from '../../lib/client/moviesAdmin';
+import { getDedicatedListingPath } from '../../lib/discoveryPages';
 
 const toNum = (v, fallback = 1) => {
   const n = Number(v);
@@ -68,7 +70,6 @@ export default function MoviesClient({
     setPage(toNum(initialData?.page, 1));
     setPages(toNum(initialData?.pages, 1));
 
-    // keep your old behavior
     setAdminMode(false);
     setLocalOrder([]);
     setPendingReorder(false);
@@ -117,39 +118,44 @@ export default function MoviesClient({
   const displayMovies =
     isAdmin && adminMode && localOrder.length ? localOrder : movies;
 
-  // Build URL without useSearchParams (SSR/ISR safe)
-  const buildUrl = useCallback(
-    (overrides = {}) => {
-      const q = { ...initialQuery, ...overrides };
+  const buildQueryUrl = useCallback((nextQuery = {}) => {
+    const q = { ...nextQuery };
 
-      const params = new URLSearchParams();
-      const set = (k, v) => {
-        const val = String(v ?? '').trim();
-        if (!val) return;
-        params.set(k, val);
-      };
+    const params = new URLSearchParams();
+    const set = (k, v) => {
+      const val = String(v ?? '').trim();
+      if (!val) return;
+      params.set(k, val);
+    };
 
-      set('type', q.type);
-      set('category', q.category);
-      set('browseBy', q.browseBy);
-      set('language', q.language);
-      set('year', q.year);
-      set('time', q.time);
-      set('rate', q.rate);
-      set('search', q.search);
+    set('type', q.type);
+    set('category', q.category);
+    set('browseBy', q.browseBy);
+    set('language', q.language);
+    set('year', q.year);
+    set('time', q.time);
+    set('rate', q.rate);
+    set('search', q.search);
 
-      const pn = toNum(q.pageNumber ?? 1, 1);
-      if (pn > 1) params.set('pageNumber', String(pn));
+    const pn = toNum(q.pageNumber ?? 1, 1);
+    if (pn > 1) params.set('pageNumber', String(pn));
 
-      const qs = params.toString();
-      return qs ? `/movies?${qs}` : '/movies';
-    },
-    [initialQuery]
-  );
+    const qs = params.toString();
+    return qs ? `/movies?${qs}` : '/movies';
+  }, []);
 
   const onPageChange = (p) => {
-    router.push(buildUrl({ pageNumber: p }));
-    window.scrollTo(0, 0);
+    const nextQuery = {
+      ...initialQuery,
+      pageNumber: p,
+    };
+
+    const dedicatedPath = getDedicatedListingPath(nextQuery);
+    router.push(dedicatedPath || buildQueryUrl(nextQuery));
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+    }
   };
 
   // selection
@@ -166,7 +172,7 @@ export default function MoviesClient({
   const onAdminDragStart = (e, id) => {
     try {
       e.dataTransfer.effectAllowed = 'move';
-    } catch {}
+    } catch { }
     setDraggedId(id);
   };
 
@@ -194,11 +200,11 @@ export default function MoviesClient({
     try {
       setSaving(true);
       await reorderMoviesInPage(
-       token,
-       page,
-       localOrder.map((m) => m._id),
-       initialQuery // includes type=Movie / type=WebSeries
-     );
+        token,
+        page,
+        localOrder.map((m) => m._id),
+        initialQuery
+      );
       toast.success('Order saved for this page');
       setPendingReorder(false);
       router.refresh();
@@ -249,14 +255,12 @@ export default function MoviesClient({
 
   return (
     <section className="container py-6">
-      {/* Filters */}
       <MoviesFilters
         categories={categories}
         browseByDistinct={browseByDistinct}
         query={initialQuery}
       />
 
-      {/* Admin toolbar */}
       {isAdmin && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
@@ -267,11 +271,10 @@ export default function MoviesClient({
               setPendingReorder(false);
               setDraggedId(null);
             }}
-            className={`px-4 py-2 text-sm rounded border transitions ${
-              adminMode
+            className={`px-4 py-2 text-sm rounded border transitions ${adminMode
                 ? 'bg-customPurple border-customPurple text-white'
                 : 'border-customPurple text-white hover:bg-customPurple'
-            }`}
+              }`}
           >
             {adminMode ? 'Exit Admin Mode' : 'Enter Admin Mode'}
           </button>
@@ -303,12 +306,12 @@ export default function MoviesClient({
       )}
 
       <p className="text-md font-medium my-4 mobile:px-4">
-          Total{' '}
-          <span className="font-bold text-customPurple">
-            {displayMovies ? displayMovies.length : 0}
-          </span>{' '}
-          Items Found On This Page
-        </p>
+        Total{' '}
+        <span className="font-bold text-customPurple">
+          {displayMovies ? displayMovies.length : 0}
+        </span>{' '}
+        Items Found On This Page
+      </p>
 
       {displayMovies.length ? (
         <>

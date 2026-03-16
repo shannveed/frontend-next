@@ -23,11 +23,18 @@ export default function robots() {
           '/password',
           '/favorites',
           '/api',
+
+          // ✅ Crawl-budget cleanup
+          '/actor',
+          '/watch',
+          '/search',
+          '/login',
+          '/signup',
+          '/register',
         ],
       },
     ],
 
-    // ✅ Q2: only indexable URLs are submitted
     sitemap: [`${SITE_URL}/sitemap-index.xml`, `${SITE_URL}/sitemap.xml`],
   };
 }

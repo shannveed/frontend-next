@@ -1,3 +1,4 @@
+// frontend-next/src/app/movies/page.jsx
 import { redirect } from 'next/navigation';
 
 import MoviesClient from '../../components/movies/MoviesClient';
@@ -48,12 +49,14 @@ export default async function MoviesPage({ searchParams }) {
     pageNumber: Number(pick(searchParams, 'pageNumber') || 1) || 1,
   };
 
-  // ✅ Q1:
-  // Redirect cleanly when the query is basically asking for a dedicated landing page.
+  // ✅ Redirect simple query URLs to dedicated static SEO routes
+  // Examples:
+  // /movies?type=Movie => /movies/type/movie
+  // /movies?type=Movie&pageNumber=4 => /movies/type/movie/page/4
+  // /movies?pageNumber=3 => /movies/page/3
+  // /movies?language=English => /language/english
   const dedicatedPath = getDedicatedListingPath(query);
-  if (dedicatedPath) {
-    redirect(dedicatedPath);
-  }
+  if (dedicatedPath) redirect(dedicatedPath);
 
   const [cats, browseByDistinct, data] = await Promise.all([
     getCategories({ revalidate: 3600 }).catch(() => []),
