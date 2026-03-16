@@ -6,52 +6,15 @@ export const runtime = 'nodejs';
 
 const SECRET = String(process.env.REVALIDATE_SECRET || '').trim();
 
-const uniqStrings = (arr) =>
-  Array.from(new Set((arr || []).filter(Boolean)));
+const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
 
 const normalizeTag = (t) => String(t || '').trim().slice(0, 120);
-
-const normalizePathValue = (p) => {
+const normalizePath = (p) => {
   const s = String(p || '').trim().slice(0, 300);
   if (!s) return '';
+  // only allow internal paths
   if (s.startsWith('http://') || s.startsWith('https://')) return '';
   return s.startsWith('/') ? s : `/${s}`;
-};
-
-const normalizePathEntry = (entry) => {
-  if (typeof entry === 'string') {
-    const path = normalizePathValue(entry);
-    return path ? { path } : null;
-  }
-
-  if (entry && typeof entry === 'object') {
-    const path = normalizePathValue(entry.path || entry.pathname || '');
-    if (!path) return null;
-
-    const rawType = String(entry.type || '').trim().toLowerCase();
-    const type =
-      rawType === 'page' || rawType === 'layout' ? rawType : undefined;
-
-    return type ? { path, type } : { path };
-  }
-
-  return null;
-};
-
-const uniqPathEntries = (arr = []) => {
-  const map = new Map();
-
-  for (const raw of arr || []) {
-    const entry = normalizePathEntry(raw);
-    if (!entry) continue;
-
-    const key = `${entry.path}::${entry.type || ''}`;
-    if (!map.has(key)) {
-      map.set(key, entry);
-    }
-  }
-
-  return Array.from(map.values());
 };
 
 export async function POST(req) {
@@ -83,30 +46,21 @@ export async function POST(req) {
       );
     }
 
-    const tags = uniqStrings((body?.tags || []).map(normalizeTag))
-      .filter(Boolean)
-      .slice(0, 200);
-
-    const pathEntries = uniqPathEntries(body?.paths || []).slice(0, 500);
+    const tags = uniq((body?.tags || []).map(normalizeTag)).filter(Boolean).slice(0, 200);
+    const paths = uniq((body?.paths || []).map(normalizePath)).filter(Boolean).slice(0, 200);
 
     // Invalidate tagged fetch caches
     for (const t of tags) revalidateTag(t);
 
-    // Invalidate route caches
-    for (const entry of pathEntries) {
-      if (entry.type) {
-        revalidatePath(entry.path, entry.type);
-      } else {
-        revalidatePath(entry.path);
-      }
-    }
+    // Invalidate route caches (optional, but useful for / and /movies)
+    for (const p of paths) revalidatePath(p);
 
     return NextResponse.json(
       {
         ok: true,
         revalidated: true,
         tags,
-        paths: pathEntries,
+        paths,
         now: new Date().toISOString(),
       },
       {
