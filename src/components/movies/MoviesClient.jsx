@@ -14,6 +14,7 @@ import EffectiveGateNativeBanner, {
 } from '../ads/EffectiveGateNativeBanner';
 
 import { getUserInfo } from '../../lib/client/auth';
+import { apiFetch } from '../../lib/client/apiFetch';
 import {
   getMoviesAdmin,
   moveMoviesToPage,
@@ -28,6 +29,27 @@ const toNum = (v, fallback = 1) => {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 };
 
+const buildPublicMoviesQueryString = (q = {}) => {
+  const p = new URLSearchParams();
+
+  const set = (k, v) => {
+    if (v === undefined || v === null || v === '') return;
+    p.set(k, String(v));
+  };
+
+  set('type', q.type);
+  set('category', q.category);
+  set('time', q.time);
+  set('language', q.language);
+  set('rate', q.rate);
+  set('year', q.year);
+  set('browseBy', q.browseBy);
+  set('search', q.search);
+  set('pageNumber', q.pageNumber || 1);
+
+  return p.toString();
+};
+
 export default function MoviesClient({
   initialQuery = {},
   initialData = {},
@@ -37,6 +59,8 @@ export default function MoviesClient({
   const router = useRouter();
 
   const [userInfo, setUserInfo] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
   const token = userInfo?.token || null;
   const isAdmin = !!userInfo?.isAdmin;
 
@@ -59,7 +83,13 @@ export default function MoviesClient({
   // update userInfo from localStorage
   useEffect(() => {
     setUserInfo(getUserInfo());
-    const onStorage = () => setUserInfo(getUserInfo());
+    setAuthReady(true);
+
+    const onStorage = () => {
+      setUserInfo(getUserInfo());
+      setAuthReady(true);
+    };
+
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
@@ -77,9 +107,9 @@ export default function MoviesClient({
     setSelectedIds([]);
   }, [initialData]);
 
-  // admin sees drafts too (client-side replace list)
   const queryKey = useMemo(() => JSON.stringify(initialQuery || {}), [initialQuery]);
 
+  // admin sees drafts too (client-side replace list)
   useEffect(() => {
     if (!isAdmin || !token) return;
 
@@ -102,6 +132,45 @@ export default function MoviesClient({
       cancelled = true;
     };
   }, [isAdmin, token, queryKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * PUBLIC self-healing refresh
+   *
+   * Why:
+   * - Static paginated routes can occasionally remain stale after bulk create,
+   *   especially when new previousHit titles are appended to the end pages.
+   * - Search hits fresh API data, but /movies/page/N might still render old HTML.
+   *
+   * This silent refresh keeps SEO SSR intact, while ensuring users see fresh data.
+   */
+  useEffect(() => {
+    if (!authReady) return;
+    if (isAdmin && token) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const qs = buildPublicMoviesQueryString(initialQuery);
+        const data = await apiFetch(`/api/movies?${qs}`, {
+          cache: 'no-store',
+          bustCache: true,
+        });
+
+        if (cancelled || !data) return;
+
+        setMovies(Array.isArray(data?.movies) ? data.movies : []);
+        setPage(toNum(data?.page, 1));
+        setPages(toNum(data?.pages, 1));
+      } catch {
+        // keep SSR data if refresh fails
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAdmin, token, queryKey, initialQuery]);
 
   // admin reorder list sync
   useEffect(() => {
