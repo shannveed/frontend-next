@@ -293,7 +293,6 @@ export const buildMovieDescription = (movie) => {
   return truncate(description, 160);
 };
 
-
 /* ============================================================
    FAQPage + VideoObject helpers
    ============================================================ */
@@ -694,10 +693,8 @@ export const buildMovieJsonLd = (movie) => {
 
     ...(hasTrailer ? { trailer: { '@id': `${canonical}#trailer` } } : {}),
 
-    potentialAction: {
-      '@type': 'WatchAction',
-      target: watchUrl(movie),
-    },
+    // IMPORTANT:
+    // Do NOT output schema WatchAction to /watch/... because /watch pages are noindex.
 
     ...(isSeries && numberOfSeasons ? { numberOfSeasons } : {}),
     ...(isSeries && numberOfEpisodes ? { numberOfEpisodes } : {}),

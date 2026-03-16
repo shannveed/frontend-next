@@ -11,6 +11,7 @@ import { SiImdb, SiRottentomatoes } from 'react-icons/si';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
+import MovieTrailerSection from './MovieTrailerSection';
 import SafeImage from '../common/SafeImage';
 
 const formatTime = (minutes) => {
@@ -156,7 +157,7 @@ export default function MovieInfoServer({ movie }) {
 
   return (
     <div className="w-full text-white">
-      {/* MOBILE */}
+      {/* MOBILE: info + description */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
           <SafeImage
@@ -250,26 +251,6 @@ export default function MovieInfoServer({ movie }) {
             </p>
           </div>
         ) : null}
-
-        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-white font-semibold text-sm">Rating</p>
-            <p className="text-xs text-dryGray">
-              {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
-            </p>
-          </div>
-
-          <div className="mt-2 flex items-center gap-2">
-            <MovieAverageStars movieIdOrSlug={seg} fallback={movie?.rate || 0} />
-            <span className="text-sm text-dryGray">
-              {Number(movie?.rate || 0).toFixed(1)}/5
-            </span>
-          </div>
-
-          <ExternalRatings movie={movie} />
-        </div>
-
-        <CastScroller casts={movie?.casts} />
       </section>
 
       {/* DESKTOP / TABLET */}
@@ -419,6 +400,32 @@ export default function MovieInfoServer({ movie }) {
             ) : null}
           </div>
         </div>
+      </section>
+
+      {/* Trailer BELOW description and ABOVE ads banner */}
+      <MovieTrailerSection movie={movie} />
+
+      {/* MOBILE rating + cast moved below trailer */}
+      <section className="sm:hidden px-4">
+        <div className="mt-4 bg-dry border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-white font-semibold text-sm">Rating</p>
+            <p className="text-xs text-dryGray">
+              {Number(movie?.numberOfReviews || 0).toLocaleString()} reviews
+            </p>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <MovieAverageStars movieIdOrSlug={seg} fallback={movie?.rate || 0} />
+            <span className="text-sm text-dryGray">
+              {Number(movie?.rate || 0).toFixed(1)}/5
+            </span>
+          </div>
+
+          <ExternalRatings movie={movie} />
+        </div>
+
+        <CastScroller casts={movie?.casts} />
       </section>
     </div>
   );

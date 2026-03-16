@@ -29,9 +29,8 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../../../components/ads/EffectiveGateNativeBanner';
 
-/* ✅ existing sections */
+/* existing section */
 import MovieFaqSection from '../../../components/movie/MovieFaqSection';
-import MovieTrailerSection from '../../../components/movie/MovieTrailerSection';
 
 export const dynamic = 'force-static';
 export const dynamicParams = true;
@@ -82,9 +81,7 @@ export async function generateMetadata({ params }) {
 
   const canonical = movieCanonical(movie);
 
-  // ✅ Q1 title pattern
   const title = buildMovieTitle(movie, { maxLen: 100 });
-
   const description = buildMovieDescription(movie);
 
   return {
@@ -138,9 +135,10 @@ export default async function MoviePage({ params }) {
       <JsonLd data={graphLd} />
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-        {/* ✅ Q2: visible HTML breadcrumbs */}
         <VisibleBreadcrumbs items={breadcrumbItems} className="mb-4" />
 
+        {/* Trailer now renders inside MovieInfoServer:
+            below description and above ads */}
         <MovieInfoServer movie={movie} />
 
         {ADS_ENABLED ? (
@@ -162,9 +160,7 @@ export default async function MoviePage({ params }) {
 
         <RelatedMoviesServer currentId={movie._id} movies={related} />
 
-        {/* existing visible FAQ + Trailer sections */}
         <MovieFaqSection movie={movie} />
-        <MovieTrailerSection movie={movie} />
       </div>
     </>
   );
