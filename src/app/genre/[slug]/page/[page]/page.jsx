@@ -4,7 +4,13 @@ import { notFound, redirect } from 'next/navigation';
 import MoviesClient from '@/components/movies/MoviesClient';
 import SeoLandingHero from '@/components/movies/SeoLandingHero';
 
-import { getBrowseByDistinct, getCategories, getMovies } from '@/lib/api';
+import {
+  getBrowseByDistinct,
+  getCategories,
+  getMovies,
+  hasListingPageContent,
+} from '@/lib/api';
+import { resolveListingPageForRequest } from '@/lib/server/adminListingPreview';
 import {
   buildGenrePageMeta,
   buildGenrePagePath,
@@ -12,7 +18,11 @@ import {
 } from '@/lib/discoveryPages';
 
 export const revalidate = 3600;
-export const dynamic = 'force-static';
+
+// IMPORTANT:
+// Keep paginated SEO listing pages refreshable after content mutations.
+// We also support SSR admin fallback so draft-only last pages can be previewed by admins.
+export const dynamic = 'auto';
 export const dynamicParams = true;
 
 const EMPTY_DATA = {
@@ -72,7 +82,7 @@ export default async function GenrePaginatedPage({ params }) {
   if (!category) notFound();
   if (pageNumber === 1) redirect(buildGenrePagePath(category.title));
 
-  const data = await getMovies(
+  const publicData = await getMovies(
     {
       category: category.title,
       pageNumber,
@@ -80,11 +90,12 @@ export default async function GenrePaginatedPage({ params }) {
     { revalidate: 300 }
   ).catch(() => EMPTY_DATA);
 
-  if (
-    !Array.isArray(data?.movies) ||
-    data.movies.length === 0 ||
-    pageNumber > Number(data?.pages || 1)
-  ) {
+  const { data } = await resolveListingPageForRequest(publicData, {
+    category: category.title,
+    pageNumber,
+  });
+
+  if (!hasListingPageContent(data, pageNumber)) {
     notFound();
   }
 

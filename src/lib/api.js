@@ -28,6 +28,46 @@ const nextCache = (revalidate, tags = []) => ({
   next: { revalidate, tags: uniq(tags) },
 });
 
+const buildMoviesQueryString = (query = {}) => {
+  const {
+    type = '',
+    category = '',
+    time = '',
+    language = '',
+    rate = '',
+    year = '',
+    browseBy = '',
+    search = '',
+    pageNumber = 1,
+  } = query;
+
+  const params = new URLSearchParams();
+
+  if (type) params.set('type', type);
+  if (category) params.set('category', category);
+  if (time) params.set('time', time);
+  if (language) params.set('language', language);
+  if (rate) params.set('rate', rate);
+  if (year) params.set('year', year);
+  if (browseBy) params.set('browseBy', browseBy);
+  if (search) params.set('search', search);
+
+  params.set('pageNumber', String(pageNumber || 1));
+
+  return params.toString();
+};
+
+export const hasListingPageContent = (data, pageNumber = 1) => {
+  const requestedPage = Number(pageNumber) || 1;
+  const totalPages = Number(data?.pages || 1);
+
+  return (
+    Array.isArray(data?.movies) &&
+    data.movies.length > 0 &&
+    requestedPage <= totalPages
+  );
+};
+
 async function fetchJson(url, init = {}, opts = {}) {
   const {
     nullOn404 = true,
@@ -123,33 +163,31 @@ export async function getMovieBySlugAdmin(slug, token) {
   );
 }
 
-export async function getMovies(query = {}, { revalidate = 60 } = {}) {
-  const {
-    type = '',
-    category = '',
-    time = '',
-    language = '',
-    rate = '',
-    year = '',
-    browseBy = '',
-    search = '',
-    pageNumber = 1,
-  } = query;
+/* ============================================================
+   ✅ Admin listing fetch (SSR paginated pages can preview drafts)
+   ============================================================ */
+export async function getMoviesAdminServer(query = {}, token) {
+  const authToken = String(token || '').trim();
+  if (!authToken) return null;
 
-  const params = new URLSearchParams();
-  if (type) params.set('type', type);
-  if (category) params.set('category', category);
-  if (time) params.set('time', time);
-  if (language) params.set('language', language);
-  if (rate) params.set('rate', rate);
-  if (year) params.set('year', year);
-  if (browseBy) params.set('browseBy', browseBy);
-  if (search) params.set('search', search);
-  params.set('pageNumber', String(pageNumber || 1));
-
-  // ✅ Tag all movie lists under "movies" so one invalidate updates everything
   return fetchJson(
-    `${API}/movies?${params.toString()}`,
+    `${API}/movies/admin?${buildMoviesQueryString(query)}`,
+    {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${authToken}` },
+    },
+    {
+      nullOn404: true,
+      nullOn401: true,
+      nullOn403: true,
+      nullOn400MovieNotFound: false,
+    }
+  );
+}
+
+export async function getMovies(query = {}, { revalidate = 60 } = {}) {
+  return fetchJson(
+    `${API}/movies?${buildMoviesQueryString(query)}`,
     nextCache(revalidate, [CACHE_TAGS.MOVIES])
   );
 }

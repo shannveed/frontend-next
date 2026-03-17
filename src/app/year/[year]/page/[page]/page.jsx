@@ -4,11 +4,21 @@ import { notFound, redirect } from 'next/navigation';
 import MoviesClient from '@/components/movies/MoviesClient';
 import SeoLandingHero from '@/components/movies/SeoLandingHero';
 
-import { getBrowseByDistinct, getCategories, getMovies } from '@/lib/api';
+import {
+  getBrowseByDistinct,
+  getCategories,
+  getMovies,
+  hasListingPageContent,
+} from '@/lib/api';
+import { resolveListingPageForRequest } from '@/lib/server/adminListingPreview';
 import { buildYearPageMeta, buildYearPagePath } from '@/lib/discoveryPages';
 
 export const revalidate = 3600;
-export const dynamic = 'force-static';
+
+// IMPORTANT:
+// Keep paginated SEO listing pages refreshable after bulk create / publish changes.
+// We also support SSR admin fallback so draft-only last pages can be previewed by admins.
+export const dynamic = 'auto';
 export const dynamicParams = true;
 
 const EMPTY_DATA = {
@@ -57,7 +67,7 @@ export default async function YearPaginatedPage({ params }) {
   if (!Number.isFinite(pageNumber)) notFound();
   if (pageNumber === 1) redirect(buildYearPagePath(year));
 
-  const [categories, browseByDistinct, data] = await Promise.all([
+  const [categories, browseByDistinct, publicData] = await Promise.all([
     getCategories({ revalidate: 3600 }).catch(() => []),
     getBrowseByDistinct({ revalidate: 3600 }).catch(() => []),
     getMovies(
@@ -69,11 +79,12 @@ export default async function YearPaginatedPage({ params }) {
     ).catch(() => EMPTY_DATA),
   ]);
 
-  if (
-    !Array.isArray(data?.movies) ||
-    data.movies.length === 0 ||
-    pageNumber > Number(data?.pages || 1)
-  ) {
+  const { data } = await resolveListingPageForRequest(publicData, {
+    year,
+    pageNumber,
+  });
+
+  if (!hasListingPageContent(data, pageNumber)) {
     notFound();
   }
 

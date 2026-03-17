@@ -29,7 +29,7 @@ const SAMPLE_PAYLOAD = `{
       "downloadUrl": "",
       "latest": false,
       "previousHit": false,
-      "isPublished": false
+      "isPublished": true
     }
   ]
 }`;
@@ -166,6 +166,10 @@ function BulkCreateInner({ token }) {
           <h2 className="text-xl font-bold">Bulk Create</h2>
           <p className="text-sm text-dryGray mt-1">
             Paste JSON for <code className="text-white">POST /api/movies/bulk</code>
+          </p>
+          <p className="text-xs text-dryGray mt-2">
+            Public <code className="text-white">/movies</code> pages only show titles where{' '}
+            <code className="text-white">isPublished: true</code>.
           </p>
         </div>
 
