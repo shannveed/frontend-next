@@ -1,4 +1,3 @@
-// src/components/ads/AdsterraScripts.jsx
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -6,17 +5,20 @@ import { usePathname } from 'next/navigation';
 
 const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
-// ✅ Delay non-critical ad scripts
-const VIGNETTE_DELAY_MS = 20 * 1000; // fallback if no interaction
-const POPUNDER_DELAY_MS = 3 * 60 * 1000; // 3 minutes after first interaction
+const PROFITABLE_POPUNDER_SCRIPT_SRC = String(
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_SCRIPT_SRC ||
+  'https://pl27010453.profitablecpmratenetwork.com/62/c8/f3/62c8f34a5a4d1afbb8ec9a7b28896caa.js'
+).trim();
 
-const KEY_VIGNETTE = 'mf_ads_vignette_loaded';
-const KEY_POPUNDER = 'mf_ads_popunder_loaded';
+const PROFITABLE_POPUNDER_INITIAL_DELAY_MS = Number(
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS || 60_000
+);
 
-const VIGNETTE_SCRIPT_ID = 'mf-adsterra-vignette-inline';
-const POPUNDER_SCRIPT_ID = 'mf-adsterra-popunder-inline';
+const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_REPEAT_DELAY_MS || 30_000
+);
 
-const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+const SCRIPT_ID = 'mf-profitable-popunder-script';
 
 // keep ads off account/admin/auth routes
 const EXCLUDED_PREFIXES = [
@@ -36,47 +38,36 @@ const EXCLUDED_PREFIXES = [
 ];
 const EXCLUDED_EXACT = ['/login', '/register'];
 
-const POPUNDER_INLINE = `
-/*<![CDATA[/* */
-(function(){var b=window,k="cc0bcd1a663aeae5974d111e7305d679",d=[["siteId",212-969*88*313+31904448],["minBid",0],["popundersPerIP","2"],["delayBetween",180],["default",false],["defaultPerDay",0],["topmostLayer","auto"]],c=["d3d3LmludGVsbGlnZW5jZWFkeC5jb20vRS9rbDIwbi5taW4uanM=","ZDJrbHg4N2Jnem5nY2UuY2xvdWRmcm9udC5uZXQvZFREaU8vSVBjai9ucm91Z2guY3Nz","d3d3LnB5d21zcWF4a3NobmxjLmNvbS90Zi9sbDIwbi5taW4uanM=","d3d3LmVya21na2pxb2ZrYWN3LmNvbS9uVy94eGRhWS9rcm91Z2guY3Nz"],m=-1,e,r,j=function(){clearTimeout(r);m++;if(c[m]&&!(1795408142000<(new Date).getTime()&&1<m)){e=b.document.createElement("script");e.type="text/javascript";e.async=!0;var z=b.document.getElementsByTagName("script")[0];e.src="https://"+atob(c[m]);e.crossOrigin="anonymous";e.onerror=j;e.onload=function(){clearTimeout(r);b[k.slice(0,16)+k.slice(0,16)]||j()};r=setTimeout(j,5E3);z.parentNode.insertBefore(e,z)}};if(!b[k]){try{Object.freeze(b[k]=d)}catch(e){}j()}})();
-/*]]>/* */
-`;
+const toSafeDelay = (value, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+};
 
-const VIGNETTE_INLINE = `
-(function(s){
-  s.dataset.zone='10479252',
-  s.src='https://gizokraijaw.net/vignette.min.js'
-})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
-`;
+const removeInjectedScript = () => {
+  if (typeof document === 'undefined') return;
 
-const getSessionFlag = (key) => {
-  try {
-    return sessionStorage.getItem(key) === '1';
-  } catch {
-    return false;
+  const existing = document.getElementById(SCRIPT_ID);
+  if (existing?.parentNode) {
+    existing.parentNode.removeChild(existing);
   }
 };
 
-const setSessionFlag = (key) => {
-  try {
-    sessionStorage.setItem(key, '1');
-  } catch {
-    // ignore
-  }
-};
+const injectProfitablePopunderScript = () => {
+  if (typeof document === 'undefined') return;
+  if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-const injectInlineScript = (id, code) => {
-  if (typeof document === 'undefined') return false;
-  if (document.getElementById(id)) return true;
+  // We control injection timing here.
+  // Exact popup behavior is still ultimately controlled by the ad network script.
+  removeInjectedScript();
 
   const script = document.createElement('script');
-  script.id = id;
+  script.id = SCRIPT_ID;
   script.type = 'text/javascript';
+  script.async = true;
+  script.src = PROFITABLE_POPUNDER_SCRIPT_SRC;
   script.setAttribute('data-cfasync', 'false');
-  script.text = code;
 
   (document.body || document.documentElement).appendChild(script);
-  return true;
 };
 
 export default function AdsterraScripts() {
@@ -88,130 +79,98 @@ export default function AdsterraScripts() {
     return EXCLUDED_PREFIXES.some((p) => pathname.startsWith(p));
   }, [pathname]);
 
-  const vignetteTimerRef = useRef(null);
-  const popunderTimerRef = useRef(null);
-  const idleIdRef = useRef(null);
-  const idleTimeoutRef = useRef(null);
+  const activatedRef = useRef(false);
+  const initialTimerRef = useRef(null);
+  const repeatTimerRef = useRef(null);
+  const lastInjectAtRef = useRef(0);
 
   useEffect(() => {
     if (!ADS_ENABLED || isExcluded) return;
-    if (typeof window === 'undefined') return;
-    if (window.__MF_ADSTERRA_BOOTSTRAPPED__) return;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-    window.__MF_ADSTERRA_BOOTSTRAPPED__ = true;
+    // Guard against React StrictMode double-effects
+    if (window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__) return;
+    window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = true;
 
-    const clearTimers = () => {
-      if (vignetteTimerRef.current) clearTimeout(vignetteTimerRef.current);
-      if (popunderTimerRef.current) clearTimeout(popunderTimerRef.current);
-      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+    const initialDelay = toSafeDelay(
+      PROFITABLE_POPUNDER_INITIAL_DELAY_MS,
+      60_000
+    );
 
+    const repeatDelay = Math.max(
+      1_000,
+      toSafeDelay(PROFITABLE_POPUNDER_REPEAT_DELAY_MS, 30_000)
+    );
+
+    const clearAll = () => {
+      if (initialTimerRef.current) clearTimeout(initialTimerRef.current);
+      if (repeatTimerRef.current) clearInterval(repeatTimerRef.current);
+
+      initialTimerRef.current = null;
+      repeatTimerRef.current = null;
+    };
+
+    const injectIfAllowed = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) return;
+
+      const now = Date.now();
+
+      // Keep at least the requested gap between re-injections
       if (
-        idleIdRef.current &&
-        typeof window.cancelIdleCallback === 'function'
+        lastInjectAtRef.current &&
+        now - lastInjectAtRef.current < repeatDelay - 250
       ) {
-        window.cancelIdleCallback(idleIdRef.current);
+        return;
       }
 
-      vignetteTimerRef.current = null;
-      popunderTimerRef.current = null;
-      idleTimeoutRef.current = null;
-      idleIdRef.current = null;
-
-      window.__MF_POPUNDER_TIMER_STARTED__ = false;
+      injectProfitablePopunderScript();
+      lastInjectAtRef.current = now;
     };
 
-    const removeInteractionListeners = () => {
-      INTERACTION_EVENTS.forEach((eventName) => {
-        window.removeEventListener(eventName, onFirstInteraction);
-      });
+    const startRepeater = () => {
+      if (repeatTimerRef.current) return;
+
+      repeatTimerRef.current = window.setInterval(() => {
+        if (!activatedRef.current) return;
+        injectIfAllowed();
+      }, repeatDelay);
     };
 
-    const loadVignette = () => {
-      if (window.__MF_VIGNETTE_LOADED__ || getSessionFlag(KEY_VIGNETTE)) return;
+    const activate = () => {
+      activatedRef.current = true;
+      initialTimerRef.current = null;
 
-      try {
-        const ok = injectInlineScript(VIGNETTE_SCRIPT_ID, VIGNETTE_INLINE);
-        if (ok) {
-          window.__MF_VIGNETTE_LOADED__ = true;
-          setSessionFlag(KEY_VIGNETTE);
-        }
-      } catch (e) {
-        console.warn('[ads] failed to inject vignette script:', e);
-      }
+      // First load after 1 minute
+      injectIfAllowed();
+
+      // Then re-inject every 30 seconds
+      startRepeater();
     };
 
-    const loadPopunder = () => {
-      if (window.__MF_POPUNDER_LOADED__ || getSessionFlag(KEY_POPUNDER)) return;
+    initialTimerRef.current = window.setTimeout(activate, initialDelay);
 
-      try {
-        const ok = injectInlineScript(POPUNDER_SCRIPT_ID, POPUNDER_INLINE);
-        if (ok) {
-          window.__MF_POPUNDER_LOADED__ = true;
-          setSessionFlag(KEY_POPUNDER);
-        }
-      } catch (e) {
-        console.warn('[ads] failed to inject popunder script:', e);
+    const onVisibilityChange = () => {
+      if (!activatedRef.current) return;
+      if (document.visibilityState === 'visible') {
+        injectIfAllowed();
       }
     };
 
-    let interactionHandled = false;
-
-    function onFirstInteraction() {
-      if (interactionHandled) return;
-      interactionHandled = true;
-
-      removeInteractionListeners();
-
-      if (vignetteTimerRef.current) {
-        clearTimeout(vignetteTimerRef.current);
-        vignetteTimerRef.current = null;
-      }
-
-      if (typeof window.requestIdleCallback === 'function') {
-        idleIdRef.current = window.requestIdleCallback(
-          () => {
-            loadVignette();
-            idleIdRef.current = null;
-          },
-          { timeout: 2000 }
-        );
-      } else {
-        idleTimeoutRef.current = window.setTimeout(() => {
-          loadVignette();
-          idleTimeoutRef.current = null;
-        }, 300);
-      }
-
-      if (
-        !window.__MF_POPUNDER_TIMER_STARTED__ &&
-        !getSessionFlag(KEY_POPUNDER)
-      ) {
-        window.__MF_POPUNDER_TIMER_STARTED__ = true;
-
-        popunderTimerRef.current = window.setTimeout(() => {
-          loadPopunder();
-          window.__MF_POPUNDER_TIMER_STARTED__ = false;
-          popunderTimerRef.current = null;
-        }, POPUNDER_DELAY_MS);
-      }
-    }
-
-    INTERACTION_EVENTS.forEach((eventName) => {
-      window.addEventListener(eventName, onFirstInteraction, { passive: true });
-    });
-
-    // Fallback: still load vignette later, but not during first paint
-    if (!getSessionFlag(KEY_VIGNETTE) && !window.__MF_VIGNETTE_LOADED__) {
-      vignetteTimerRef.current = window.setTimeout(() => {
-        loadVignette();
-        vignetteTimerRef.current = null;
-      }, VIGNETTE_DELAY_MS);
-    }
+    window.addEventListener('focus', injectIfAllowed);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
-      clearTimers();
-      removeInteractionListeners();
-      window.__MF_ADSTERRA_BOOTSTRAPPED__ = false;
+      clearAll();
+      window.removeEventListener('focus', injectIfAllowed);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+
+      activatedRef.current = false;
+      lastInjectAtRef.current = 0;
+
+      removeInjectedScript();
+      window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = false;
     };
   }, [isExcluded]);
 
