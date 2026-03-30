@@ -1,6 +1,9 @@
 // frontend-next/src/lib/events.js
 export const OPEN_WATCH_REQUEST_POPUP = 'open-watch-request-popup';
 
+// ✅ NEW: open notifications panel from MenuDrawer
+export const OPEN_NOTIFICATIONS_PANEL = 'mf-open-notifications-panel';
+
 // ✅ fired on window when SW posts PUSH_RECEIVED
 export const PUSH_RECEIVED_EVENT = 'mf-push-received';
 

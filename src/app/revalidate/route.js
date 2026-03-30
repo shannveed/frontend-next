@@ -100,6 +100,30 @@ const expandPathsFromTags = (tags = []) => {
     });
   }
 
+  // ✅ Blog pages
+  if (keys.has('blog')) {
+    pushUniqueEntry(out, seen, { path: '/blog' });
+    pushUniqueEntry(out, seen, { path: '/blog/trending-articles' });
+    pushUniqueEntry(out, seen, { path: '/blog/[category]', type: 'page' });
+    pushUniqueEntry(out, seen, {
+      path: '/blog/[category]/[slug]',
+      type: 'page',
+    });
+  }
+
+  if (keys.has('blog-trending')) {
+    pushUniqueEntry(out, seen, { path: '/blog/trending-articles' });
+  }
+
+  for (const key of keys) {
+    if (key.startsWith('blog-category:')) {
+      const slug = String(key.slice('blog-category:'.length) || '').trim();
+      if (slug) {
+        pushUniqueEntry(out, seen, { path: `/blog/${slug}` });
+      }
+    }
+  }
+
   return out;
 };
 

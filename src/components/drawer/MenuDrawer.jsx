@@ -7,8 +7,9 @@ import { IoClose } from 'react-icons/io5';
 import { BsCollectionPlay } from 'react-icons/bs';
 import { HiOutlineUserGroup } from 'react-icons/hi';
 import { TbChevronDown } from 'react-icons/tb';
-import { FaFacebook, FaTelegram, FaYoutube } from 'react-icons/fa';
+import { FaFacebook, FaTelegram, FaYoutube, FaBell, FaRegNewspaper } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { OPEN_NOTIFICATIONS_PANEL } from '../../lib/events';
 
 export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
   const [openMenu, setOpenMenu] = useState('');
@@ -34,12 +35,30 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
     router.push(href);
   };
 
+  const openAlerts = () => {
+    close();
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event(OPEN_NOTIFICATIONS_PANEL));
+    }, 0);
+  };
+
   const mainLinks = [
     {
       name: 'Movies',
       href: '/movies?type=Movie',
       icon: BsCollectionPlay,
       onClick: () => goTo('/movies?type=Movie'),
+    },
+    {
+      name: 'Blog',
+      href: '/blog',
+      icon: FaRegNewspaper,
+      onClick: () => goTo('/blog'),
+    },
+    {
+      name: 'Alerts',
+      icon: FaBell,
+      onClick: openAlerts,
     },
     {
       name: 'Hollywood',

@@ -15,6 +15,7 @@ import {
   FaCloudUploadAlt,
   FaSearch,
   FaEdit,
+  FaRegNewspaper,
 } from 'react-icons/fa';
 import {
   RiMovie2Fill,
@@ -36,22 +37,26 @@ const isNextRoute = (href = '') =>
   href === '/movies' ||
   href === '/favorites' ||
   href === '/profile' ||
-  href === '/password' ||
   href === '/about-us' ||
   href === '/contact-us' ||
   href === '/dashboard' ||
   href === '/movieslist' ||
   href === '/addmovie' ||
   href === '/bulk-create' ||
+  href === '/bulk-create-blog-posts' ||
   href === '/get-movies' ||
+  href === '/get-blog-posts' ||
   href === '/update-movies' ||
   href === '/push-notification' ||
   href === '/categories' ||
   href === '/users' ||
+  href === '/blog-posts' ||
+  href === '/blog-posts/create' ||
   href.startsWith('/movies') ||
   href.startsWith('/movie/') ||
   href.startsWith('/watch/') ||
-  href.startsWith('/edit/');
+  href.startsWith('/edit/') ||
+  href.startsWith('/blog-posts');
 
 function SmartLink({ href, className, children }) {
   if (isNextRoute(href)) return <Link href={href} className={className}>{children}</Link>;
@@ -95,6 +100,12 @@ export default function SideBarShell({
         { name: 'Get Movies', link: '/get-movies', icon: FaSearch },
         { name: 'Update Movies', link: '/update-movies', icon: FaEdit },
 
+        // ✅ BLOG ADMIN
+        { name: 'Blog Posts', link: '/blog-posts', icon: FaRegNewspaper },
+        { name: 'Create Blog Post', link: '/blog-posts/create', icon: FaEdit },
+        { name: 'Get Blog Posts', link: '/get-blog-posts', icon: FaSearch },
+        { name: 'Bulk Create Blog', link: '/bulk-create-blog-posts', icon: FaCloudUploadAlt },
+
         { name: 'Push Notification', link: '/push-notification', icon: FaBell },
         { name: 'Categories', link: '/categories', icon: HiViewGridAdd },
         { name: 'Users', link: '/users', icon: FaUsers },
@@ -126,13 +137,13 @@ export default function SideBarShell({
         method: 'POST',
         credentials: 'include',
       });
-    } catch {}
+    } catch { }
 
     try {
       localStorage.removeItem('userInfo');
       localStorage.removeItem('redirectAfterLogin');
       window.dispatchEvent(new Event('storage'));
-    } catch {}
+    } catch { }
 
     toast.success('Logged out successfully');
     window.location.href = '/login';
@@ -169,15 +180,14 @@ export default function SideBarShell({
             </a>
           )}
 
-          {/* ✅ NEW: Sidebar 1:1 ad (shown only above mobile screens) */}
+          {/* ✅ NEW: Sidebar 1:1 ad */}
           {ADS_ENABLED && showSidebarAd ? (
             <div className="mt-6 hidden sm:block">
               <EffectiveGateSquareAd
                 refreshKey={`sidebar-1x1:${sidebarAdRefreshKey}`}
-                // show on >= 640px (above mobile)
                 minWidthPx={640}
                 maxWidthPx={99999}
-                className="my-0"
+                className="!my-0"
               />
             </div>
           ) : null}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 const NextLinkOrA = ({ href, className, children }) => {
   const isNext =
     href === '/' ||
+    href === '/blog' ||
     href === '/movies' ||
     href === '/favorites' ||
     href === '/profile' ||
@@ -13,6 +14,7 @@ const NextLinkOrA = ({ href, className, children }) => {
     href === '/dmca' ||
     href === '/privacy-policy' ||
     href === '/terms-of-service' ||
+    href.startsWith('/blog/') ||
     href.startsWith('/movie/') ||
     href.startsWith('/watch/') ||
     href.startsWith('/movies') ||
@@ -31,6 +33,7 @@ export default function Footer() {
       title: 'Company',
       links: [
         { name: 'Home', link: '/' },
+        { name: 'Blog', link: '/blog' },
         { name: 'About Us', link: '/about-us' },
         { name: 'Contact Us', link: '/contact-us' },
         { name: 'Movies', link: '/movies' },

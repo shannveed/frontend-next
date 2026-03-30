@@ -9,6 +9,7 @@
 @tailwind utilities;
 
 @layer base {
+
   html,
   body {
     background: #080A1A;
@@ -33,16 +34,30 @@
     background: linear-gradient(269.82deg, #07091c00 0.17%, #080a1ad6 99.87%);
   }
 
-  .flex-colo { @apply flex flex-col justify-center items-center; }
-  .flex-rows { @apply flex flex-row justify-center items-center; }
-  .flex-btn  { @apply flex justify-between items-center; }
-  .transitions { @apply transition duration-300 ease-in; }
+  .flex-colo {
+    @apply flex flex-col justify-center items-center;
+  }
+
+  .flex-rows {
+    @apply flex flex-row justify-center items-center;
+  }
+
+  .flex-btn {
+    @apply flex justify-between items-center;
+  }
+
+  .transitions {
+    @apply transition duration-300 ease-in;
+  }
 }
 
 /* ✅ Q3: animated moving-line border around floating icon */
+/* ✅ NEW: animated panel border used around /blog category pills */
 @layer utilities {
   @keyframes mf-spin-ring {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .mf-animated-ring {
@@ -59,17 +74,13 @@
     border-radius: 9999px;
     padding: 2px;
 
-    /* one bright segment + transparent (looks like a moving line) */
-    background: conic-gradient(
-      from 0deg,
-      rgba(27, 130, 255, 0) 0deg,
-      rgba(27, 130, 255, 0) 220deg,
-      rgba(27, 130, 255, 1) 260deg,
-      rgba(27, 130, 255, 0) 320deg,
-      rgba(27, 130, 255, 0) 360deg
-    );
+    background: conic-gradient(from 0deg,
+        rgba(27, 130, 255, 0) 0deg,
+        rgba(27, 130, 255, 0) 220deg,
+        rgba(27, 130, 255, 1) 260deg,
+        rgba(27, 130, 255, 0) 320deg,
+        rgba(27, 130, 255, 0) 360deg);
 
-    /* cut out the center to keep only border ring */
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
@@ -80,8 +91,42 @@
     pointer-events: none;
   }
 
+  @keyframes mf-border-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+
+  .mf-animated-border-panel {
+    position: relative;
+    border-radius: 1rem;
+    padding: 1px;
+    background: linear-gradient(90deg,
+        rgba(27, 130, 255, 0.18),
+        rgba(27, 130, 255, 0.95),
+        rgba(27, 130, 255, 0.18),
+        rgba(27, 130, 255, 0.95),
+        rgba(27, 130, 255, 0.18));
+    background-size: 200% 100%;
+    animation: mf-border-shift 3.8s linear infinite;
+    box-shadow:
+      0 0 0 1px rgba(27, 130, 255, 0.08),
+      0 0 22px rgba(27, 130, 255, 0.10);
+  }
+
+  .mf-animated-border-panel-inner {
+    border-radius: calc(1rem - 1px);
+    background: #0B0F29;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .mf-animated-ring::before {
+
+    .mf-animated-ring::before,
+    .mf-animated-border-panel {
       animation: none;
     }
   }

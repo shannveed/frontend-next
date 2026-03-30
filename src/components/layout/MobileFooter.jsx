@@ -7,19 +7,19 @@ import toast from 'react-hot-toast';
 import { BsCollectionPlay } from 'react-icons/bs';
 import { CgMenuBoxed } from 'react-icons/cg';
 import { BiHomeAlt, BiCategory } from 'react-icons/bi';
-import { FaBell } from 'react-icons/fa';
 import { IoClose } from 'react-icons/io5';
 import { MdLiveTv } from 'react-icons/md';
+import { FaRegNewspaper } from 'react-icons/fa';
 
 import MenuDrawer from '../drawer/MenuDrawer';
 import { SidebarContext } from '../../context/DrawerContext';
 import { getUserInfo } from '../../lib/client/auth';
 
 import {
+  clearNotifications as clearNotificationsApi,
+  deleteNotification as deleteNotificationApi,
   getNotifications as getNotificationsApi,
   markNotificationRead as markNotificationReadApi,
-  deleteNotification as deleteNotificationApi,
-  clearNotifications as clearNotificationsApi,
 } from '../../lib/client/notifications';
 
 import { replyToWatchRequest } from '../../lib/client/watchRequests';
@@ -30,7 +30,11 @@ import {
   requestPermissionAndSubscribe,
 } from '../../lib/client/pushNotifications';
 
-import { OPEN_WATCH_REQUEST_POPUP, PUSH_RECEIVED_EVENT } from '../../lib/events';
+import {
+  OPEN_NOTIFICATIONS_PANEL,
+  OPEN_WATCH_REQUEST_POPUP,
+  PUSH_RECEIVED_EVENT,
+} from '../../lib/events';
 
 function MobileFooterInner() {
   const router = useRouter();
@@ -68,6 +72,7 @@ function MobileFooterInner() {
 
   const isHomePage = pathname === '/';
   const isMoviesPage = pathname.startsWith('/movies');
+  const isBlogPage = pathname === '/blog' || pathname.startsWith('/blog/');
 
   // Keep userInfo in sync (CRA parity)
   useEffect(() => {
@@ -165,6 +170,26 @@ function MobileFooterInner() {
     }
   }, [token]);
 
+  // ✅ Alerts now open from MenuDrawer event
+  useEffect(() => {
+    const handler = async () => {
+      if (mobileDrawer) closeDrawer?.();
+
+      if (!token) {
+        toast.error('Please login to view notifications');
+        router.push('/login');
+        return;
+      }
+
+      await maybePromptPush();
+      setNotifyOpen(true);
+      await refreshNotifications(false);
+    };
+
+    window.addEventListener(OPEN_NOTIFICATIONS_PANEL, handler);
+    return () => window.removeEventListener(OPEN_NOTIFICATIONS_PANEL, handler);
+  }, [token, mobileDrawer, closeDrawer, maybePromptPush, refreshNotifications, router]);
+
   /* ===========================
      NAV HANDLERS
      =========================== */
@@ -212,27 +237,15 @@ function MobileFooterInner() {
     router.push('/movies?type=WebSeries');
   };
 
+  const handleBlogClick = (e) => {
+    e.preventDefault();
+    closeAllOverlays();
+    router.push('/blog');
+  };
+
   const handleMenuClick = () => {
     closeNotifications();
     toggleDrawer?.();
-  };
-
-  const handleNotificationsClick = async (e) => {
-    e.preventDefault();
-
-    if (mobileDrawer) closeDrawer?.();
-
-    if (!token) {
-      toast.error('Please login to view notifications');
-      router.push('/login');
-      return;
-    }
-
-    await maybePromptPush();
-
-    const next = !notifyOpen;
-    setNotifyOpen(next);
-    if (next) await refreshNotifications(false);
   };
 
   /* ===========================
@@ -325,7 +338,7 @@ function MobileFooterInner() {
   const isBrowseByActive = isHomePage && activeMobileTab === 'browseBy';
   const isMoviesActive = isMoviesPage && !isTvShowsType;
   const isTvShowsActive = isMoviesPage && isTvShowsType;
-  const isNotifActive = notifyOpen;
+  const isBlogActive = isBlogPage;
 
   return (
     <>
@@ -401,9 +414,8 @@ function MobileFooterInner() {
               sortedNotifications.map((notif) => (
                 <div
                   key={notif._id}
-                  className={`text-white px-2 py-2 border border-gray-700 rounded-md mb-2 last:mb-0 ${
-                    !notif.read ? 'bg-gray-800/50' : 'bg-transparent'
-                  }`}
+                  className={`text-white px-2 py-2 border border-gray-700 rounded-md mb-2 last:mb-0 ${!notif.read ? 'bg-gray-800/50' : 'bg-transparent'
+                    }`}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <button
@@ -527,19 +539,14 @@ function MobileFooterInner() {
           </button>
 
           <button
-            onClick={handleNotificationsClick}
-            className={isNotifActive ? `${active} ${inActive}` : inActive}
-            aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+            onClick={handleBlogClick}
+            className={isBlogActive ? `${active} ${inActive}` : inActive}
+            aria-label="Blog"
             type="button"
           >
-            <div className="relative flex flex-col items-center">
-              <FaBell className="text-lg" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-2 w-5 h-5 flex-colo rounded-full text-[10px] bg-customPurple text-white">
-                  {unreadCount}
-                </span>
-              )}
-              <span className="text-[9px] mt-0.5">Alerts</span>
+            <div className="flex flex-col items-center">
+              <FaRegNewspaper className="text-lg" />
+              <span className="text-[9px] mt-0.5">Blog</span>
             </div>
           </button>
 

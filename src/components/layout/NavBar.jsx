@@ -90,6 +90,7 @@ const normalizeAvatarUrl = (value) => {
 const isNextRoute = (href = '') =>
   href === '/' ||
   href === '/movies' ||
+  href === '/blog' ||
   href === '/favorites' ||
   href === '/profile' ||
   href === '/dashboard' ||
@@ -104,6 +105,7 @@ const isNextRoute = (href = '') =>
   href.startsWith('/movies') ||
   href.startsWith('/movie/') ||
   href.startsWith('/watch/') ||
+  href.startsWith('/blog/') ||
   href.startsWith('/industry/') ||
   href.startsWith('/genre/') ||
   href.startsWith('/language/') ||
@@ -860,7 +862,12 @@ export default function NavBar() {
               </div>
             </div>
 
-            {/* Contact / Legal (NEW ADDITION PRESERVED) */}
+            {/* ✅ NEW: Blog */}
+            <Link href="/blog" className={hover}>
+              Blog
+            </Link>
+
+            {/* Contact / Legal */}
             <div className="relative group">
               <button className={`${hover} inline-flex items-center`} type="button">
                 Contact

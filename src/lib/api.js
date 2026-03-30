@@ -16,6 +16,7 @@ export const CACHE_TAGS = {
   CATEGORIES: 'categories',
   BROWSE_BY_DISTINCT: 'browseByDistinct',
   ACTORS: 'actors',
+  BLOG: 'blog',
 };
 
 const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
@@ -23,6 +24,9 @@ const uniq = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
 const movieTag = (idOrSlug) => `movie:${String(idOrSlug || '').trim()}`;
 const relatedTag = (idOrSlug) => `related:${String(idOrSlug || '').trim()}`;
 const actorTag = (slug) => `actor:${String(slug || '').trim()}`;
+const blogTag = (slug) => `blog:${String(slug || '').trim()}`;
+const blogCategoryTag = (slug) =>
+  `blog-category:${String(slug || '').trim()}`;
 
 const nextCache = (revalidate, tags = []) => ({
   next: { revalidate, tags: uniq(tags) },
@@ -51,6 +55,29 @@ const buildMoviesQueryString = (query = {}) => {
   if (year) params.set('year', year);
   if (browseBy) params.set('browseBy', browseBy);
   if (search) params.set('search', search);
+
+  params.set('pageNumber', String(pageNumber || 1));
+
+  return params.toString();
+};
+
+const buildBlogQueryString = (query = {}) => {
+  const {
+    categorySlug = '',
+    templateType = '',
+    trending = false,
+    search = '',
+    pageNumber = 1,
+    limit = '',
+  } = query;
+
+  const params = new URLSearchParams();
+
+  if (categorySlug) params.set('categorySlug', categorySlug);
+  if (templateType) params.set('templateType', templateType);
+  if (search) params.set('search', search);
+  if (trending === true || trending === 'true') params.set('trending', 'true');
+  if (limit) params.set('limit', String(limit));
 
   params.set('pageNumber', String(pageNumber || 1));
 
@@ -250,5 +277,72 @@ export async function getActorBySlug(slug, { revalidate = 30 } = {}) {
   return fetchJson(
     `${API}/actors/${safe}`,
     nextCache(revalidate, [CACHE_TAGS.MOVIES, CACHE_TAGS.ACTORS, actorTag(raw)])
+  );
+}
+
+/* ============================================================
+   BLOG
+   ============================================================ */
+
+export async function getBlogCategories({ revalidate = 3600 } = {}) {
+  return fetchJson(
+    `${API}/blog/categories`,
+    nextCache(revalidate, [CACHE_TAGS.BLOG])
+  );
+}
+
+export async function getBlogPosts(query = {}, { revalidate = 300 } = {}) {
+  const categorySlug = String(query?.categorySlug || '').trim();
+  const isTrending = query?.trending === true || query?.trending === 'true';
+
+  return fetchJson(
+    `${API}/blog?${buildBlogQueryString(query)}`,
+    nextCache(revalidate, [
+      CACHE_TAGS.BLOG,
+      categorySlug ? blogCategoryTag(categorySlug) : '',
+      isTrending ? 'blog-trending' : '',
+    ])
+  );
+}
+
+export async function getTrendingBlogPosts(
+  limit = 6,
+  { revalidate = 300 } = {}
+) {
+  return getBlogPosts(
+    { trending: true, limit, pageNumber: 1 },
+    { revalidate }
+  );
+}
+
+export async function getBlogTopViewedThisMonth(
+  limit = 5,
+  { revalidate = 300 } = {}
+) {
+  const data = await fetchJson(
+    `${API}/blog/top-viewed-this-month?limit=${encodeURIComponent(limit)}`,
+    nextCache(revalidate, [CACHE_TAGS.BLOG, 'blog-top-viewed-month'])
+  );
+
+  return Array.isArray(data?.posts) ? data.posts : [];
+}
+
+export async function getBlogPost(
+  categorySlug,
+  slug,
+  { revalidate = 300 } = {}
+) {
+  const category = String(categorySlug || '').trim();
+  const postSlug = String(slug || '').trim();
+
+  if (!category || !postSlug) return null;
+
+  return fetchJson(
+    `${API}/blog/${encodeURIComponent(category)}/${encodeURIComponent(postSlug)}`,
+    nextCache(revalidate, [
+      CACHE_TAGS.BLOG,
+      blogCategoryTag(category),
+      blogTag(postSlug),
+    ])
   );
 }
