@@ -20,11 +20,20 @@ const buildAdminBlogQuery = (query = {}) => {
   return params.toString();
 };
 
-export const getBlogPostsAdmin = (token, query = {}) =>
-  apiFetch(`/api/blog/admin?${buildAdminBlogQuery(query)}`, { token });
+const safeId = (id) => encodeURIComponent(String(id || '').trim());
+
+export const getBlogPostsAdmin = (token, query = {}) => {
+  const qs = buildAdminBlogQuery(query);
+  return apiFetch(qs ? `/api/blog/admin?${qs}` : '/api/blog/admin', { token });
+};
 
 export const getBlogPostAdmin = (token, id) =>
-  apiFetch(`/api/blog/admin/${encodeURIComponent(String(id || '').trim())}`, {
+  apiFetch(`/api/blog/admin/${safeId(id)}`, {
+    token,
+  });
+
+export const getBlogPostPreviewAdmin = (token, id) =>
+  apiFetch(`/api/blog/admin/${safeId(id)}/preview`, {
     token,
   });
 
@@ -42,15 +51,22 @@ export const bulkCreateBlogPostsAdmin = (token, posts = []) =>
     body: { posts },
   });
 
+export const bulkExactUpdateBlogPostsAdmin = (token, posts = []) =>
+  apiFetch('/api/blog/admin/bulk-exact', {
+    method: 'PUT',
+    token,
+    body: { posts },
+  });
+
 export const updateBlogPostAdmin = (token, id, payload) =>
-  apiFetch(`/api/blog/${encodeURIComponent(String(id || '').trim())}`, {
+  apiFetch(`/api/blog/${safeId(id)}`, {
     method: 'PUT',
     token,
     body: payload,
   });
 
 export const deleteBlogPostAdmin = (token, id) =>
-  apiFetch(`/api/blog/${encodeURIComponent(String(id || '').trim())}`, {
+  apiFetch(`/api/blog/${safeId(id)}`, {
     method: 'DELETE',
     token,
   });
