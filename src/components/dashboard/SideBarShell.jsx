@@ -43,15 +43,16 @@ const isNextRoute = (href = '') =>
   href === '/movieslist' ||
   href === '/addmovie' ||
   href === '/bulk-create' ||
-  href === '/bulk-create-blog-posts' ||
   href === '/get-movies' ||
-  href === '/get-blog-posts' ||
   href === '/update-movies' ||
   href === '/push-notification' ||
   href === '/categories' ||
   href === '/users' ||
   href === '/blog-posts' ||
   href === '/blog-posts/create' ||
+  href === '/get-blog-posts' ||
+  href === '/bulk-create-blog-posts' ||
+  href === '/update-blog-posts' ||
   href.startsWith('/movies') ||
   href.startsWith('/movie/') ||
   href.startsWith('/watch/') ||
@@ -104,6 +105,7 @@ export default function SideBarShell({
         { name: 'Blog Posts', link: '/blog-posts', icon: FaRegNewspaper },
         { name: 'Create Blog Post', link: '/blog-posts/create', icon: FaEdit },
         { name: 'Get Blog Posts', link: '/get-blog-posts', icon: FaSearch },
+        { name: 'Update Blog Posts', link: '/update-blog-posts', icon: FaEdit },
         { name: 'Bulk Create Blog', link: '/bulk-create-blog-posts', icon: FaCloudUploadAlt },
 
         { name: 'Push Notification', link: '/push-notification', icon: FaBell },
