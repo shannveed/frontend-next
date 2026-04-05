@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { IoClose } from 'react-icons/io5';
 import { BsCollectionPlay } from 'react-icons/bs';
@@ -143,10 +144,13 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
 
       <div className="absolute top-0 left-0 h-full w-full max-w-md bg-main text-white border-r border-border">
         <div className="flex items-center justify-between h-16 px-6 bg-dry border-b border-border">
-          <Link href="/" onClick={close}>
-            <img
+          <Link href="/" onClick={close} className="inline-flex items-center min-h-[48px]">
+            <Image
               src="/images/MOVIEFROST.png"
               alt="MovieFrost"
+              width={112}
+              height={48}
+              sizes="112px"
               className="w-28 h-12 object-contain"
             />
           </Link>

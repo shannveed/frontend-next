@@ -6,7 +6,7 @@ import MovieCard from './MovieCard';
 export default function RelatedMoviesServer({
   movies = [],
   currentId = null,
-  limit = 20,
+  limit = 10,
 }) {
   const list = Array.isArray(movies) ? movies.filter(Boolean) : [];
   const filtered = currentId
@@ -24,7 +24,6 @@ export default function RelatedMoviesServer({
         <h3 className="text-white font-semibold">Related Movies</h3>
       </div>
 
-      {/* ✅ Match Watch page grid styling */}
       <div className="grid sm:mt-6 mt-4 xl:grid-cols-5 2xl:grid-cols-5 lg:grid-cols-3 sm:grid-cols-5 mobile:grid-cols-2 mobile:gap-3 gap-4">
         {top.map((m) => (
           <MovieCard key={m._id} movie={m} showLike />

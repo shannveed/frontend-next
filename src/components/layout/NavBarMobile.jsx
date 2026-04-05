@@ -1,6 +1,8 @@
+// frontend-next/src/components/layout/NavBarMobile.jsx
 'use client';
 
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CgMenuBoxed } from 'react-icons/cg';
@@ -122,10 +124,14 @@ export default function NavBarMobile() {
             <FaSearch className="text-lg text-white" />
           </button>
 
-          <Link href="/" aria-label="Go to home" className="flex-rows">
-            <img
+          <Link href="/" aria-label="Go to home" className="flex-rows min-h-[36px]">
+            <Image
               src="/images/MOVIEFROST.png"
               alt="MovieFrost"
+              width={160}
+              height={36}
+              priority
+              sizes="160px"
               className="h-9 w-auto max-w-[160px] object-contain"
             />
           </Link>

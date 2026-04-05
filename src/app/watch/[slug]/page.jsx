@@ -18,6 +18,8 @@ import {
 
 import WatchClient from '../../../components/watch/WatchClient';
 
+const RELATED_MOVIES_LIMIT = 10;
+
 const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate: 3600 }));
 
 async function getMovieForRequest(slug) {
@@ -40,26 +42,19 @@ export async function generateMetadata({ params }) {
     return { title: 'Not found', robots: { index: false, follow: false } };
   }
 
-  // ✅ Q1 title pattern
   const title = buildMovieTitle(movie, { maxLen: 100 });
-
   const description = buildMovieDescription(movie);
-
-  // ✅ Canonical points to /movie/... (indexable)
   const canonical = movieCanonical(movie);
 
   return {
     title: { absolute: title },
     description,
     alternates: { canonical },
-
-    // ✅ IMPORTANT: /watch pages should NOT be indexed
     robots: {
       index: false,
       follow: true,
       googleBot: { index: false, follow: true },
     },
-
     openGraph: {
       type: movie?.type === 'WebSeries' ? 'video.episode' : 'video.movie',
       url: canonical,
@@ -81,9 +76,17 @@ export default async function WatchPage({ params }) {
 
   let related = [];
   if (source === 'admin' && token) {
-    related = await getRelatedMoviesAdmin(movie.slug || movie._id, token, 20).catch(() => []);
+    related = await getRelatedMoviesAdmin(
+      movie.slug || movie._id,
+      token,
+      RELATED_MOVIES_LIMIT
+    ).catch(() => []);
   } else {
-    related = await getRelatedMovies(movie.slug || movie._id, 20, { revalidate: 600 }).catch(() => []);
+    related = await getRelatedMovies(
+      movie.slug || movie._id,
+      RELATED_MOVIES_LIMIT,
+      { revalidate: 600 }
+    ).catch(() => []);
   }
 
   return (

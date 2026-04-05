@@ -30,7 +30,6 @@ import EffectiveGateNativeBanner, {
 import { getUserInfo } from '../../lib/client/auth';
 import { getFavorites, likeMovie } from '../../lib/client/users';
 
-// ✅ UPDATED import
 import {
   getMyMovieRating,
   upsertMovieRating,
@@ -42,6 +41,8 @@ import {
   getRelatedMoviesAdmin,
 } from '../../lib/client/moviesAdmin';
 import { apiFetch } from '../../lib/client/apiFetch';
+
+const RELATED_MOVIES_LIMIT = 10;
 
 const normalizeSeasonNumber = (v) => {
   const n = Number(v);
@@ -84,11 +85,16 @@ const safeGetPublicMovie = async (idOrSlug) => {
   }
 };
 
-const safeGetPublicRelated = async (idOrSlug, limit = 20) => {
+const safeGetPublicRelated = async (
+  idOrSlug,
+  limit = RELATED_MOVIES_LIMIT
+) => {
   const safe = encodeURIComponent(String(idOrSlug || '').trim());
   if (!safe) return [];
   try {
-    return await apiFetch(`/api/movies/related/${safe}?limit=${limit}`);
+    return await apiFetch(
+      `/api/movies/related/${safe}?limit=${limit}`
+    );
   } catch {
     return [];
   }
@@ -112,29 +118,23 @@ export default function WatchClient({
   const [loading, setLoading] = useState(!initialMovie);
   const [error, setError] = useState('');
 
-  // playback (✅ login wall removed)
   const [play, setPlay] = useState(false);
 
-  // like state
   const [liked, setLiked] = useState(false);
   const [liking, setLiking] = useState(false);
 
-  // 3 servers
   const [currentServerIndex, setCurrentServerIndex] = useState(0);
 
-  // webseries UX
   const [activeSeason, setActiveSeason] = useState(1);
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [episodeSearch, setEpisodeSearch] = useState('');
   const [showEpisodePicker, setShowEpisodePicker] = useState(false);
 
-  // ratings
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [myRatingLoading, setMyRatingLoading] = useState(false);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
-  // userInfo from localStorage (CRA login)
   useEffect(() => {
     setUserInfo(getUserInfo());
     const onStorage = () => setUserInfo(getUserInfo());
@@ -142,7 +142,6 @@ export default function WatchClient({
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // If server couldn't fetch (draft / not found), try on client (public then admin)
   useEffect(() => {
     let cancelled = false;
 
@@ -170,7 +169,7 @@ export default function WatchClient({
             const rel = await getRelatedMoviesAdmin(
               token,
               adminMovie.slug || adminMovie._id,
-              20
+              RELATED_MOVIES_LIMIT
             ).catch(() => []);
             setRelated(Array.isArray(rel) ? rel : []);
             return;
@@ -191,13 +190,11 @@ export default function WatchClient({
     };
   }, [slug, movie, token, isAdmin]);
 
-  // Keep canonical slug for client-fetched content too
   useEffect(() => {
     if (!movie?.slug || !slug) return;
     if (movie.slug !== slug) router.replace(`/watch/${movie.slug}`);
   }, [movie?.slug, slug, router]);
 
-  // Fetch related if server didn't provide
   useEffect(() => {
     let cancelled = false;
 
@@ -205,18 +202,20 @@ export default function WatchClient({
       if (!movie?._id) return;
       if (related?.length) return;
 
-      // if admin token exists, prefer admin-related (matches CRA)
       if (token && isAdmin) {
         const rel = await getRelatedMoviesAdmin(
           token,
           movie.slug || movie._id,
-          20
+          RELATED_MOVIES_LIMIT
         ).catch(() => []);
         if (!cancelled) setRelated(Array.isArray(rel) ? rel : []);
         return;
       }
 
-      const rel = await safeGetPublicRelated(movie.slug || movie._id, 20);
+      const rel = await safeGetPublicRelated(
+        movie.slug || movie._id,
+        RELATED_MOVIES_LIMIT
+      );
       if (!cancelled) setRelated(Array.isArray(rel) ? rel : []);
     };
 
@@ -226,7 +225,6 @@ export default function WatchClient({
     };
   }, [movie?._id, movie?.slug, related?.length, token, isAdmin]);
 
-  // liked state
   useEffect(() => {
     let cancelled = false;
 
@@ -256,7 +254,6 @@ export default function WatchClient({
     };
   }, [token, movie?._id]);
 
-  // lock body scroll like CRA (episodes picker only)
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
@@ -269,7 +266,6 @@ export default function WatchClient({
     }
   }, [showEpisodePicker]);
 
-  // WebSeries seasons
   const seasons = useMemo(() => {
     if (movie?.type !== 'WebSeries') return [];
     return groupEpisodesBySeason(
@@ -295,7 +291,6 @@ export default function WatchClient({
     });
   }, [movie?.type, activeSeasonEpisodes, episodeSearch]);
 
-  // initial season+episode for series
   useEffect(() => {
     if (movie?.type !== 'WebSeries') {
       setActiveSeason(1);
@@ -319,7 +314,6 @@ export default function WatchClient({
     setCurrentServerIndex(0);
   }, [movie?._id, movie?.type, seasons]);
 
-  // Ensure current episode belongs to active season
   useEffect(() => {
     if (movie?.type !== 'WebSeries') return;
 
@@ -363,20 +357,17 @@ export default function WatchClient({
     selectEpisode(activeSeasonEpisodes[currentEpisodeIndex + 1]);
   };
 
-  // ✅ Servers (videoUrl7 optional)
   const hasVideoUrl7 = useMemo(
     () => !!String(movie?.videoUrl7 || '').trim(),
     [movie?.videoUrl7]
   );
 
-  // Movie servers
   const movieServers = useMemo(() => {
     const v7 = String(movie?.videoUrl7 || '').trim();
     const v1 = String(movie?.video || '').trim();
     const v2 = String(movie?.videoUrl2 || '').trim();
     const v3 = String(movie?.videoUrl3 || '').trim();
 
-    // If videoUrl7 exists => it becomes Server 1 and others shift to 2/3/4
     if (v7) {
       return [
         { key: 'videoUrl7', label: 'Server 1', url: v7 },
@@ -386,7 +377,6 @@ export default function WatchClient({
       ];
     }
 
-    // Default (old behavior)
     return [
       { key: 'video', label: 'Server 1', url: v1 },
       { key: 'videoUrl2', label: 'Server 2', url: v2 },
@@ -394,7 +384,6 @@ export default function WatchClient({
     ];
   }, [movie?.videoUrl7, movie?.video, movie?.videoUrl2, movie?.videoUrl3]);
 
-  // WebSeries servers (Server 1 = videoUrl7, Servers 2/3/4 = per-episode servers)
   const episodeServers = useMemo(() => {
     const v7 = String(movie?.videoUrl7 || '').trim();
     const e1 = String(currentEpisode?.video || '').trim();
@@ -427,10 +416,8 @@ export default function WatchClient({
   const isVideoUrl7ServerActive =
     hasVideoUrl7 && activeServers?.[currentServerIndex]?.key === 'videoUrl7';
 
-  // ✅ WebSeries: hide episode UI when Server 1 (videoUrl7) is active
   const showEpisodeUi = movie?.type === 'WebSeries' && !isVideoUrl7ServerActive;
 
-  // If videoUrl7 is active, force-close the episode picker
   useEffect(() => {
     if (movie?.type !== 'WebSeries') return;
     if (!isVideoUrl7ServerActive) return;
@@ -438,7 +425,6 @@ export default function WatchClient({
     setEpisodeSearch('');
   }, [movie?.type, isVideoUrl7ServerActive]);
 
-  // ensure current server points to an available URL
   useEffect(() => {
     if (!activeServers?.length) return;
 
@@ -476,7 +462,6 @@ export default function WatchClient({
     setPlay(true);
   };
 
-  // rating: load my rating (only for logged-in)
   useEffect(() => {
     let cancelled = false;
 
@@ -511,7 +496,6 @@ export default function WatchClient({
     };
   }, [movie?._id, movie?.slug, token, slug]);
 
-  // ✅ guest ratings allowed
   const submitRating = async () => {
     if (!movie?._id) return;
 
@@ -525,14 +509,12 @@ export default function WatchClient({
 
       const idOrSlug = movie.slug || movie._id || slug;
 
-      // Logged-in
       if (token) {
         await upsertMovieRating(token, idOrSlug, ratingValue, ratingComment);
         toast.success('Thanks! Your rating has been saved.');
         return;
       }
 
-      // Guest
       const res = await createGuestMovieRating(idOrSlug, ratingValue, ratingComment);
       const guestName =
         res?.rating?.user?.fullName || res?.rating?.guestName || 'Guest';
@@ -570,7 +552,6 @@ export default function WatchClient({
   const doDownload = () => {
     if (!movie?.downloadUrl) return;
 
-    // WatchPage requires login to download
     if (!token) {
       toast.error('Please login to download');
       window.location.href = '/login';
@@ -584,7 +565,9 @@ export default function WatchClient({
 
   const relatedToShow = useMemo(() => {
     const list = Array.isArray(related) ? related : [];
-    return list.filter((m) => String(m?._id) !== String(movie?._id)).slice(0, 20);
+    return list
+      .filter((m) => String(m?._id) !== String(movie?._id))
+      .slice(0, RELATED_MOVIES_LIMIT);
   }, [related, movie?._id]);
 
   if (loading) {
@@ -612,7 +595,6 @@ export default function WatchClient({
 
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-      {/* Mobile Episode Picker (unchanged) */}
       {movie?.type === 'WebSeries' && showEpisodeUi && showEpisodePicker && (
         <div
           className="fixed inset-0 z-[9999] bg-black/70"
@@ -676,8 +658,8 @@ export default function WatchClient({
                       type="button"
                       onClick={() => selectEpisode(ep)}
                       className={`text-left p-3 rounded-lg border transitions ${active
-                          ? 'bg-customPurple border-customPurple text-white'
-                          : 'bg-main border-border text-white hover:border-customPurple'
+                        ? 'bg-customPurple border-customPurple text-white'
+                        : 'bg-main border-border text-white hover:border-customPurple'
                         }`}
                     >
                       <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>
@@ -696,7 +678,6 @@ export default function WatchClient({
       )}
 
       <div className="bg-dry p-6 mobile:p-4 mb-12 rounded-lg">
-        {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <button
             onClick={handleBackClick}
@@ -759,7 +740,6 @@ export default function WatchClient({
           )}
         </div>
 
-        {/* WebSeries controls (unchanged) */}
         {movie.type === 'WebSeries' && showEpisodeUi && (
           <div className="mb-4 space-y-3">
             <div className="hidden sm:flex flex-wrap gap-2">
@@ -772,8 +752,8 @@ export default function WatchClient({
                     setActiveSeason(s.seasonNumber);
                   }}
                   className={`px-4 py-2 rounded-md font-medium border transitions ${activeSeason === s.seasonNumber
-                      ? 'bg-customPurple text-white border-customPurple'
-                      : 'bg-main text-white border-border hover:border-customPurple'
+                    ? 'bg-customPurple text-white border-customPurple'
+                    : 'bg-main text-white border-border hover:border-customPurple'
                     }`}
                 >
                   Season {s.seasonNumber} ({s.episodes.length})
@@ -840,7 +820,6 @@ export default function WatchClient({
           </div>
         )}
 
-        {/* Servers (unchanged) */}
         <div className="flex flex-wrap gap-3 mb-4">
           {activeServers.map((server, idx) => {
             const enabled = !!server.url;
@@ -866,14 +845,12 @@ export default function WatchClient({
           })}
         </div>
 
-        {/* ✅ NEW (Q1): show note when Server 1 (videoUrl7) is active */}
         {isVideoUrl7ServerActive ? (
           <p className="text-[12.5px] text-orange-600 mb-2">
             Use the green buttons on the video to switch languages (English/Hindi) or move between seasons and episodes
           </p>
         ) : null}
 
-        {/* Player */}
         <div
           className="relative w-full overflow-hidden rounded-lg"
           style={{ paddingTop: '56.25%' }}
@@ -921,7 +898,6 @@ export default function WatchClient({
           )}
         </div>
 
-        {/* Desktop episode list (unchanged) */}
         {movie.type === 'WebSeries' && showEpisodeUi && (
           <div className="hidden sm:block mt-6 bg-main border border-border rounded-lg p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -945,8 +921,8 @@ export default function WatchClient({
                     type="button"
                     onClick={() => selectEpisode(ep)}
                     className={`text-left p-3 rounded-lg border transitions ${active
-                        ? 'bg-customPurple border-customPurple text-white'
-                        : 'bg-dry border-border text-white hover:border-customPurple'
+                      ? 'bg-customPurple border-customPurple text-white'
+                      : 'bg-dry border-border text-white hover:border-customPurple'
                       }`}
                   >
                     <p className="text-sm font-semibold">Ep {ep.episodeNumber}</p>
@@ -962,7 +938,6 @@ export default function WatchClient({
           </div>
         )}
 
-        {/* Rating row (guest allowed) */}
         <div className="mt-6 bg-main border border-border rounded-lg p-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <p className="text-white font-semibold text-sm shrink-0">
@@ -1001,7 +976,6 @@ export default function WatchClient({
           ) : null}
         </div>
 
-        {/* Ads below player */}
         <EffectiveGateNativeBanner
           refreshKey={`watch-desktop-${movie?.slug || movie?._id || slug}`}
         />
@@ -1010,7 +984,6 @@ export default function WatchClient({
           className="sm:hidden"
         />
 
-        {/* Related */}
         <div className="my-16">
           <div className="flex items-center gap-2 mb-6">
             <BsCollectionFill />
@@ -1039,7 +1012,6 @@ export default function WatchClient({
           )}
         </div>
 
-        {/* Ads below related */}
         <EffectiveGateNativeBanner
           refreshKey={`watch-desktop-after-related-${movie?.slug || movie?._id || slug}`}
         />

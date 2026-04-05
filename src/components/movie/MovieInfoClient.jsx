@@ -169,13 +169,15 @@ export default function MovieInfoClient({ movie, onShare }) {
       {/* MOBILE */}
       <section className="sm:hidden px-4 mt-4">
         <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-border bg-main">
+          {/* ✅ Mobile LCP image */}
           <SafeImage
             src={movie?.titleImage}
             fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie'}
             fill
             priority
-            sizes="100vw"
+            fetchPriority="high"
+            sizes="(max-width: 639px) 100vw, 0px"
             className="object-cover"
           />
         </div>
@@ -268,15 +270,18 @@ export default function MovieInfoClient({ movie, onShare }) {
         <CastScroller casts={movie?.casts} />
       </section>
 
-      {/* DESKTOP/TABLET */}
+      {/* DESKTOP */}
       <section className="hidden sm:block">
         <div className="relative w-full min-h-[720px] lg:min-h-[calc(100vh-120px)] overflow-hidden rounded border border-border bg-black">
+          {/* ✅ Desktop / tablet LCP image */}
           <SafeImage
             src={movie?.image}
             fallbackCandidates={[movie?.titleImage, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie background'}
             fill
-            sizes="100vw"
+            priority
+            fetchPriority="high"
+            sizes="(max-width: 639px) 0px, 100vw"
             className="object-cover"
           />
 
@@ -286,12 +291,15 @@ export default function MovieInfoClient({ movie, onShare }) {
             <div className="grid grid-cols-3 gap-8 items-start">
               <div className="col-span-1">
                 <div className="w-full rounded-md overflow-hidden border border-border bg-dry">
+                  {/* ✅ Visible but not the primary LCP on desktop */}
                   <SafeImage
                     src={movie?.titleImage}
                     fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}
+                    sizes="(max-width: 639px) 0px, (max-width: 1024px) 33vw, 520px"
+                    fetchPriority="low"
                     className="object-cover w-full h-auto"
                   />
                 </div>

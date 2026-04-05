@@ -36,6 +36,8 @@ export const dynamic = 'force-static';
 export const dynamicParams = true;
 export const revalidate = 3600;
 
+const RELATED_MOVIES_LIMIT = 10;
+
 const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
 
 export async function generateStaticParams() {
@@ -117,9 +119,9 @@ export default async function MoviePage({ params }) {
 
   const seg = movie.slug || movie._id;
 
-  const related = await getRelatedMovies(seg, 20, { revalidate: 3600 }).catch(
-    () => []
-  );
+  const related = await getRelatedMovies(seg, RELATED_MOVIES_LIMIT, {
+    revalidate: 3600,
+  }).catch(() => []);
 
   const graphLd = buildMovieGraphJsonLd(movie);
   const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
@@ -137,8 +139,6 @@ export default async function MoviePage({ params }) {
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
         <VisibleBreadcrumbs items={breadcrumbItems} className="mb-4" />
 
-        {/* Trailer now renders inside MovieInfoServer:
-            below description and above ads */}
         <MovieInfoServer movie={movie} />
 
         {ADS_ENABLED ? (
@@ -158,7 +158,11 @@ export default async function MoviePage({ params }) {
           <MovieRatingsStrip movieIdOrSlug={seg} />
         </div>
 
-        <RelatedMoviesServer currentId={movie._id} movies={related} />
+        <RelatedMoviesServer
+          currentId={movie._id}
+          movies={related}
+          limit={RELATED_MOVIES_LIMIT}
+        />
 
         <MovieFaqSection movie={movie} />
       </div>

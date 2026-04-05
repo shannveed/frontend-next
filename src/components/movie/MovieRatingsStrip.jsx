@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 import { FaStar } from 'react-icons/fa';
 import { MdDelete } from 'react-icons/md';
 
-import Loader from '../common/Loader';
 import { getUserInfo } from '../../lib/client/auth';
 import {
   getMovieRatings,
@@ -14,9 +13,11 @@ import {
 } from '../../lib/client/ratings';
 
 const RATINGS_UPDATED_EVENT = 'mf-ratings-updated';
+const SECTION_MIN_HEIGHT_CLASS = 'min-h-[176px] sm:min-h-[188px]';
 
 const StarsSmall = ({ value = 0 }) => {
   const v = Number(value) || 0;
+
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((i) => (
@@ -29,13 +30,35 @@ const StarsSmall = ({ value = 0 }) => {
   );
 };
 
+function RatingCardSkeleton({ index }) {
+  return (
+    <div
+      key={`rating-skeleton-${index}`}
+      className="min-w-[260px] max-w-[260px] bg-main border border-border rounded-lg p-3 animate-pulse"
+      aria-hidden="true"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-full bg-dry" />
+        <div className="flex-1 min-w-0">
+          <div className="h-3 w-24 bg-dry rounded" />
+          <div className="mt-2 h-2.5 w-16 bg-dry rounded" />
+        </div>
+      </div>
+
+      <div className="h-2.5 w-full bg-dry rounded mb-2" />
+      <div className="h-2.5 w-5/6 bg-dry rounded mb-2" />
+      <div className="h-2.5 w-2/3 bg-dry rounded" />
+    </div>
+  );
+}
+
 export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
   const [userInfo, setUserInfo] = useState(null);
 
   const token = userInfo?.token || null;
   const isAdmin = !!(userInfo?.isAdmin && token);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [ratings, setRatings] = useState([]);
   const [aggregate, setAggregate] = useState({ avg: 0, count: 0 });
@@ -48,6 +71,14 @@ export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
+    setRatings([]);
+    setAggregate({ avg: 0, count: 0 });
+    setDeletingId(null);
+  }, [movieIdOrSlug]);
 
   const load = useCallback(async () => {
     if (!movieIdOrSlug) return;
@@ -79,6 +110,7 @@ export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
 
   const avg = Number(aggregate?.avg) || 0;
   const count = Number(aggregate?.count) || 0;
+  const skeletonCount = Math.max(2, Math.min(limit, 3));
 
   const doDelete = async (ratingId) => {
     if (!isAdmin) return;
@@ -93,15 +125,17 @@ export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
 
       toast.success('Rating removed');
 
-      // reload strip
       await load();
 
-      // notify other components (stars box etc.)
       try {
         window.dispatchEvent(
-          new CustomEvent(RATINGS_UPDATED_EVENT, { detail: String(movieIdOrSlug) })
+          new CustomEvent(RATINGS_UPDATED_EVENT, {
+            detail: String(movieIdOrSlug),
+          })
         );
-      } catch {}
+      } catch {
+        // ignore
+      }
     } catch (e) {
       toast.error(e?.message || 'Delete failed');
     } finally {
@@ -112,7 +146,9 @@ export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
   if (!movieIdOrSlug) return null;
 
   return (
-    <section className="bg-dry border border-border rounded-lg p-4">
+    <section
+      className={`bg-dry border border-border rounded-lg p-4 ${SECTION_MIN_HEIGHT_CLASS}`}
+    >
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-white font-semibold text-sm">User Ratings</h3>
 
@@ -123,89 +159,96 @@ export default function MovieRatingsStrip({ movieIdOrSlug, limit = 20 }) {
         </div>
       </header>
 
-      {loading ? (
-        <div className="mt-4">
-          <Loader />
-        </div>
-      ) : error ? (
-        <p className="mt-3 text-sm text-red-500">{error}</p>
-      ) : count === 0 ? (
-        <p className="mt-3 text-sm text-dryGray">
-          No ratings yet. Watch and be the first to rate.
-        </p>
-      ) : (
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-          {cards.map((r) => {
-            const name = r?.user?.fullName || 'User';
-            const avatar = r?.user?.image || '/images/placeholder.jpg';
-            const comment = String(r?.comment || '').trim();
-            const ratingVal = Number(r?.rating) || 0;
-            const dateStr = r?.createdAt
-              ? new Date(r.createdAt).toLocaleDateString()
-              : '';
+      <div className="mt-4">
+        {loading ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {Array.from({ length: skeletonCount }).map((_, idx) => (
+              <RatingCardSkeleton key={idx} index={idx} />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="min-h-[116px] flex items-center">
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        ) : count === 0 || !cards.length ? (
+          <div className="min-h-[116px] flex items-center">
+            <p className="text-sm text-dryGray">
+              No ratings yet. Watch and be the first to rate.
+            </p>
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {cards.map((r) => {
+              const name = r?.user?.fullName || 'User';
+              const avatar = r?.user?.image || '/images/placeholder.jpg';
+              const comment = String(r?.comment || '').trim();
+              const ratingVal = Number(r?.rating) || 0;
+              const dateStr = r?.createdAt
+                ? new Date(r.createdAt).toLocaleDateString()
+                : '';
 
-            return (
-              <div
-                key={r._id}
-                className="relative min-w-[260px] max-w-[260px] bg-main border border-border rounded-lg p-3"
-              >
-                {/* ✅ Admin delete */}
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => doDelete(r._id)}
-                    disabled={deletingId === r._id}
-                    className="absolute top-2 right-2 w-8 h-8 flex-colo rounded bg-black/40 hover:bg-red-600/80 border border-border text-white disabled:opacity-60"
-                    title="Delete rating"
-                    aria-label="Delete rating"
-                  >
-                    {deletingId === r._id ? (
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <MdDelete className="text-lg" />
-                    )}
-                  </button>
-                ) : null}
+              return (
+                <div
+                  key={r._id}
+                  className="relative min-w-[260px] max-w-[260px] bg-main border border-border rounded-lg p-3"
+                >
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => doDelete(r._id)}
+                      disabled={deletingId === r._id}
+                      className="absolute top-2 right-2 w-8 h-8 flex-colo rounded bg-black/40 hover:bg-red-600/80 border border-border text-white disabled:opacity-60"
+                      title="Delete rating"
+                      aria-label="Delete rating"
+                    >
+                      {deletingId === r._id ? (
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <MdDelete className="text-lg" />
+                      )}
+                    </button>
+                  ) : null}
 
-                <div className="flex items-center gap-2 mb-2">
-                  <img
-                    src={avatar}
-                    alt={name}
-                    className="w-8 h-8 rounded-full border border-border object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = '/images/placeholder.jpg';
-                    }}
-                  />
+                  <div className="flex items-center gap-2 mb-2">
+                    <img
+                      src={avatar}
+                      alt={name}
+                      className="w-8 h-8 rounded-full border border-border object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/images/placeholder.jpg';
+                      }}
+                    />
 
-                  <div className="min-w-0">
-                    <p className="text-xs text-white font-semibold truncate">
-                      {name}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="text-xs text-white font-semibold truncate">
+                        {name}
+                      </p>
 
-                    <div className="flex items-center gap-2">
-                      <StarsSmall value={Math.round(ratingVal)} />
-                      {dateStr ? (
-                        <span className="text-[11px] text-dryGray">{dateStr}</span>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        <StarsSmall value={Math.round(ratingVal)} />
+                        {dateStr ? (
+                          <span className="text-[11px] text-dryGray">{dateStr}</span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {comment ? (
-                  <p className="text-xs text-dryGray leading-5 line-clamp-3">
-                    {comment}
-                  </p>
-                ) : (
-                  <p className="text-xs text-dryGray italic">
-                    Rated {ratingVal}/5
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  {comment ? (
+                    <p className="text-xs text-dryGray leading-5 line-clamp-3">
+                      {comment}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-dryGray italic">
+                      Rated {ratingVal}/5
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

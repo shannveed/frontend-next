@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -591,11 +592,19 @@ export default function NavBar() {
     <div className="bg-main shadow-md sticky top-0 z-20 hidden lg:block">
       <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-10 above-1000:gap-8 grid-cols-7 justify-between items-center">
         <div className="col-span-1">
-          <Link href="/" className="block">
-            <img
+          <Link
+            href="/"
+            className="inline-flex items-center min-h-[40px]"
+            aria-label="MovieFrost Home"
+          >
+            <Image
               src="/images/MOVIEFROST.png"
-              alt="logo"
-              className="w-full h-10 object-contain"
+              alt="MovieFrost"
+              width={180}
+              height={40}
+              priority
+              sizes="180px"
+              className="h-8 w-auto max-w-[180px] object-contain"
             />
           </Link>
         </div>

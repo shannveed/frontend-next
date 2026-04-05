@@ -41,6 +41,7 @@ export default function SafeImage({
   fill = false,
   priority = false,
   loading,
+  fetchPriority,
   className = '',
   style,
   sizes,
@@ -85,6 +86,18 @@ export default function SafeImage({
       ? unoptimized
       : shouldBypassNextImageOptimization(currentSrc);
 
+  // ✅ If caller marks image as priority, also reflect it in fetchPriority
+  // so even native <img> fallback gets the same browser hint.
+  const explicitFetchPriority =
+    typeof fetchPriority === 'string' && fetchPriority.trim()
+      ? fetchPriority.trim()
+      : '';
+
+  const resolvedFetchPriority =
+    explicitFetchPriority || (priority ? 'high' : undefined);
+
+  const isHighPriority = priority || resolvedFetchPriority === 'high';
+
   const handleError = (e) => {
     if (activeIndex < sources.length - 1) {
       setActiveIndex((prev) => prev + 1);
@@ -110,8 +123,9 @@ export default function SafeImage({
         fill={fill}
         width={!fill ? width : undefined}
         height={!fill ? height : undefined}
-        priority={priority}
-        loading={priority ? undefined : loading}
+        priority={isHighPriority}
+        loading={isHighPriority ? undefined : loading}
+        fetchPriority={resolvedFetchPriority}
         sizes={sizes}
         quality={quality}
         unoptimized={resolvedUnoptimized}
@@ -131,7 +145,8 @@ export default function SafeImage({
       height={!fill ? height : undefined}
       className={className}
       style={imgStyle}
-      loading={priority ? 'eager' : loading || 'lazy'}
+      loading={isHighPriority ? 'eager' : loading || 'lazy'}
+      fetchPriority={resolvedFetchPriority}
       decoding="async"
       onError={handleError}
       {...rest}
