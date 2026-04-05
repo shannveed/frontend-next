@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-
 /* ✅ Swiper global CSS must be imported globally in Next App Router */
 @import 'swiper/css';
 @import 'swiper/css/navigation';
@@ -14,7 +12,14 @@
   body {
     background: #080A1A;
     color: white;
-    font-family: "Poppins", sans-serif;
+  }
+
+  /* ✅ Make form controls inherit the self-hosted next/font font */
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
   }
 
   input:focus,

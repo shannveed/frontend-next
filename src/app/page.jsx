@@ -1,13 +1,17 @@
 // src/app/page.jsx
 import HomeClient from '../components/home/HomeClient';
-import Promos from '../components/home/Promos';
 import {
   getBannerMovies,
+  getLatestMovies,
   getLatestNewMovies,
-  getMovies,
   getTopRatedMovies,
 } from '../lib/api';
 import { SITE_URL } from '../lib/seo';
+
+import HomeBannerSectionPublic from '../components/home/HomeBannerSectionPublic';
+import HomeTrendingSectionPublic from '../components/home/HomeTrendingSectionPublic';
+import HomeLatestSectionPublic from '../components/home/HomeLatestSectionPublic';
+import HomeBrowseContentPublic from '../components/home/HomeBrowseContentPublic';
 
 export const revalidate = 60;
 
@@ -16,20 +20,33 @@ export const metadata = {
 };
 
 export default async function HomePage() {
-  const [banner, latestNew, moviesPage1, topRated] = await Promise.all([
-    getBannerMovies(10, { revalidate: 300 }).catch(() => []),
-    getLatestNewMovies(100, { revalidate: 300 }).catch(() => []),
-    getMovies({ pageNumber: 1 }, { revalidate: 60 }).catch(() => ({ movies: [] })),
+  const [banner, latestNew, latestMovies, topRated] = await Promise.all([
+    getBannerMovies(6, { revalidate: 300 }).catch(() => []),
+    getLatestNewMovies(30, { revalidate: 300 }).catch(() => []),
+    getLatestMovies({ revalidate: 300 }).catch(() => []),
     getTopRatedMovies({ revalidate: 600 }).catch(() => []),
   ]);
 
+  const bannerList = Array.isArray(banner) ? banner : [];
+  const latestNewList = Array.isArray(latestNew) ? latestNew : [];
+  const latestMoviesList = Array.isArray(latestMovies) ? latestMovies : [];
+  const topRatedList = Array.isArray(topRated) ? topRated : [];
+
   return (
     <HomeClient
-      initialBanner={Array.isArray(banner) ? banner : []}
-      initialLatestNew={Array.isArray(latestNew) ? latestNew : []}
-      initialLatestMovies={Array.isArray(moviesPage1?.movies) ? moviesPage1.movies : []}
-      initialTopRated={Array.isArray(topRated) ? topRated : []}
-      promosNode={<Promos />}
+      initialBanner={bannerList}
+      initialLatestNew={latestNewList}
+      initialLatestMovies={latestMoviesList}
+      initialTopRated={topRatedList}
+      publicBannerNode={
+        <HomeBannerSectionPublic
+          bannerMovies={bannerList}
+          latestMovies={latestMoviesList}
+        />
+      }
+      publicTrendingNode={<HomeTrendingSectionPublic movies={latestNewList} />}
+      publicLatestNode={<HomeLatestSectionPublic movies={latestMoviesList} />}
+      publicBrowseNode={<HomeBrowseContentPublic topRated={topRatedList} />}
     />
   );
 }

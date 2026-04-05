@@ -2,7 +2,8 @@
   "name": "moviefrost-frontend-next",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
+    "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
     "build": "node scripts/write-indexnow-key-file.js && node scripts/inject-sw-build-id.js && next build",
     "start": "next start",
     "lint": "next lint"

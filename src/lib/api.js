@@ -43,6 +43,7 @@ const buildMoviesQueryString = (query = {}) => {
     browseBy = '',
     search = '',
     pageNumber = 1,
+    limit = '',
   } = query;
 
   const params = new URLSearchParams();
@@ -55,6 +56,7 @@ const buildMoviesQueryString = (query = {}) => {
   if (year) params.set('year', year);
   if (browseBy) params.set('browseBy', browseBy);
   if (search) params.set('search', search);
+  if (limit) params.set('limit', String(limit));
 
   params.set('pageNumber', String(pageNumber || 1));
 
@@ -216,6 +218,13 @@ export async function getMovies(query = {}, { revalidate = 60 } = {}) {
   return fetchJson(
     `${API}/movies?${buildMoviesQueryString(query)}`,
     nextCache(revalidate, [CACHE_TAGS.MOVIES])
+  );
+}
+
+export async function getLatestMovies({ revalidate = 300 } = {}) {
+  return fetchJson(
+    `${API}/movies/latest`,
+    nextCache(revalidate, [CACHE_TAGS.MOVIES, CACHE_TAGS.HOME])
   );
 }
 

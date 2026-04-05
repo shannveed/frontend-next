@@ -1,6 +1,7 @@
 // src/components/layout/Footer.jsx
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const NextLinkOrA = ({ href, className, children }) => {
   const isNext =
@@ -95,15 +96,14 @@ export default function Footer() {
           ))}
 
           <div className="pb-3.5 sm:pb-0 col-span-1 md:col-span-2 lg:col-span-2">
-            <Link href="/">
-              <img
+            <Link href="/" className="inline-flex items-center">
+              <Image
                 src="/images/MOVIEFROST.png"
                 alt="MovieFrost logo"
-                width={150}
-                height={48}
-                loading="lazy"
-                decoding="async"
-                className="w-2/4 object-contain h-12"
+                width={180}
+                height={42}
+                sizes="180px"
+                className="h-12 w-auto max-w-[180px] object-contain"
               />
             </Link>
 

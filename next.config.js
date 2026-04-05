@@ -9,13 +9,28 @@ const RAW_SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com';
 const SITE_URL = RAW_SITE_URL.replace(/\/+$/, '');
 
+// ✅ Long cache for static public images served by Next/Vercel.
+// Safe for your use-case because:
+// 1) uploaded R2 filenames are unique
+// 2) when you replace a temporary sample image in a movie document,
+//    you normally point the document to a NEW final image URL.
+const IMAGE_CACHE =
+  'public, max-age=31536000, s-maxage=31536000, immutable';
+
+const FAVICON_CACHE =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
+
 const nextConfig = {
   reactStrictMode: true,
 
   images: {
     // ✅ Enable real Next.js optimization
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60 * 60 * 24 * 7,
+
+    // ✅ Increase optimizer cache TTL from 7 days to 1 year
+    // This helps local /public images and any optimized image responses.
+    minimumCacheTTL: 60 * 60 * 24 * 365,
+
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.moviefrost.com', pathname: '/**' },
       { protocol: 'https', hostname: 'image.tmdb.org', pathname: '/t/p/**' },
@@ -60,11 +75,9 @@ const nextConfig = {
 
   async redirects() {
     const redirects = [
-      {
-        source: '/favicon.ico',
-        destination: '/images/favicon1.png',
-        permanent: true,
-      },
+      // ✅ Keep /favicon.ico handled by app/favicon.ico/route.js
+      // so it can use its own shorter cache policy.
+
       {
         source: '/favicon1.png',
         destination: '/images/favicon1.png',
@@ -85,13 +98,16 @@ const nextConfig = {
   },
 
   async headers() {
-    const faviconCache =
-      'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
-
     return [
       {
         source: '/favicon.ico',
-        headers: [{ key: 'Cache-Control', value: faviconCache }],
+        headers: [{ key: 'Cache-Control', value: FAVICON_CACHE }],
+      },
+
+      // ✅ Long cache for static images in /public/images/*
+      {
+        source: '/images/:path*',
+        headers: [{ key: 'Cache-Control', value: IMAGE_CACHE }],
       },
 
       // /watch pages should not be indexed

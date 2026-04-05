@@ -2,7 +2,6 @@
 const CACHE_PREFIX = 'moviefrost-cache-';
 
 // ✅ Injected at build time by scripts/inject-sw-build-id.js
-// (Fallback is fine in dev if it stays as the placeholder.)
 const CACHE_VERSION = '__MF_BUILD_ID__';
 
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -22,9 +21,7 @@ const IS_LOCALHOST =
   self.location.hostname === '127.0.0.1';
 
 self.addEventListener('install', (event) => {
-  // ✅ IMPORTANT:
-  // Do NOT call skipWaiting() here.
-  // We want user-driven updates via "Update Now".
+  // Do not cache in localhost dev
   if (IS_LOCALHOST) return;
 
   event.waitUntil(
@@ -56,16 +53,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // ✅ Never cache API
+  // Never cache API
   if (url.pathname.startsWith('/api/')) return;
 
-  // ✅ IMPORTANT:
-  // Do NOT intercept cross-origin requests.
-  // This avoids noisy service-worker fetch errors for ads, analytics,
-  // CDN files, and blocked third-party resources.
+  // Never intercept cross-origin requests
   if (url.origin !== self.location.origin) return;
 
-  // ✅ In Next dev: don't intercept Next internals/HMR
+  // In Next dev: don't intercept Next internals/HMR
   if (
     IS_LOCALHOST &&
     (url.pathname.startsWith('/_next/') ||
@@ -79,9 +73,22 @@ self.addEventListener('fetch', (event) => {
   // Network-first for navigations
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() =>
-        caches.match('/').then((resp) => resp || Response.error())
-      )
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch {
+          const cachedHome = await caches.match('/');
+          if (cachedHome) return cachedHome;
+
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Offline',
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+            },
+          });
+        }
+      })()
     );
     return;
   }
@@ -99,7 +106,14 @@ self.addEventListener('fetch', (event) => {
           }
           return resp;
         })
-        .catch(() => cached || Response.error());
+        .catch(() => {
+          if (cached) return cached;
+
+          return new Response('', {
+            status: 504,
+            statusText: 'Asset unavailable',
+          });
+        });
     })
   );
 });

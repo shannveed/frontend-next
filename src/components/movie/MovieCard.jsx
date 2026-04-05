@@ -274,7 +274,7 @@ function MovieCard({
 
       <Link
         href={href}
-        prefetch
+        prefetch={false}
         onMouseEnter={prefetchThis}
         onTouchStart={prefetchThis}
         className="block"
@@ -286,6 +286,7 @@ function MovieCard({
             fallbackCandidates={[movie?.image, '/images/placeholder.jpg']}
             alt={movie?.name || 'Movie poster'}
             fill
+            quality={65}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover"
           />

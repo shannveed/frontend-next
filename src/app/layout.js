@@ -1,10 +1,18 @@
 // frontend-next/src/app/layout.js
 import './globals.css';
-import Script from 'next/script';
+import { Poppins } from 'next/font/google';
 import { SITE_URL } from '../lib/seo';
 
 import Providers from './providers';
 import SiteChrome from '../components/layout/SiteChrome';
+
+// ✅ Self-hosted Google font via next/font (no render-blocking fonts.googleapis.com request)
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  preload: true,
+});
 
 const buildVerification = () => {
   const v = {};
@@ -47,8 +55,6 @@ export const metadata = {
     title: 'MovieFrost',
   },
 
-  // ✅ Removes browser warning:
-  // <meta name="apple-mobile-web-app-capable"> is deprecated unless mobile-web-app-capable is also present
   other: {
     'mobile-web-app-capable': 'yes',
   },
@@ -64,43 +70,12 @@ export const viewport = {
 };
 
 export default function RootLayout({ children }) {
-  const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-  const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-main text-white min-h-screen" suppressHydrationWarning>
-        {/* ✅ AdSense is non-critical: load after window load */}
-        {ADSENSE_CLIENT ? (
-          <Script
-            id="adsense-js"
-            async
-            strategy="lazyOnload"
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-            crossOrigin="anonymous"
-          />
-        ) : null}
-
-        {/* Keep GA as-is for analytics stability */}
-        {GA_ID ? (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga4-init" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){window.dataLayer.push(arguments);}
-                window.gtag = window.gtag || gtag;
-
-                gtag('js', new Date());
-                gtag('config', '${GA_ID}', { send_page_view: false });
-              `}
-            </Script>
-          </>
-        ) : null}
-
+      <body
+        className={`${poppins.className} bg-main text-white min-h-screen`}
+        suppressHydrationWarning
+      >
         <Providers>
           <SiteChrome>{children}</SiteChrome>
         </Providers>

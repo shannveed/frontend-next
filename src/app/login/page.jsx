@@ -1,5 +1,5 @@
 // src/app/login/page.jsx
-import LoginClient from '../../components/auth/LoginClient';
+import LoginWithGoogleProvider from '../../components/auth/LoginWithGoogleProvider';
 
 export const metadata = {
   title: 'Login',
@@ -8,5 +8,5 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <LoginClient />;
+  return <LoginWithGoogleProvider />;
 }

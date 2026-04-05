@@ -14,7 +14,6 @@ import { getUserInfo, setUserInfo } from '../../lib/client/auth';
 import { Input } from '../forms/Usedinputs';
 import InlineError from '../forms/InlineError';
 
-// ✅ 1:1 ad component (same as Watch page)
 import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
 
 const GOOGLE_ENABLED =
@@ -26,13 +25,11 @@ const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 function redirectAfterAuth(router, user) {
-  // Admin always goes to dashboard (same as your CRA behavior)
   if (user?.isAdmin) {
     router.replace('/dashboard');
     return;
   }
 
-  // Normal user: honor redirectAfterLogin if present
   try {
     const raw = localStorage.getItem('redirectAfterLogin');
     if (raw) {
@@ -42,7 +39,6 @@ function redirectAfterAuth(router, user) {
       const fullPath = `${st?.pathname || '/profile'}${st?.search || ''}${st?.hash || ''}`;
       router.replace(fullPath);
 
-      // restore scroll (best effort)
       setTimeout(() => {
         if (typeof st?.scrollY === 'number' && st.scrollY > 0) {
           window.scrollTo(0, st.scrollY);
@@ -51,15 +47,64 @@ function redirectAfterAuth(router, user) {
 
       return;
     }
-  } catch {}
+  } catch {
+    // ignore
+  }
 
   router.replace('/profile');
 }
 
+function GoogleSignInButton({ disabled = false, onAccessToken }) {
+  const googleLogin = useGoogleLogin({
+    flow: 'implicit',
+    ux_mode: 'popup',
+    scope: 'openid profile email',
+    prompt: 'select_account',
+    onSuccess: (tokenResponse) => {
+      const accessToken = tokenResponse?.access_token;
+      if (!accessToken) {
+        toast.error('Google returned no access token');
+        return;
+      }
+      onAccessToken?.(accessToken);
+    },
+    onError: (err) => {
+      console.error('Google Sign-In error:', err);
+      toast.error(err?.error_description || 'Google Sign-In failed');
+    },
+  });
+
+  const handleGoogleSignIn = () => {
+    if (disabled) return;
+    googleLogin();
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleGoogleSignIn}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') handleGoogleSignIn();
+      }}
+      className="flex items-center justify-center bg-customPurple rounded-lg shadow-md cursor-pointer transition-all duration-200 ease-in-out w-full hover:shadow-lg mb-3 above-1000:mb-3"
+    >
+      <div className="py-2 px-4 flex items-center justify-center">
+        <img
+          className="w-8 h-8 above-1000:w-6 above-1000:h-6"
+          src="/images/google.png"
+          alt="Google Logo"
+        />
+      </div>
+      <p className="text-white font-semibold text-lg above-1000:text-base px-6">
+        Sign In with Google
+      </p>
+    </div>
+  );
+}
+
 export default function LoginClient() {
   const router = useRouter();
-
-  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,12 +112,6 @@ export default function LoginClient() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // CRA-like: only show Google button if configured
-  useEffect(() => {
-    setGoogleAuthEnabled(GOOGLE_ENABLED);
-  }, []);
-
-  // If already logged in, redirect away
   useEffect(() => {
     const ui = getUserInfo();
     if (ui?.token) redirectAfterAuth(router, ui);
@@ -138,40 +177,9 @@ export default function LoginClient() {
     }
   };
 
-  // Google popup login (no redirect)
-  const googleLogin = useGoogleLogin({
-    flow: 'implicit',
-    ux_mode: 'popup',
-    scope: 'openid profile email',
-    prompt: 'select_account',
-    onSuccess: (tokenResponse) => {
-      const accessToken = tokenResponse?.access_token;
-      if (!accessToken) {
-        toast.error('Google returned no access token');
-        return;
-      }
-      submitGoogle(accessToken);
-    },
-    onError: (err) => {
-      console.error('Google Sign-In error:', err);
-      toast.error(err?.error_description || 'Google Sign-In failed');
-    },
-  });
-
-  const handleGoogleSignIn = () => {
-    if (!googleAuthEnabled) {
-      toast.error('Google Sign-In is not available at the moment');
-      return;
-    }
-    if (loading) return;
-    googleLogin();
-  };
-
   return (
     <div className="container mx-auto px-2 flex-colo min-h-auto md:min-h-[calc(100vh-200px)] py-3">
-      {/* ✅ Layout: Ads left + form + ads right (desktop only) */}
       <div className="w-full flex flex-col items-center lg:flex-row lg:justify-center lg:items-center lg:gap-4 xl:gap-8">
-        {/* LEFT 1:1 AD — desktop only */}
         {ADS_ENABLED ? (
           <div className="hidden lg:block w-[260px] flex-shrink-0">
             <EffectiveGateSquareAd
@@ -185,7 +193,6 @@ export default function LoginClient() {
           </div>
         ) : null}
 
-        {/* LOGIN FORM */}
         <form
           onSubmit={submitEmailPassword}
           className="w-full md:w-3/5 2xl:w-2/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-1 p-3 sm:p-8 above-1000:p-10 bg-dry rounded-lg border border-border shadow-xl"
@@ -196,34 +203,13 @@ export default function LoginClient() {
             className="w-full h-10 above-1000:h-10 object-contain mb-1"
           />
 
-          {/* The extra line requested */}
           <div className="text-center mb-3 mt-1 text-sm font-semibold text-customPurple">
             Please Log In right now for Free
           </div>
 
-          {/* Google button */}
-          {googleAuthEnabled && (
+          {GOOGLE_ENABLED ? (
             <>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={handleGoogleSignIn}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') handleGoogleSignIn();
-                }}
-                className="flex items-center justify-center bg-customPurple rounded-lg shadow-md cursor-pointer transition-all duration-200 ease-in-out w-full hover:shadow-lg mb-3 above-1000:mb-3"
-              >
-                <div className="py-2 px-4 flex items-center justify-center">
-                  <img
-                    className="w-8 h-8 above-1000:w-6 above-1000:h-6"
-                    src="/images/google.png"
-                    alt="Google Logo"
-                  />
-                </div>
-                <p className="text-white font-semibold text-lg above-1000:text-base px-6">
-                  Sign In with Google
-                </p>
-              </div>
+              <GoogleSignInButton disabled={loading} onAccessToken={submitGoogle} />
 
               <div className="flex items-center gap-4 my-1 above-1000:my-1">
                 <div className="flex-grow h-px bg-border" />
@@ -231,9 +217,8 @@ export default function LoginClient() {
                 <div className="flex-grow h-px bg-border" />
               </div>
             </>
-          )}
+          ) : null}
 
-          {/* Email */}
           <div className="w-full flex flex-col gap-1">
             <Input
               label="Email"
@@ -252,7 +237,6 @@ export default function LoginClient() {
             {fieldErrors.email ? <InlineError text={fieldErrors.email} /> : null}
           </div>
 
-          {/* Password */}
           <div className="w-full flex flex-col gap-1">
             <Input
               label="Password"
@@ -298,7 +282,6 @@ export default function LoginClient() {
           </p>
         </form>
 
-        {/* ✅ MOBILE 1:1 AD BELOW login form (same as Watch page mobile ad) */}
         {ADS_ENABLED ? (
           <div className="w-full sm:hidden mt-6">
             <EffectiveGateSquareAd
@@ -308,7 +291,6 @@ export default function LoginClient() {
           </div>
         ) : null}
 
-        {/* RIGHT 1:1 AD — desktop only */}
         {ADS_ENABLED ? (
           <div className="hidden lg:block w-[260px] flex-shrink-0">
             <EffectiveGateSquareAd
