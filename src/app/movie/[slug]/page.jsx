@@ -19,6 +19,8 @@ import {
   buildMovieNameWithYear,
 } from '../../../lib/seo';
 
+import { buildHreflangAlternatesForPath } from '../../../lib/hreflang';
+
 import JsonLd from '../../../components/seo/JsonLd';
 import VisibleBreadcrumbs from '../../../components/seo/VisibleBreadcrumbs';
 import MovieInfoServer from '../../../components/movie/MovieInfoServer';
@@ -46,7 +48,9 @@ export async function generateStaticParams() {
       getBannerMovies(10, { revalidate: 60 }).catch(() => []),
       getLatestNewMovies(120, { revalidate: 60 }).catch(() => []),
       getTopRatedMovies({ revalidate: 60 }).catch(() => []),
-      getMovies({ pageNumber: 1 }, { revalidate: 60 }).catch(() => ({ movies: [] })),
+      getMovies({ pageNumber: 1 }, { revalidate: 60 }).catch(() => ({
+        movies: [],
+      })),
     ]);
 
     const all = [
@@ -57,6 +61,7 @@ export async function generateStaticParams() {
     ];
 
     const set = new Set();
+
     for (const m of all) {
       const seg = m?.slug || m?._id;
       if (seg) set.add(String(seg));
@@ -81,6 +86,9 @@ export async function generateMetadata({ params }) {
     };
   }
 
+  const seg = movie?.slug || movie?._id || slug;
+  const publicPath = `/movie/${seg}`;
+
   const canonical = movieCanonical(movie);
 
   const title = buildMovieTitle(movie, { maxLen: 100 });
@@ -89,8 +97,14 @@ export async function generateMetadata({ params }) {
   return {
     title: { absolute: title },
     description,
-    alternates: { canonical },
+
+    // ✅ Hindi-site hreflang alternates
+    alternates: buildHreflangAlternatesForPath(publicPath, {
+      canonical,
+    }),
+
     robots: { index: true, follow: true },
+
     openGraph: {
       type: movie?.type === 'WebSeries' ? 'video.tv_show' : 'video.movie',
       url: canonical,
@@ -98,6 +112,7 @@ export async function generateMetadata({ params }) {
       description,
       images: [movie?.titleImage || movie?.image].filter(Boolean),
     },
+
     twitter: {
       card: 'summary_large_image',
       title,
@@ -146,6 +161,7 @@ export default async function MoviePage({ params }) {
             <EffectiveGateNativeBanner
               refreshKey={`movie-desktop-before-ratings:${seg}`}
             />
+
             <div className="sm:hidden mt-4">
               <EffectiveGateSquareAd
                 refreshKey={`movie-mobile-before-ratings:${seg}`}
