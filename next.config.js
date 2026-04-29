@@ -19,16 +19,16 @@ const ensureUrl = (value, fallback) => {
 
 const RAW_API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://moviefrost-backend-peach.vercel.app';
+  'https://api-hi.moviefrost.com';
 
-const API_BASE = ensureUrl(RAW_API_BASE, 'https://moviefrost-backend-peach.vercel.app')
+const API_BASE = ensureUrl(RAW_API_BASE, 'https://api-hi.moviefrost.com')
   .replace(/\/+$/, '')
   .replace(/\/api$/i, '');
 
 const RAW_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com';
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.moviefrost.com';
 
-const SITE_URL = ensureUrl(RAW_SITE_URL, 'https://www.moviefrost.com').replace(
+const SITE_URL = ensureUrl(RAW_SITE_URL, 'https://hi.moviefrost.com').replace(
   /\/+$/,
   ''
 );

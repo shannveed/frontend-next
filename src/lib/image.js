@@ -1,7 +1,7 @@
 // frontend-next/src/lib/image.js
 
-const DEFAULT_SITE_ORIGIN = 'https://www.moviefrost.com';
-const DEFAULT_API_ORIGIN = 'https://moviefrost-backend-six.vercel.app';
+const DEFAULT_SITE_ORIGIN = 'https://hi.moviefrost.com';
+const DEFAULT_API_ORIGIN = 'https://api-hi.moviefrost.com';
 const DEFAULT_CDN_ORIGIN = 'https://cdn.moviefrost.com';
 
 const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_ORIGIN;
@@ -43,6 +43,9 @@ const NEXT_IMAGE_SAFE_HOSTS = new Set([
   'image.tmdb.org',
   'www.moviefrost.com',
   'moviefrost.com',
+  'hi.moviefrost.com',
+  'www.hi.moviefrost.com',
+  'api-hi.moviefrost.com',
   'moviefrost-backend-six.vercel.app',
   'moviefrost-backend.vercel.app',
   'fra.cloud.appwrite.io',
