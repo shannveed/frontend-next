@@ -10,15 +10,14 @@ import { FiLogIn } from 'react-icons/fi';
 
 import { apiFetch } from '../../lib/client/apiFetch';
 import { getUserInfo, setUserInfo } from '../../lib/client/auth';
+import { isValidGoogleClientId } from '../../lib/client/googleOAuth';
 
 import { Input } from '../forms/Usedinputs';
 import InlineError from '../forms/InlineError';
 
 import { EffectiveGateSquareAd } from '../ads/EffectiveGateNativeBanner';
 
-const GOOGLE_ENABLED =
-  !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== 'undefined';
+const ENV_GOOGLE_ENABLED = isValidGoogleClientId();
 
 const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
@@ -32,11 +31,14 @@ function redirectAfterAuth(router, user) {
 
   try {
     const raw = localStorage.getItem('redirectAfterLogin');
+
     if (raw) {
       const st = JSON.parse(raw);
       localStorage.removeItem('redirectAfterLogin');
 
-      const fullPath = `${st?.pathname || '/profile'}${st?.search || ''}${st?.hash || ''}`;
+      const fullPath = `${st?.pathname || '/profile'}${st?.search || ''}${st?.hash || ''
+        }`;
+
       router.replace(fullPath);
 
       setTimeout(() => {
@@ -62,15 +64,17 @@ function GoogleSignInButton({ disabled = false, onAccessToken }) {
     prompt: 'select_account',
     onSuccess: (tokenResponse) => {
       const accessToken = tokenResponse?.access_token;
+
       if (!accessToken) {
         toast.error('Google returned no access token');
         return;
       }
+
       onAccessToken?.(accessToken);
     },
     onError: (err) => {
       console.error('Google Sign-In error:', err);
-      toast.error(err?.error_description || 'Google Sign-In failed');
+      toast.error(err?.error_description || err?.error || 'Google Sign-In failed');
     },
   });
 
@@ -96,6 +100,7 @@ function GoogleSignInButton({ disabled = false, onAccessToken }) {
           alt="Google Logo"
         />
       </div>
+
       <p className="text-white font-semibold text-lg above-1000:text-base px-6">
         Sign In with Google
       </p>
@@ -103,7 +108,10 @@ function GoogleSignInButton({ disabled = false, onAccessToken }) {
   );
 }
 
-export default function LoginClient() {
+export default function LoginClient({
+  googleEnabled = ENV_GOOGLE_ENABLED,
+  googleConfigError = '',
+}) {
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -127,15 +135,15 @@ export default function LoginClient() {
     if (!password) errs.password = 'Password is required';
 
     setFieldErrors(errs);
+
     return Object.keys(errs).length === 0;
   };
 
-  const canSubmit = useMemo(() => {
-    return !loading;
-  }, [loading]);
+  const canSubmit = useMemo(() => !loading, [loading]);
 
   const submitEmailPassword = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     try {
@@ -207,9 +215,12 @@ export default function LoginClient() {
             Please Log In right now for Free
           </div>
 
-          {GOOGLE_ENABLED ? (
+          {googleEnabled ? (
             <>
-              <GoogleSignInButton disabled={loading} onAccessToken={submitGoogle} />
+              <GoogleSignInButton
+                disabled={loading}
+                onAccessToken={submitGoogle}
+              />
 
               <div className="flex items-center gap-4 my-1 above-1000:my-1">
                 <div className="flex-grow h-px bg-border" />
@@ -217,6 +228,10 @@ export default function LoginClient() {
                 <div className="flex-grow h-px bg-border" />
               </div>
             </>
+          ) : process.env.NODE_ENV !== 'production' && googleConfigError ? (
+            <div className="mb-3 rounded border border-yellow-600 bg-yellow-600/10 p-3 text-xs text-yellow-300">
+              Google login disabled: {googleConfigError}
+            </div>
           ) : null}
 
           <div className="w-full flex flex-col gap-1">
@@ -225,15 +240,17 @@ export default function LoginClient() {
               placeholder="Your Email"
               type="email"
               name="email"
-              bg={true}
+              bg
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                if (fieldErrors.email)
+                if (fieldErrors.email) {
                   setFieldErrors((p) => ({ ...p, email: '' }));
+                }
               }}
               autoComplete="email"
             />
+
             {fieldErrors.email ? <InlineError text={fieldErrors.email} /> : null}
           </div>
 
@@ -243,15 +260,17 @@ export default function LoginClient() {
               placeholder="*******"
               type="password"
               name="password"
-              bg={true}
+              bg
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (fieldErrors.password)
+                if (fieldErrors.password) {
                   setFieldErrors((p) => ({ ...p, password: '' }));
+                }
               }}
               autoComplete="current-password"
             />
+
             {fieldErrors.password ? (
               <InlineError text={fieldErrors.password} />
             ) : null}

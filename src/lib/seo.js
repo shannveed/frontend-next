@@ -1,7 +1,7 @@
 // frontend-next/src/lib/seo.js
 
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.moviefrost.com'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.moviefrost.com'
 ).replace(/\/+$/, '');
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();

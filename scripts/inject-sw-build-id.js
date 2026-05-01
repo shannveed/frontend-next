@@ -23,14 +23,25 @@ const version = String(rawVersion || `dev-${Date.now()}`)
 
 let sw = fs.readFileSync(swPath, 'utf8');
 
-if (!sw.includes('__MF_BUILD_ID__')) {
-  console.warn(
-    '[sw] Placeholder "__MF_BUILD_ID__" not found. No changes applied.'
-  );
+if (sw.includes('__MF_BUILD_ID__')) {
+  sw = sw.replace(/__MF_BUILD_ID__/g, version);
+  fs.writeFileSync(swPath, sw);
+  console.log(`[sw] Injected build id into service-worker.js: ${version}`);
   process.exit(0);
 }
 
-sw = sw.replace(/__MF_BUILD_ID__/g, version);
+/**
+ * If placeholder was already replaced in a previous commit/build,
+ * update the CACHE_VERSION assignment directly.
+ */
+const cacheVersionRegex =
+  /const\s+CACHE_VERSION\s*=\s*['"`][^'"`]*['"`]\s*;/;
 
-fs.writeFileSync(swPath, sw);
-console.log(`[sw] Injected build id into service-worker.js: ${version}`);
+if (cacheVersionRegex.test(sw)) {
+  sw = sw.replace(cacheVersionRegex, `const CACHE_VERSION = '${version}';`);
+  fs.writeFileSync(swPath, sw);
+  console.log(`[sw] Updated CACHE_VERSION in service-worker.js: ${version}`);
+  process.exit(0);
+}
+
+console.warn('[sw] CACHE_VERSION declaration not found. No changes applied.');
