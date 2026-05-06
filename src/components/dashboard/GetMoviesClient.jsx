@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-
+import { parseNamesFromInput } from '../../lib/client/nameInputParser';
 import RequireAdmin from '../auth/RequireAdmin';
 import SideBarShell from './SideBarShell';
 import { findMoviesByNamesAdmin } from '../../lib/client/moviesLookup';
@@ -13,52 +13,7 @@ const SAMPLE = `[
   { "name": "Ordinary Girl in a Tiara (2025)" }
 ]`;
 
-const uniqClean = (arr) => {
-  const cleaned = (arr || [])
-    .map((x) => String(x || '').trim())
-    .filter(Boolean);
-  return [...new Set(cleaned)];
-};
 
-const parseNamesFromInput = (raw = '') => {
-  const text = String(raw || '').trim();
-  if (!text) return [];
-
-  // 1) Try JSON first
-  try {
-    const parsed = JSON.parse(text);
-
-    // Array input
-    if (Array.isArray(parsed)) {
-      // ["A", "B"]
-      if (parsed.every((x) => typeof x === 'string')) {
-        return uniqClean(parsed);
-      }
-
-      // [{name:"A"}, {name:"B"}]
-      if (parsed.every((x) => x && typeof x === 'object')) {
-        return uniqClean(parsed.map((x) => x?.name));
-      }
-    }
-
-    // Object input: { names: [...] } or { movies:[{name}...] }
-    if (parsed && typeof parsed === 'object') {
-      if (Array.isArray(parsed.names)) return uniqClean(parsed.names);
-      if (Array.isArray(parsed.movies)) return uniqClean(parsed.movies.map((m) => m?.name));
-      if (Array.isArray(parsed.items)) return uniqClean(parsed.items.map((m) => m?.name));
-    }
-  } catch {
-    // ignore and fallback to plain text parsing
-  }
-
-  // 2) Plain text: one per line (also supports comma-separated on same line)
-  const lines = text
-    .split(/\r?\n/)
-    .flatMap((line) => line.split(','))
-    .map((s) => s.trim());
-
-  return uniqClean(lines);
-};
 
 const shortId = (id) => String(id || '').slice(0, 8).toUpperCase();
 
@@ -193,7 +148,7 @@ function GetMoviesInner({ token }) {
         <div className="bg-main border border-border rounded-lg p-4 text-sm text-dryGray">
           <p className="text-white font-semibold mb-2">Input formats supported:</p>
           <ul className="list-disc ml-5 space-y-1">
-            <li>One name per line</li>
+            <li>One name per line. Movie names with commas are supported.</li>
             <li>
               JSON array: <code className="text-white">["A","B"]</code>
             </li>

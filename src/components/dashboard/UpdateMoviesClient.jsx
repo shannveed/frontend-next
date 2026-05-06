@@ -5,62 +5,13 @@ import toast from 'react-hot-toast';
 
 import RequireAdmin from '../auth/RequireAdmin';
 import SideBarShell from './SideBarShell';
-
+v
 import { findMoviesByNamesAdmin } from '../../lib/client/moviesLookup';
 import { bulkExactUpdateMoviesAdmin } from '../../lib/client/moviesAdmin';
 
 const SAMPLE_INPUT = `Hijack (2026) Hindi
 Ordinary Girl in a Tiara (2025)`;
 
-const uniqClean = (arr) => {
-  const cleaned = (arr || [])
-    .map((x) => String(x || '').trim())
-    .filter(Boolean);
-  return [...new Set(cleaned)];
-};
-
-const parseNamesFromInput = (raw = '') => {
-  const text = String(raw || '').trim();
-  if (!text) return [];
-
-  // 1) Try JSON first
-  try {
-    const parsed = JSON.parse(text);
-
-    // Array input
-    if (Array.isArray(parsed)) {
-      // ["A", "B"]
-      if (parsed.every((x) => typeof x === 'string')) {
-        return uniqClean(parsed);
-      }
-      // [{name:"A"}, {name:"B"}]
-      if (parsed.every((x) => x && typeof x === 'object')) {
-        return uniqClean(parsed.map((x) => x?.name));
-      }
-    }
-
-    // Object input: { names: [...] } or { movies:[{name}...] } or { items:[{name}...] }
-    if (parsed && typeof parsed === 'object') {
-      if (Array.isArray(parsed.names)) return uniqClean(parsed.names);
-      if (Array.isArray(parsed.movies))
-        return uniqClean(parsed.movies.map((m) => m?.name));
-      if (Array.isArray(parsed.items))
-        return uniqClean(parsed.items.map((m) => m?.name));
-      if (typeof parsed.text === 'string')
-        return uniqClean(parsed.text.split(/\r?\n/));
-    }
-  } catch {
-    // ignore and fallback
-  }
-
-  // 2) Plain text: one per line (+ comma split support)
-  const lines = text
-    .split(/\r?\n/)
-    .flatMap((line) => line.split(','))
-    .map((s) => s.trim());
-
-  return uniqClean(lines);
-};
 
 const shortId = (id) => String(id || '').slice(0, 8).toUpperCase();
 
@@ -261,24 +212,34 @@ function UpdateMoviesInner({ token }) {
       return;
     }
 
-    // front-end safety checks
-    for (let i = 0; i < movies.length; i++) {
-      const it = movies[i];
+    try {
+      for (let i = 0; i < movies.length; i++) {
+        const it = movies[i];
 
-      const type = String(it?.type || '').trim();
-      const name = String(it?.name || '').trim();
-      const id = String(it?._id || '').trim();
+        const type = String(it?.type || '').trim();
+        const name = String(it?.name || '').trim();
+        const id = String(it?._id || '').trim();
 
-      if (!name) throw new Error(`Row ${i + 1}: missing "name"`);
-      if (!['Movie', 'WebSeries'].includes(type))
-        throw new Error(`Row ${i + 1}: invalid "type" (Movie/WebSeries only)`);
+        if (!name) throw new Error(`Row ${i + 1}: missing "name"`);
 
-      if (requireId && !id) {
-        throw new Error(
-          `Row ${i + 1}: missing "_id". Disable "Require _id" if you REALLY want to update by (name+type).`
-        );
+        if (!['Movie', 'WebSeries'].includes(type)) {
+          throw new Error(`Row ${i + 1}: invalid "type" (Movie/WebSeries only)`);
+        }
+
+        if (requireId && !id) {
+          throw new Error(
+            `Row ${i + 1}: missing "_id". Keep "_id" enabled for safe updates.`
+          );
+        }
       }
+
+      setEditorError('');
+    } catch (e) {
+      setEditorError(e?.message || 'Invalid update data');
+      toast.error(e?.message || 'Invalid update data');
+      return;
     }
+
 
     try {
       setUpdating(true);
@@ -289,8 +250,7 @@ function UpdateMoviesInner({ token }) {
       setUpdateResult(res);
 
       toast.success(
-        `Update done. Matched: ${res?.matched || 0}, Modified: ${
-          res?.modified || 0
+        `Update done. Matched: ${res?.matched || 0}, Modified: ${res?.modified || 0
         }, Errors: ${res?.errorsCount || 0}`
       );
     } catch (e) {

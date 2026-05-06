@@ -7,7 +7,9 @@ import {
   getLatestNewMovies,
   getMovies,
   getMovieBySlug,
+  getMovieBySlugAdmin,
   getRelatedMovies,
+  getRelatedMoviesAdmin,
   getTopRatedMovies,
 } from '../../../lib/api';
 
@@ -20,6 +22,7 @@ import {
 } from '../../../lib/seo';
 
 import { buildHreflangAlternatesForPath } from '../../../lib/hreflang';
+import { getAdminPreviewToken } from '../../../lib/server/adminListingPreview';
 
 import JsonLd from '../../../components/seo/JsonLd';
 import VisibleBreadcrumbs from '../../../components/seo/VisibleBreadcrumbs';
@@ -31,16 +34,53 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../../../components/ads/EffectiveGateNativeBanner';
 
-/* existing section */
 import MovieFaqSection from '../../../components/movie/MovieFaqSection';
 
-export const dynamic = 'force-static';
+export const dynamic = 'auto';
 export const dynamicParams = true;
 export const revalidate = 3600;
 
 const RELATED_MOVIES_LIMIT = 10;
 
-const getMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
+const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
+
+async function getMovieForRequest(slug) {
+  const publicMovie = await getPublicMovie(slug);
+
+  if (publicMovie) {
+    return {
+      movie: publicMovie,
+      source: 'public',
+      token: null,
+    };
+  }
+
+  const token = getAdminPreviewToken();
+
+  if (!token) {
+    return {
+      movie: null,
+      source: 'none',
+      token: null,
+    };
+  }
+
+  const adminMovie = await getMovieBySlugAdmin(slug, token);
+
+  if (adminMovie) {
+    return {
+      movie: adminMovie,
+      source: 'admin',
+      token,
+    };
+  }
+
+  return {
+    movie: null,
+    source: 'none',
+    token: null,
+  };
+}
 
 export async function generateStaticParams() {
   try {
@@ -77,7 +117,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const slug = params?.slug;
-  const movie = await getMovie(slug);
+  const { movie, source } = await getMovieForRequest(slug);
 
   if (!movie) {
     return {
@@ -94,16 +134,24 @@ export async function generateMetadata({ params }) {
   const title = buildMovieTitle(movie, { maxLen: 100 });
   const description = buildMovieDescription(movie);
 
+  const isAdminPreview = source === 'admin';
+  const isDraftPreview = isAdminPreview && movie?.isPublished === false;
+
   return {
     title: { absolute: title },
     description,
 
-    // ✅ Hindi-site hreflang alternates
     alternates: buildHreflangAlternatesForPath(publicPath, {
       canonical,
     }),
 
-    robots: { index: true, follow: true },
+    robots: isDraftPreview
+      ? {
+        index: false,
+        follow: false,
+        googleBot: { index: false, follow: false },
+      }
+      : { index: true, follow: true },
 
     openGraph: {
       type: movie?.type === 'WebSeries' ? 'video.tv_show' : 'video.movie',
@@ -125,7 +173,8 @@ export async function generateMetadata({ params }) {
 export default async function MoviePage({ params }) {
   const slug = params?.slug;
 
-  const movie = await getMovie(slug);
+  const { movie, source, token } = await getMovieForRequest(slug);
+
   if (!movie) notFound();
 
   if (movie?.slug && slug !== movie.slug) {
@@ -134,11 +183,18 @@ export default async function MoviePage({ params }) {
 
   const seg = movie.slug || movie._id;
 
-  const related = await getRelatedMovies(seg, RELATED_MOVIES_LIMIT, {
-    revalidate: 3600,
-  }).catch(() => []);
+  const related =
+    source === 'admin' && token
+      ? await getRelatedMoviesAdmin(seg, token, RELATED_MOVIES_LIMIT).catch(
+        () => []
+      )
+      : await getRelatedMovies(seg, RELATED_MOVIES_LIMIT, {
+        revalidate: 3600,
+      }).catch(() => []);
 
-  const graphLd = buildMovieGraphJsonLd(movie);
+  const isDraftPreview = source === 'admin' && movie?.isPublished === false;
+
+  const graphLd = isDraftPreview ? null : buildMovieGraphJsonLd(movie);
   const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
   const breadcrumbItems = [
@@ -154,9 +210,28 @@ export default async function MoviePage({ params }) {
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
         <VisibleBreadcrumbs items={breadcrumbItems} className="mb-4" />
 
+        {source === 'admin' ? (
+          <div className="bg-main border border-customPurple rounded-lg p-4 mb-6">
+            <p className="text-xs uppercase tracking-wide text-customPurple font-semibold">
+              Admin Preview
+            </p>
+
+            <p className="text-sm text-dryGray mt-2">
+              You are viewing this movie through admin preview because it is not
+              available from the public API.
+            </p>
+
+            {movie?.isPublished === false ? (
+              <p className="text-sm text-red-400 mt-2">
+                This title is a draft/unpublished movie page and is noindex.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <MovieInfoServer movie={movie} />
 
-        {ADS_ENABLED ? (
+        {ADS_ENABLED && !isDraftPreview ? (
           <div className="my-6">
             <EffectiveGateNativeBanner
               refreshKey={`movie-desktop-before-ratings:${seg}`}
