@@ -31,6 +31,9 @@ import {
 
 const DEFAULT_PROFILE_IMAGE = '/images/placeholder.jpg';
 
+const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
+  }`.replace(/\/+$/, '') + '/';
+
 const BROWSEBY_CACHE_KEY = 'mf_browseByDistinct_cache_v1';
 const BROWSEBY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -73,8 +76,6 @@ const normalizeAvatarUrl = (value) => {
   return v;
 };
 
-const normalizeKey = (value = '') => String(value || '').trim().toLowerCase();
-
 const loadNotificationsApi = () => import('../../lib/client/notifications');
 const loadWatchRequestApi = () => import('../../lib/client/watchRequests');
 const loadPushApi = () => import('../../lib/client/pushNotifications');
@@ -84,13 +85,6 @@ const industryPageToItem = (page) => ({
   label: page.label,
   href: `/industry/${page.slug}`,
 });
-
-const INDIAN_FALLBACK_SLUGS = new Set([
-  'bollywood',
-  'bollywood-web-series',
-  'south-indian-hindi-dubbed',
-  'punjabi-movies',
-]);
 
 const contactMenuItems = [
   { label: 'Contact Us', href: '/contact-us' },
@@ -186,10 +180,16 @@ export default function NavBar() {
     let timerId = null;
     let idleId = null;
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleId = window.requestIdleCallback(() => {
-        run().catch(() => { });
-      }, { timeout: 1500 });
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.requestIdleCallback === 'function'
+    ) {
+      idleId = window.requestIdleCallback(
+        () => {
+          run().catch(() => { });
+        },
+        { timeout: 1500 }
+      );
     } else {
       timerId = window.setTimeout(() => {
         run().catch(() => { });
@@ -247,10 +247,16 @@ export default function NavBar() {
     let timerId = null;
     let idleId = null;
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleId = window.requestIdleCallback(() => {
-        run().catch(() => { });
-      }, { timeout: 2000 });
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.requestIdleCallback === 'function'
+    ) {
+      idleId = window.requestIdleCallback(
+        () => {
+          run().catch(() => { });
+        },
+        { timeout: 2000 }
+      );
     } else {
       timerId = window.setTimeout(() => {
         run().catch(() => { });
@@ -316,10 +322,16 @@ export default function NavBar() {
       }
     };
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleId = window.requestIdleCallback(() => {
-        start().catch(() => { });
-      }, { timeout: 2000 });
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.requestIdleCallback === 'function'
+    ) {
+      idleId = window.requestIdleCallback(
+        () => {
+          start().catch(() => { });
+        },
+        { timeout: 2000 }
+      );
     } else {
       timerId = window.setTimeout(() => {
         start().catch(() => { });
@@ -512,20 +524,12 @@ export default function NavBar() {
     [browseBy]
   );
 
-  const indianBrowseBy = useMemo(
-    () =>
-      (browseBy || []).filter((x) => {
-        const v = String(x || '').toLowerCase();
-        return v.includes('bollywood') || v.includes('indian');
-      }),
-    [browseBy]
-  );
-
+  // Indian items are now available under Browse By if present,
+  // while the old Indian nav dropdown is replaced by MovieFrost Hindi.
   const leftoverBrowseBy = useMemo(() => {
     const h = new Set(hollywoodBrowseBy);
-    const i = new Set(indianBrowseBy);
-    return (browseBy || []).filter((x) => x && !h.has(x) && !i.has(x));
-  }, [browseBy, hollywoodBrowseBy, indianBrowseBy]);
+    return (browseBy || []).filter((x) => x && !h.has(x));
+  }, [browseBy, hollywoodBrowseBy]);
 
   const buildBrowseMenuItems = useCallback((values = [], fallbackPages = []) => {
     const seen = new Set();
@@ -560,24 +564,11 @@ export default function NavBar() {
     [hollywoodBrowseBy, buildBrowseMenuItems]
   );
 
-  const indianMenuItems = useMemo(
-    () =>
-      buildBrowseMenuItems(
-        indianBrowseBy,
-        INDUSTRY_PAGES.filter((page) => INDIAN_FALLBACK_SLUGS.has(page.slug))
-      ),
-    [indianBrowseBy, buildBrowseMenuItems]
-  );
-
   const browseMenuItems = useMemo(
     () =>
       buildBrowseMenuItems(
         leftoverBrowseBy,
-        INDUSTRY_PAGES.filter(
-          (page) =>
-            !page.slug.startsWith('hollywood') &&
-            !INDIAN_FALLBACK_SLUGS.has(page.slug)
-        )
+        INDUSTRY_PAGES.filter((page) => !page.slug.startsWith('hollywood'))
       ),
     [leftoverBrowseBy, buildBrowseMenuItems]
   );
@@ -586,11 +577,11 @@ export default function NavBar() {
     return normalizeAvatarUrl(userInfo?.image) || DEFAULT_PROFILE_IMAGE;
   }, [userInfo?.image]);
 
-  const hover = 'hover:text-customPurple transitions text-white';
+  const hover = 'hover:text-customPurple transitions text-white whitespace-nowrap';
 
   return (
     <div className="bg-main shadow-md sticky top-0 z-20 hidden lg:block">
-      <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-10 above-1000:gap-8 grid-cols-7 justify-between items-center">
+      <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-8 above-1000:gap-6 grid-cols-7 justify-between items-center">
         <div className="col-span-1">
           <Link
             href="/"
@@ -697,7 +688,7 @@ export default function NavBar() {
           ) : null}
         </div>
 
-        <div className="col-span-4 font-medium text-xs xl:gap-6 2xl:gap-10 justify-between items-center hidden lg:flex">
+        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-5 2xl:gap-7 justify-end items-center hidden lg:flex">
           <Link href="/movies?type=Movie" className={hover}>
             Movies
           </Link>
@@ -728,27 +719,13 @@ export default function NavBar() {
             </div>
           </div>
 
-          <div className="relative group">
-            <button className={`${hover} inline-flex items-center`} type="button">
-              Indian
-            </button>
-
-            <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
-              {indianMenuItems.length ? (
-                indianMenuItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="block px-3 py-1.5 hover:text-customPurple"
-                  >
-                    {item.label}
-                  </Link>
-                ))
-              ) : (
-                <p className="px-3 py-2 text-sm opacity-80">No Indian data</p>
-              )}
-            </div>
-          </div>
+          <a
+            href={HINDI_SITE_URL}
+            className={hover}
+            title="Open MovieFrost Hindi"
+          >
+            MovieFrost Hindi
+          </a>
 
           <div className="relative group">
             <button className={`${hover} inline-flex items-center`} type="button">
@@ -906,7 +883,9 @@ export default function NavBar() {
                               className="text-xs text-customPurple hover:underline"
                               type="button"
                             >
-                              {replyOpenId === notif._id ? 'Close Reply' : 'Reply'}
+                              {replyOpenId === notif._id
+                                ? 'Close Reply'
+                                : 'Reply'}
                             </button>
 
                             {replyOpenId === notif._id ? (

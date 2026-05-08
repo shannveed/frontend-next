@@ -8,9 +8,18 @@ import { IoClose } from 'react-icons/io5';
 import { BsCollectionPlay } from 'react-icons/bs';
 import { HiOutlineUserGroup } from 'react-icons/hi';
 import { TbChevronDown } from 'react-icons/tb';
-import { FaFacebook, FaTelegram, FaYoutube, FaBell, FaRegNewspaper } from 'react-icons/fa';
+import {
+  FaFacebook,
+  FaTelegram,
+  FaYoutube,
+  FaBell,
+  FaRegNewspaper,
+} from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { OPEN_NOTIFICATIONS_PANEL } from '../../lib/events';
+
+const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
+  }`.replace(/\/+$/, '') + '/';
 
 export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
   const [openMenu, setOpenMenu] = useState('');
@@ -36,6 +45,11 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
     router.push(href);
   };
 
+  const goExternal = (href) => {
+    close();
+    window.location.href = href;
+  };
+
   const openAlerts = () => {
     close();
     window.setTimeout(() => {
@@ -55,6 +69,12 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
       href: '/blog',
       icon: FaRegNewspaper,
       onClick: () => goTo('/blog'),
+    },
+    {
+      name: 'MovieFrost Hindi',
+      href: HINDI_SITE_URL,
+      icon: HiOutlineUserGroup,
+      onClick: () => goExternal(HINDI_SITE_URL),
     },
     {
       name: 'Alerts',
@@ -80,19 +100,6 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
       ],
     },
     {
-      name: 'Indian',
-      icon: HiOutlineUserGroup,
-      children: [
-        { name: 'Bollywood Movies', href: '/industry/bollywood' },
-        { name: 'Bollywood Web Series', href: '/industry/bollywood-web-series' },
-        {
-          name: 'South Indian Hindi Dubbed Movies',
-          href: '/industry/south-indian-hindi-dubbed',
-        },
-        { name: 'Punjabi Movies', href: '/industry/punjabi-movies' },
-      ],
-    },
-    {
       name: 'Web Series',
       icon: HiOutlineUserGroup,
       children: [
@@ -106,6 +113,13 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
       name: 'Browse By',
       icon: HiOutlineUserGroup,
       children: [
+        { name: 'Bollywood Movies', href: '/industry/bollywood' },
+        { name: 'Bollywood Web Series', href: '/industry/bollywood-web-series' },
+        {
+          name: 'South Indian Hindi Dubbed Movies',
+          href: '/industry/south-indian-hindi-dubbed',
+        },
+        { name: 'Punjabi Movies', href: '/industry/punjabi-movies' },
         { name: 'Korean Movies in English', href: '/industry/korean-english' },
         { name: 'Korean Drama Hindi Dubbed', href: '/industry/korean-drama-hindi' },
         { name: 'Chinese Drama', href: '/industry/chinese-drama' },
