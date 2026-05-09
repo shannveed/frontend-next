@@ -5,8 +5,72 @@ const DEFAULT_API_BASE = 'https://moviefrost-backend-ten.vercel.app';
 const DEFAULT_ENGLISH_ORIGIN = 'https://www.moviefrost.com';
 const DEFAULT_HINDI_ORIGIN = 'https://hi.moviefrost.com';
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+function clean(value = '') {
+  return String(value ?? '').trim();
+}
+
+function normalizeOrigin(value = '', fallback = '') {
+  let next = clean(value || fallback);
+
+  if (!next) return '';
+
+  if (!/^https?:\/\//i.test(next)) {
+    if (/^(localhost|127\.0\.0\.1|hi\.localhost)(:\d+)?/i.test(next)) {
+      next = `http://${next.replace(/^\/+/, '')}`;
+    } else {
+      next = `https://${next.replace(/^\/+/, '')}`;
+    }
+  }
+
+  return next.replace(/\/+$/, '').replace(/\/api$/i, '');
+}
+
+function normalizeHindiOrigin(value = '', fallback = DEFAULT_HINDI_ORIGIN) {
+  const origin = normalizeOrigin(value, fallback);
+
+  try {
+    const u = new URL(origin);
+    const host = u.hostname.toLowerCase();
+
+    // Fix common typo: https://wwwhi.moviefrost.com
+    if (host === 'wwwhi.moviefrost.com' || host === 'www.hi.moviefrost.com') {
+      u.hostname = 'hi.moviefrost.com';
+    }
+
+    return u.toString().replace(/\/+$/, '');
+  } catch {
+    return DEFAULT_HINDI_ORIGIN;
+  }
+}
+
+function hostnameOf(origin = '') {
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isLocalHostname(hostname = '') {
+  const host = clean(hostname).toLowerCase();
+
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === 'hi.localhost' ||
+    host.endsWith('.localhost')
+  );
+}
+
+function isLocalOrigin(origin = '') {
+  return isLocalHostname(hostnameOf(origin));
+}
+
 const RAW_API_BASE =
   process.env.BACKEND_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   DEFAULT_API_BASE;
 
@@ -17,14 +81,9 @@ const ENGLISH_ORIGIN = normalizeOrigin(
   DEFAULT_ENGLISH_ORIGIN
 );
 
-const HINDI_ORIGIN = normalizeOrigin(
+const HINDI_ORIGIN = normalizeHindiOrigin(
   process.env.NEXT_PUBLIC_HINDI_SITE_URL || DEFAULT_HINDI_ORIGIN,
   DEFAULT_HINDI_ORIGIN
-);
-
-const API_BASE = normalizeOrigin(RAW_API_BASE, DEFAULT_API_BASE).replace(
-  /\/api$/i,
-  ''
 );
 
 const ENABLE_REDIRECT =
@@ -43,12 +102,47 @@ const DEBUG_REDIRECT =
     .toLowerCase() === 'true';
 
 const FETCH_TIMEOUT_MS = Math.min(
-  Math.max(Number(process.env.HINDI_REDIRECT_FETCH_TIMEOUT_MS || 2500), 500),
-  8000
+  Math.max(Number(process.env.HINDI_REDIRECT_FETCH_TIMEOUT_MS || 3500), 700),
+  9000
 );
 
-const INDIAN_LANGUAGES = [
+const API_BASE_CANDIDATES = (() => {
+  const rawList = [
+    RAW_API_BASE,
+    process.env.BACKEND_API_BASE_URL,
+    process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    DEFAULT_API_BASE,
+
+    // Safe fallback for old deployments/env mistakes.
+    'https://moviefrost-backend-ten.vercel.app',
+    'https://moviefrost-backend-peach.vercel.app',
+  ];
+
+  const out = [];
+  const seen = new Set();
+
+  for (const raw of rawList) {
+    const origin = normalizeOrigin(raw, '');
+
+    if (!origin) continue;
+
+    // Never try localhost from Vercel Edge production.
+    if (IS_PRODUCTION && isLocalOrigin(origin)) continue;
+
+    const key = origin.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(origin);
+  }
+
+  return out;
+})();
+
+const INDIAN_LANGUAGE_WORDS = [
   'Hindi',
+  'Hindi Dubbed',
   'Punjabi',
   'Urdu',
   'Tamil',
@@ -58,48 +152,20 @@ const INDIAN_LANGUAGES = [
   'Marathi',
 ];
 
-const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGES.map(normalizeLanguageKey).filter(
-  Boolean
-);
-
-function clean(value = '') {
-  return String(value ?? '').trim();
-}
-
-function normalizeOrigin(value = '', fallback = '') {
-  let next = clean(value || fallback);
-
-  if (!next) return '';
-
-  if (!/^https?:\/\//i.test(next)) {
-    // Local dev convenience
-    if (/^(localhost|127\.0\.0\.1)(:\d+)?/i.test(next)) {
-      next = `http://${next.replace(/^\/+/, '')}`;
-    } else {
-      next = `https://${next.replace(/^\/+/, '')}`;
-    }
-  }
-
-  return next.replace(/\/+$/, '');
-}
-
-function hostnameOf(origin = '') {
-  try {
-    return new URL(origin).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
-function isLocalHostname(hostname = '') {
-  const host = clean(hostname).toLowerCase();
-
-  return (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host.endsWith('.localhost')
-  );
-}
+const INDIAN_CONTENT_MARKERS = [
+  'Hindi',
+  'Hindi Dubbed',
+  'Bollywood',
+  'South Indian',
+  'Indian Punjabi',
+  'Punjabi',
+  'Urdu',
+  'Tamil',
+  'Telugu',
+  'Malayalam',
+  'Kannada',
+  'Marathi',
+];
 
 function normalizeLanguageKey(value = '') {
   return clean(value)
@@ -108,20 +174,27 @@ function normalizeLanguageKey(value = '') {
     .toLowerCase()
     .replace(/[’‘`´]/g, "'")
     .replace(/&/g, ' and ')
-    .replace(/[^a-z]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function movieHasIndianLanguage(movie) {
-  const normalized = normalizeLanguageKey(movie?.language);
+const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGE_WORDS.map(normalizeLanguageKey).filter(
+  Boolean
+);
 
+const INDIAN_CONTENT_KEYS = INDIAN_CONTENT_MARKERS.map(normalizeLanguageKey).filter(
+  Boolean
+);
+
+function textContainsNormalizedToken(text = '', keys = []) {
+  const normalized = normalizeLanguageKey(text);
   if (!normalized) return false;
 
   const padded = ` ${normalized} `;
   const compact = normalized.replace(/\s+/g, '');
 
-  return INDIAN_LANGUAGE_KEYS.some((key) => {
+  return keys.some((key) => {
     const cleanKey = normalizeLanguageKey(key);
     if (!cleanKey) return false;
 
@@ -129,6 +202,26 @@ function movieHasIndianLanguage(movie) {
 
     return padded.includes(` ${cleanKey} `) || compact.includes(keyCompact);
   });
+}
+
+function movieHasIndianLanguage(movie) {
+  // Important:
+  // Do not rely only on `language`.
+  // Many Hindi-dubbed rows have "English" language but Hindi marker in name/slug/browseBy.
+  const languageText = [movie?.language].join(' ');
+  const allSearchableText = [
+    movie?.language,
+    movie?.browseBy,
+    movie?.name,
+    movie?.slug,
+    movie?.category,
+    movie?.thumbnailInfo,
+  ].join(' ');
+
+  return (
+    textContainsNormalizedToken(languageText, INDIAN_LANGUAGE_KEYS) ||
+    textContainsNormalizedToken(allSearchableText, INDIAN_CONTENT_KEYS)
+  );
 }
 
 function shouldRedirectFromHost(currentHostname = '') {
@@ -140,7 +233,14 @@ function shouldRedirectFromHost(currentHostname = '') {
   const englishHost = hostnameOf(ENGLISH_ORIGIN);
 
   // Already on Hindi domain: never redirect again.
-  if (hindiHost && current === hindiHost) return false;
+  if (
+    current === hindiHost ||
+    current === 'hi.moviefrost.com' ||
+    current === 'www.hi.moviefrost.com' ||
+    current === 'wwwhi.moviefrost.com'
+  ) {
+    return false;
+  }
 
   // Local redirect is opt-in.
   if (isLocalHostname(current)) {
@@ -160,7 +260,7 @@ function getRedirectStatus() {
 
   if ([301, 302, 307, 308].includes(n)) return n;
 
-  return process.env.NODE_ENV === 'production' ? 308 : 307;
+  return IS_PRODUCTION ? 308 : 307;
 }
 
 function getMovieSlugFromPathname(pathname = '') {
@@ -183,8 +283,8 @@ function buildRedirectInfoUrls(slug, req) {
 
   const urls = [];
 
-  if (API_BASE) {
-    urls.push(`${API_BASE}/api/movies/redirect-info/${safe}`);
+  for (const base of API_BASE_CANDIDATES) {
+    urls.push(`${base}/api/movies/redirect-info/${safe}`);
   }
 
   // Fallback through Next rewrite:
@@ -306,7 +406,17 @@ export async function middleware(req) {
   }
 
   if (!movieHasIndianLanguage(movie)) {
-    return nextWithDebug(`non-indian-language:${clean(movie?.language)}`);
+    return nextWithDebug(
+      `non-indian-content:${clean(
+        [
+          movie?.language,
+          movie?.browseBy,
+          movie?.name,
+          movie?.slug,
+          movie?.category,
+        ].join('|')
+      )}`
+    );
   }
 
   const canonicalSeg = clean(movie.slug) || slug;
@@ -326,6 +436,7 @@ export async function middleware(req) {
   if (DEBUG_REDIRECT) {
     res.headers.set('X-MF-Hindi-Redirect', 'redirected');
     res.headers.set('X-MF-Hindi-Language', clean(movie?.language));
+    res.headers.set('X-MF-Hindi-BrowseBy', clean(movie?.browseBy));
   }
 
   return res;
