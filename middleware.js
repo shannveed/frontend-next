@@ -1,7 +1,7 @@
 // frontend-next/middleware.js
 import { NextResponse } from 'next/server';
 
-const DEFAULT_API_BASE = 'https://moviefrost-backend-peach.vercel.app';
+const DEFAULT_API_BASE = 'https://moviefrost-backend-ten.vercel.app';
 const DEFAULT_ENGLISH_ORIGIN = 'https://www.moviefrost.com';
 const DEFAULT_HINDI_ORIGIN = 'https://hi.moviefrost.com';
 
