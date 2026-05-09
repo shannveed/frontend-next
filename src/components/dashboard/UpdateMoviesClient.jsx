@@ -480,6 +480,7 @@ function UpdateMoviesInner({ token }) {
                   </p>
                 </div>
 
+
                 {Array.isArray(updateResult.errors) && updateResult.errors.length ? (
                   <details className="bg-dry border border-border rounded p-3">
                     <summary className="cursor-pointer text-sm font-semibold">
