@@ -688,7 +688,7 @@ export default function NavBar() {
           ) : null}
         </div>
 
-        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-5 2xl:gap-7 justify-end items-center hidden lg:flex">
+        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-6 2xl:gap-7 justify-end items-center hidden lg:flex">
           <Link href="/movies?type=Movie" className={hover}>
             Movies
           </Link>
