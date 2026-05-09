@@ -6,12 +6,12 @@ import toast from 'react-hot-toast';
 import RequireAdmin from '../auth/RequireAdmin';
 import SideBarShell from './SideBarShell';
 
+import { parseNamesFromInput } from '../../lib/client/nameInputParser';
 import { findMoviesByNamesAdmin } from '../../lib/client/moviesLookup';
 import { bulkExactUpdateMoviesAdmin } from '../../lib/client/moviesAdmin';
 
 const SAMPLE_INPUT = `Hijack (2026) Hindi
 Ordinary Girl in a Tiara (2025)`;
-
 
 const shortId = (id) => String(id || '').slice(0, 8).toUpperCase();
 
@@ -26,12 +26,6 @@ const normalizeFaqsForEditor = (faqs) => {
     .slice(0, 5);
 };
 
-/**
- * Build a SAFE editable payload for PUT /api/movies/bulk-exact
- * We intentionally DO NOT include: rate, numberOfReviews, reviews, viewCount, externalRatings, etc.
- *
- * ✅ FIXED: include trailerUrl + faqs so Update Movies can edit them.
- */
 const toEditableDoc = (m) => {
   const type = String(m?.type || 'Movie');
 
@@ -58,7 +52,6 @@ const toEditableDoc = (m) => {
 
     casts: Array.isArray(m?.casts) ? m.casts : [],
 
-    // ✅ NEW
     trailerUrl: String(m?.trailerUrl || ''),
     faqs: normalizeFaqsForEditor(m?.faqs),
 
@@ -68,15 +61,12 @@ const toEditableDoc = (m) => {
 
     latest: !!m?.latest,
     previousHit: !!m?.previousHit,
-
-    // missing isPublished is treated as published across your public endpoints
     isPublished: m?.isPublished !== false,
   };
 
   if (type === 'WebSeries') {
     base.episodes = Array.isArray(m?.episodes) ? m.episodes : [];
   } else {
-    // Movie
     base.video = String(m?.video || '');
     base.videoUrl2 = String(m?.videoUrl2 || '');
     base.videoUrl3 = String(m?.videoUrl3 || '');
@@ -94,10 +84,8 @@ export default function UpdateMoviesClient() {
 
 function UpdateMoviesInner({ token }) {
   const [raw, setRaw] = useState('');
-  const [mode, setMode] = useState('exact'); // exact | startsWith | contains
+  const [mode, setMode] = useState('exact');
   const [includeReviews, setIncludeReviews] = useState(false);
-
-  // Safety: force updates by _id (recommended)
   const [requireId, setRequireId] = useState(true);
 
   const [finding, setFinding] = useState(false);
@@ -240,7 +228,6 @@ function UpdateMoviesInner({ token }) {
       return;
     }
 
-
     try {
       setUpdating(true);
       setUpdateResult(null);
@@ -278,7 +265,6 @@ function UpdateMoviesInner({ token }) {
           </p>
         </div>
 
-        {/* Input */}
         <textarea
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
@@ -286,7 +272,6 @@ function UpdateMoviesInner({ token }) {
           className="w-full min-h-[220px] bg-black border border-border rounded-lg p-4 text-xs font-mono text-white outline-none focus:border-customPurple"
         />
 
-        {/* Options */}
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label className="text-xs text-border">Match Mode</label>
@@ -331,7 +316,6 @@ function UpdateMoviesInner({ token }) {
           </span>
         </label>
 
-        {/* Buttons */}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -359,7 +343,6 @@ function UpdateMoviesInner({ token }) {
           </button>
         </div>
 
-        {/* Lookup results */}
         {lookupResult ? (
           <div className="bg-dry border border-border rounded-lg p-4 space-y-4">
             <div className="flex flex-wrap gap-4 text-sm">
@@ -432,7 +415,6 @@ function UpdateMoviesInner({ token }) {
           </div>
         ) : null}
 
-        {/* Editor */}
         {foundMovies.length ? (
           <div className="bg-dry border border-border rounded-lg p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -503,7 +485,6 @@ function UpdateMoviesInner({ token }) {
                     <summary className="cursor-pointer text-sm font-semibold">
                       View Errors
                     </summary>
-
                     <pre className="text-xs text-red-300 whitespace-pre-wrap mt-2">
                       {JSON.stringify(updateResult.errors, null, 2)}
                     </pre>

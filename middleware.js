@@ -13,7 +13,6 @@ function clean(value = '') {
 
 function normalizeOrigin(value = '', fallback = '') {
   let next = clean(value || fallback);
-
   if (!next) return '';
 
   if (!/^https?:\/\//i.test(next)) {
@@ -34,7 +33,6 @@ function normalizeHindiOrigin(value = '', fallback = DEFAULT_HINDI_ORIGIN) {
     const u = new URL(origin);
     const host = u.hostname.toLowerCase();
 
-    // Fix common typo: https://wwwhi.moviefrost.com
     if (host === 'wwwhi.moviefrost.com' || host === 'www.hi.moviefrost.com') {
       u.hostname = 'hi.moviefrost.com';
     }
@@ -55,7 +53,6 @@ function hostnameOf(origin = '') {
 
 function isLocalHostname(hostname = '') {
   const host = clean(hostname).toLowerCase();
-
   return (
     host === 'localhost' ||
     host === '127.0.0.1' ||
@@ -102,7 +99,7 @@ const DEBUG_REDIRECT =
     .toLowerCase() === 'true';
 
 const FETCH_TIMEOUT_MS = Math.min(
-  Math.max(Number(process.env.HINDI_REDIRECT_FETCH_TIMEOUT_MS || 3500), 700),
+  Math.max(Number(process.env.HINDI_REDIRECT_FETCH_TIMEOUT_MS || 4500), 700),
   9000
 );
 
@@ -113,8 +110,6 @@ const API_BASE_CANDIDATES = (() => {
     process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
     process.env.NEXT_PUBLIC_API_BASE_URL,
     DEFAULT_API_BASE,
-
-    // Safe fallback for old deployments/env mistakes.
     'https://moviefrost-backend-ten.vercel.app',
     'https://moviefrost-backend-peach.vercel.app',
   ];
@@ -124,10 +119,7 @@ const API_BASE_CANDIDATES = (() => {
 
   for (const raw of rawList) {
     const origin = normalizeOrigin(raw, '');
-
     if (!origin) continue;
-
-    // Never try localhost from Vercel Edge production.
     if (IS_PRODUCTION && isLocalOrigin(origin)) continue;
 
     const key = origin.toLowerCase();
@@ -179,13 +171,8 @@ function normalizeLanguageKey(value = '') {
     .trim();
 }
 
-const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGE_WORDS.map(normalizeLanguageKey).filter(
-  Boolean
-);
-
-const INDIAN_CONTENT_KEYS = INDIAN_CONTENT_MARKERS.map(normalizeLanguageKey).filter(
-  Boolean
-);
+const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGE_WORDS.map(normalizeLanguageKey).filter(Boolean);
+const INDIAN_CONTENT_KEYS = INDIAN_CONTENT_MARKERS.map(normalizeLanguageKey).filter(Boolean);
 
 function textContainsNormalizedToken(text = '', keys = []) {
   const normalized = normalizeLanguageKey(text);
@@ -199,15 +186,11 @@ function textContainsNormalizedToken(text = '', keys = []) {
     if (!cleanKey) return false;
 
     const keyCompact = cleanKey.replace(/\s+/g, '');
-
     return padded.includes(` ${cleanKey} `) || compact.includes(keyCompact);
   });
 }
 
 function movieHasIndianLanguage(movie) {
-  // Important:
-  // Do not rely only on `language`.
-  // Many Hindi-dubbed rows have "English" language but Hindi marker in name/slug/browseBy.
   const languageText = [movie?.language].join(' ');
   const allSearchableText = [
     movie?.language,
@@ -226,13 +209,11 @@ function movieHasIndianLanguage(movie) {
 
 function shouldRedirectFromHost(currentHostname = '') {
   const current = clean(currentHostname).toLowerCase();
-
   if (!current) return false;
 
   const hindiHost = hostnameOf(HINDI_ORIGIN);
   const englishHost = hostnameOf(ENGLISH_ORIGIN);
 
-  // Already on Hindi domain: never redirect again.
   if (
     current === hindiHost ||
     current === 'hi.moviefrost.com' ||
@@ -242,7 +223,6 @@ function shouldRedirectFromHost(currentHostname = '') {
     return false;
   }
 
-  // Local redirect is opt-in.
   if (isLocalHostname(current)) {
     return ENABLE_LOCAL_REDIRECT;
   }
@@ -257,9 +237,7 @@ function shouldRedirectFromHost(currentHostname = '') {
 function getRedirectStatus() {
   const raw = clean(process.env.NEXT_PUBLIC_HINDI_REDIRECT_STATUS);
   const n = Number(raw);
-
   if ([301, 302, 307, 308].includes(n)) return n;
-
   return IS_PRODUCTION ? 308 : 307;
 }
 
@@ -283,16 +261,16 @@ function buildRedirectInfoUrls(slug, req) {
 
   const urls = [];
 
-  for (const base of API_BASE_CANDIDATES) {
-    urls.push(`${base}/api/movies/redirect-info/${safe}`);
-  }
-
-  // Fallback through Next rewrite:
-  // /api/:path* -> backend, from next.config.js
+  // ✅ PRIORITY 1: Same-domain via Next.js rewrite (most reliable in Edge runtime)
   try {
     urls.push(new URL(`/api/movies/redirect-info/${safe}`, req.url).toString());
   } catch {
     // ignore
+  }
+
+  // ✅ PRIORITY 2: Absolute backend URLs as fallback
+  for (const base of API_BASE_CANDIDATES) {
+    urls.push(`${base}/api/movies/redirect-info/${safe}`);
   }
 
   return Array.from(new Set(urls.filter(Boolean)));
@@ -315,20 +293,11 @@ async function fetchJsonWithTimeout(url) {
     });
 
     if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        data: null,
-      };
+      return { ok: false, status: res.status, data: null };
     }
 
     const data = await res.json().catch(() => null);
-
-    return {
-      ok: true,
-      status: res.status,
-      data,
-    };
+    return { ok: true, status: res.status, data };
   } catch (error) {
     return {
       ok: false,
@@ -346,32 +315,42 @@ async function fetchJsonWithTimeout(url) {
 
 async function fetchMovieRedirectInfo(slug, req) {
   const urls = buildRedirectInfoUrls(slug, req);
+  const attempts = [];
 
   for (const url of urls) {
     // eslint-disable-next-line no-await-in-loop
     const result = await fetchJsonWithTimeout(url);
 
-    if (result.ok && result.data) {
-      return result.data;
-    }
+    attempts.push({
+      url,
+      status: result.status,
+      ok: result.ok,
+      error: result.error || '',
+    });
 
-    if (DEBUG_REDIRECT) {
-      console.warn('[hindi-redirect] lookup failed:', {
-        url,
-        status: result.status,
-        error: result.error || '',
-      });
+    if (result.ok && result.data) {
+      return { movie: result.data, attempts };
     }
   }
 
-  return null;
+  return { movie: null, attempts };
 }
 
-function nextWithDebug(reason = '') {
+function nextWithDebug(reason = '', extra = {}) {
   const res = NextResponse.next();
 
   if (DEBUG_REDIRECT && reason) {
     res.headers.set('X-MF-Hindi-Redirect', reason);
+
+    if (extra && typeof extra === 'object') {
+      Object.entries(extra).forEach(([k, v]) => {
+        try {
+          res.headers.set(`X-MF-Hindi-${k}`, String(v).slice(0, 200));
+        } catch {
+          // ignore
+        }
+      });
+    }
   }
 
   return res;
@@ -390,37 +369,41 @@ export async function middleware(req) {
   }
 
   if (!shouldRedirectFromHost(nextUrl.hostname)) {
-    return nextWithDebug('host-not-eligible');
+    return nextWithDebug('host-not-eligible', { Host: nextUrl.hostname });
   }
 
   const slug = getMovieSlugFromPathname(pathname);
-
   if (!slug) {
     return nextWithDebug('missing-slug');
   }
 
-  const movie = await fetchMovieRedirectInfo(slug, req);
+  const { movie, attempts } = await fetchMovieRedirectInfo(slug, req);
 
   if (!movie) {
-    return nextWithDebug('movie-lookup-failed');
+    if (DEBUG_REDIRECT) {
+      console.warn('[hindi-redirect] all lookup attempts failed:', attempts);
+    }
+
+    const lastAttempt = attempts[attempts.length - 1];
+
+    return nextWithDebug('movie-lookup-failed', {
+      Attempts: attempts.length,
+      LastUrl: lastAttempt?.url || '',
+      LastStatus: lastAttempt?.status || 0,
+      LastError: lastAttempt?.error || '',
+    });
   }
 
   if (!movieHasIndianLanguage(movie)) {
-    return nextWithDebug(
-      `non-indian-content:${clean(
-        [
-          movie?.language,
-          movie?.browseBy,
-          movie?.name,
-          movie?.slug,
-          movie?.category,
-        ].join('|')
-      )}`
-    );
+    return nextWithDebug('non-indian-content', {
+      Lang: clean(movie?.language),
+      BrowseBy: clean(movie?.browseBy),
+      Name: clean(movie?.name),
+      Slug: clean(movie?.slug),
+    });
   }
 
   const canonicalSeg = clean(movie.slug) || slug;
-
   if (!canonicalSeg) {
     return nextWithDebug('missing-canonical-segment');
   }
@@ -429,14 +412,13 @@ export async function middleware(req) {
   target.pathname = `/movie/${encodeURIComponent(canonicalSeg)}`;
   target.search = nextUrl.search;
 
-  const res = NextResponse.redirect(target, {
-    status: getRedirectStatus(),
-  });
+  const res = NextResponse.redirect(target, { status: getRedirectStatus() });
 
   if (DEBUG_REDIRECT) {
     res.headers.set('X-MF-Hindi-Redirect', 'redirected');
     res.headers.set('X-MF-Hindi-Language', clean(movie?.language));
     res.headers.set('X-MF-Hindi-BrowseBy', clean(movie?.browseBy));
+    res.headers.set('X-MF-Hindi-Target', target.toString());
   }
 
   return res;
