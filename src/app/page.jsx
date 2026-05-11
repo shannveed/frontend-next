@@ -1,11 +1,14 @@
 // src/app/page.jsx
 import HomeClient from '../components/home/HomeClient';
+import HindiAnnouncementBanner from '../components/home/HindiAnnouncementBanner';
+
 import {
   getBannerMovies,
   getLatestMovies,
   getLatestNewMovies,
   getTopRatedMovies,
 } from '../lib/api';
+
 import { SITE_URL } from '../lib/seo';
 
 import HomeBannerSectionPublic from '../components/home/HomeBannerSectionPublic';
@@ -33,20 +36,24 @@ export default async function HomePage() {
   const topRatedList = Array.isArray(topRated) ? topRated : [];
 
   return (
-    <HomeClient
-      initialBanner={bannerList}
-      initialLatestNew={latestNewList}
-      initialLatestMovies={latestMoviesList}
-      initialTopRated={topRatedList}
-      publicBannerNode={
-        <HomeBannerSectionPublic
-          bannerMovies={bannerList}
-          latestMovies={latestMoviesList}
-        />
-      }
-      publicTrendingNode={<HomeTrendingSectionPublic movies={latestNewList} />}
-      publicLatestNode={<HomeLatestSectionPublic movies={latestMoviesList} />}
-      publicBrowseNode={<HomeBrowseContentPublic topRated={topRatedList} />}
-    />
+    <>
+      <HindiAnnouncementBanner />
+
+      <HomeClient
+        initialBanner={bannerList}
+        initialLatestNew={latestNewList}
+        initialLatestMovies={latestMoviesList}
+        initialTopRated={topRatedList}
+        publicBannerNode={
+          <HomeBannerSectionPublic
+            bannerMovies={bannerList}
+            latestMovies={latestMoviesList}
+          />
+        }
+        publicTrendingNode={<HomeTrendingSectionPublic movies={latestNewList} />}
+        publicLatestNode={<HomeLatestSectionPublic movies={latestMoviesList} />}
+        publicBrowseNode={<HomeBrowseContentPublic topRated={topRatedList} />}
+      />
+    </>
   );
 }

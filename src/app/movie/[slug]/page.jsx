@@ -1,5 +1,6 @@
 // frontend-next/src/app/movie/[slug]/page.jsx
 import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { notFound, permanentRedirect } from 'next/navigation';
 
 import {
@@ -22,7 +23,6 @@ import {
 } from '../../../lib/seo';
 
 import { buildHreflangAlternatesForPath } from '../../../lib/hreflang';
-import { getAdminPreviewToken } from '../../../lib/server/adminListingPreview';
 
 import JsonLd from '../../../components/seo/JsonLd';
 import VisibleBreadcrumbs from '../../../components/seo/VisibleBreadcrumbs';
@@ -44,8 +44,34 @@ const RELATED_MOVIES_LIMIT = 10;
 
 const getPublicMovie = cache((slug) => getMovieBySlug(slug, { revalidate }));
 
+const getAdminPreviewToken = () => {
+  try {
+    return cookies().get('mf_token')?.value || null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveParams = async (params) => {
+  try {
+    return await params;
+  } catch {
+    return params || {};
+  }
+};
+
 async function getMovieForRequest(slug) {
-  const publicMovie = await getPublicMovie(slug);
+  const safeSlug = String(slug || '').trim();
+
+  if (!safeSlug) {
+    return {
+      movie: null,
+      source: 'none',
+      token: null,
+    };
+  }
+
+  const publicMovie = await getPublicMovie(safeSlug);
 
   if (publicMovie) {
     return {
@@ -65,7 +91,7 @@ async function getMovieForRequest(slug) {
     };
   }
 
-  const adminMovie = await getMovieBySlugAdmin(slug, token);
+  const adminMovie = await getMovieBySlugAdmin(safeSlug, token);
 
   if (adminMovie) {
     return {
@@ -116,7 +142,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }) {
-  const slug = params?.slug;
+  const resolvedParams = await resolveParams(params);
+  const slug = resolvedParams?.slug;
+
   const { movie, source } = await getMovieForRequest(slug);
 
   if (!movie) {
@@ -171,7 +199,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function MoviePage({ params }) {
-  const slug = params?.slug;
+  const resolvedParams = await resolveParams(params);
+  const slug = resolvedParams?.slug;
 
   const { movie, source, token } = await getMovieForRequest(slug);
 
