@@ -67,27 +67,78 @@ const normalizeTypeForBrowse = (typeValue = '') => {
 function Dropdown({ selected, items, onSelect }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const closeTimerRef = useRef(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const openDropdown = useCallback(() => {
+    clearCloseTimer();
+    setOpen(true);
+  }, [clearCloseTimer]);
+
+  const closeDropdown = useCallback(() => {
+    clearCloseTimer();
+    setOpen(false);
+  }, [clearCloseTimer]);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimer();
+
+    // Small delay prevents flicker when moving from button to menu.
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      closeTimerRef.current = null;
+    }, 140);
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    return () => clearCloseTimer();
+  }, [clearCloseTimer]);
 
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
+        closeDropdown();
       }
     };
+
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    document.addEventListener('touchstart', handler, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [closeDropdown]);
 
   return (
     <div
       ref={wrapperRef}
       className="relative w-full"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={openDropdown}
+      onMouseLeave={scheduleClose}
+      onFocusCapture={openDropdown}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          scheduleClose();
+        }
+      }}
     >
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          clearCloseTimer();
+          setOpen((p) => !p);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') closeDropdown();
+          if (e.key === 'ArrowDown') openDropdown();
+        }}
         aria-expanded={open}
         className="w-full flex items-center justify-between gap-2 bg-dry border border-border rounded px-4 py-3 above-1000:py-2.5 mobile:py-2 text-white text-xs above-1000:text-xs"
       >
@@ -96,7 +147,11 @@ function Dropdown({ selected, items, onSelect }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-full bg-dry border border-border rounded shadow-lg overflow-hidden z-50 max-h-72 overflow-y-auto">
+        <div
+          className="absolute top-[calc(100%-1px)] left-0 w-full bg-dry border border-border rounded shadow-lg overflow-hidden z-50 max-h-72 overflow-y-auto"
+          onMouseEnter={openDropdown}
+          onMouseLeave={scheduleClose}
+        >
           {items.map((item, i) => {
             const active = item?.title === selected?.title;
 
@@ -106,7 +161,7 @@ function Dropdown({ selected, items, onSelect }) {
                 key={`${item?.title || 'item'}-${i}`}
                 onClick={() => {
                   onSelect(item);
-                  setOpen(false);
+                  closeDropdown();
                 }}
                 className={`w-full text-left text-xs py-2 above-1000:py-1.5 mobile:py-1.5 pl-10 above-1000:pl-8 mobile:pl-6 pr-4 above-1000:pr-3 mobile:pr-2 relative transition
                   ${active

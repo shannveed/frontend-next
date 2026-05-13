@@ -203,7 +203,9 @@ function MovieCard({
     <article
       data-movie-card-id={movie?._id || ''}
       className={[
-        'border border-border p-2 mobile:p-2 hover:scale-95 transitions relative rounded mobile:rounded-md overflow-hidden group select-none',
+        // z-0 + isolate keeps all movie-card overlays inside the card stack,
+        // preventing card title/controls from painting above the sticky navbar.
+        'border border-border p-2 mobile:p-2 hover:scale-95 transitions relative z-0 isolate rounded mobile:rounded-md overflow-hidden group select-none',
         adminDraggable ? 'cursor-default' : '',
         isSelected ? 'ring-2 ring-customPurple border-customPurple' : '',
         isAdminDragging ? 'opacity-70 scale-[0.98]' : '',

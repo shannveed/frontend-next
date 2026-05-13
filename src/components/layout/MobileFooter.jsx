@@ -29,13 +29,55 @@ const loadNotificationsApi = () => import('../../lib/client/notifications');
 const loadWatchRequestsApi = () => import('../../lib/client/watchRequests');
 const loadPushApi = () => import('../../lib/client/pushNotifications');
 
+const normalizeListingType = (value = '') => {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+
+  if (key === 'movie' || key === 'movies') return 'Movie';
+
+  if (
+    key === 'webseries' ||
+    key === 'tvshow' ||
+    key === 'tvshows' ||
+    key === 'tvseries' ||
+    key === 'series'
+  ) {
+    return 'WebSeries';
+  }
+
+  return '';
+};
+
 function MobileFooterInner() {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
 
-  const typeParam = (searchParams?.get('type') || '').toLowerCase();
-  const isTvShowsType = typeParam === 'webseries';
+  const pathnameValue = pathname || '/';
+
+  const typeParam = normalizeListingType(searchParams?.get('type') || '');
+
+  // Dedicated SEO routes have no ?type= query, so detect type from pathname too.
+  const isMoviesListingPage =
+    pathnameValue === '/movies' || pathnameValue.startsWith('/movies/');
+
+  const isWebSeriesTypePath =
+    pathnameValue === '/movies/type/web-series' ||
+    pathnameValue.startsWith('/movies/type/web-series/');
+
+  const isMovieTypePath =
+    pathnameValue === '/movies/type/movie' ||
+    pathnameValue.startsWith('/movies/type/movie/');
+
+  const currentListingType = isWebSeriesTypePath
+    ? 'WebSeries'
+    : isMovieTypePath
+      ? 'Movie'
+      : typeParam;
+
+  const isTvShowsType = currentListingType === 'WebSeries';
 
   const {
     mobileDrawer,
@@ -60,9 +102,8 @@ function MobileFooterInner() {
   const [replyMessage, setReplyMessage] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
 
-  const isHomePage = pathname === '/';
-  const isMoviesPage = pathname.startsWith('/movies');
-  const isBlogPage = pathname === '/blog' || pathname.startsWith('/blog/');
+  const isHomePage = pathnameValue === '/';
+  const isBlogPage = pathnameValue === '/blog' || pathnameValue.startsWith('/blog/');
 
   useEffect(() => {
     setUserInfoState(getUserInfo());
@@ -254,7 +295,8 @@ function MobileFooterInner() {
   const sortedNotifications = useMemo(() => {
     return [...(notifications || [])].sort(
       (a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime()
     );
   }, [notifications]);
 
@@ -264,8 +306,10 @@ function MobileFooterInner() {
 
   const isHomeActive = isHomePage && activeMobileTab !== 'browseBy';
   const isBrowseByActive = isHomePage && activeMobileTab === 'browseBy';
-  const isMoviesActive = isMoviesPage && !isTvShowsType;
-  const isTvShowsActive = isMoviesPage && isTvShowsType;
+
+  // Fixed: /movies/type/web-series now selects only Tv Shows.
+  const isMoviesActive = isMoviesListingPage && !isTvShowsType;
+  const isTvShowsActive = isMoviesListingPage && isTvShowsType;
   const isBlogActive = isBlogPage;
 
   const handleHomeClick = (e) => {
