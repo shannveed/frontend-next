@@ -7,7 +7,7 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../ads/EffectiveGateNativeBanner';
 
-const HOME_TRENDING_LIMIT = 30;
+const HOME_TRENDING_LIMIT = 50;
 
 function EmptyState() {
   return (
