@@ -22,10 +22,12 @@ export const metadata = {
   alternates: { canonical: `${SITE_URL}/` },
 };
 
+const HOME_TRENDING_LIMIT = 50;
+
 export default async function HomePage() {
   const [banner, latestNew, latestMovies, topRated] = await Promise.all([
     getBannerMovies(6, { revalidate: 300 }).catch(() => []),
-    getLatestNewMovies(30, { revalidate: 300 }).catch(() => []),
+    getLatestNewMovies(HOME_TRENDING_LIMIT, { revalidate: 300 }).catch(() => []),
     getLatestMovies({ revalidate: 300 }).catch(() => []),
     getTopRatedMovies({ revalidate: 600 }).catch(() => []),
   ]);

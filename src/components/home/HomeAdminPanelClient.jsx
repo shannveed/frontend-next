@@ -33,8 +33,8 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../ads/EffectiveGateNativeBanner';
 
-const ADMIN_HOME_TRENDING_FETCH_LIMIT = 30;
-const ADMIN_HOME_TRENDING_DISPLAY_LIMIT = 24;
+const ADMIN_HOME_TRENDING_FETCH_LIMIT = 50;
+const ADMIN_HOME_TRENDING_DISPLAY_LIMIT = 50;
 const ADMIN_HOME_LATEST_DISPLAY_LIMIT = 20;
 
 const asId = (value) => String(value || '').trim();
@@ -319,7 +319,10 @@ export default function HomeAdminPanelClient({
       toast.success('Trending order saved');
       setPendingReorder(false);
 
-      const t = await getLatestNewMoviesAdmin(token, 100);
+      const t = await getLatestNewMoviesAdmin(
+        token,
+        ADMIN_HOME_TRENDING_FETCH_LIMIT
+      );
       setLatestNewMoviesState(Array.isArray(t) ? t : []);
     } catch (e) {
       toast.error(e?.message || 'Failed to save order');

@@ -46,7 +46,7 @@ const NEXT_IMAGE_SAFE_HOSTS = new Set([
   'hi.moviefrost.com',
   'www.hi.moviefrost.com',
   'api-hi.moviefrost.com',
-  'moviefrost-backend-six.vercel.app',
+  'moviefrost-backend-three.vercel.app',
   'moviefrost-backend.vercel.app',
   'fra.cloud.appwrite.io',
   'cloud.appwrite.io',
