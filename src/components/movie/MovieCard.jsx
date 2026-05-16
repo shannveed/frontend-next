@@ -24,7 +24,6 @@ import { isFavoriteId } from '../../lib/client/favoritesCache';
 function MovieCard({
   movie,
 
-  // show like by default
   showLike = true,
   className = '',
 
@@ -38,7 +37,10 @@ function MovieCard({
   onMoveToLatestNewClick,
   onMoveToBannerClick,
 
-  // New fluid admin interactions
+  // ✅ NEW: add to Popular tab
+  onMoveToPopularClick,
+
+  // Fluid admin interactions
   adminDraggable = false,
   onAdminCardPointerDown,
   onAdminCardPointerEnter,
@@ -74,6 +76,7 @@ function MovieCard({
   const canShowDropdown =
     typeof onMoveToBannerClick === 'function' ||
     typeof onMoveToLatestNewClick === 'function' ||
+    typeof onMoveToPopularClick === 'function' ||
     pagesList.length > 0;
 
   useEffect(() => {
@@ -155,6 +158,13 @@ function MovieCard({
     onMoveToLatestNewClick?.(movie?._id);
   };
 
+  const pickPopular = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+    onMoveToPopularClick?.(movie?._id);
+  };
+
   const pickPage = (e, p) => {
     e.preventDefault();
     e.stopPropagation();
@@ -166,7 +176,6 @@ function MovieCard({
     if (!showAdminControls || !movie?._id) return;
     if (e.button !== 0) return;
 
-    // Ignore admin buttons/dropdowns/drag handle.
     if (e.target?.closest?.('[data-admin-control="true"]')) return;
 
     e.preventDefault();
@@ -190,7 +199,6 @@ function MovieCard({
   };
 
   const handleLinkClick = (e) => {
-    // In admin mode, clicking the card selects instead of navigating.
     if (showAdminControls) {
       e.preventDefault();
       e.stopPropagation();
@@ -203,8 +211,6 @@ function MovieCard({
     <article
       data-movie-card-id={movie?._id || ''}
       className={[
-        // z-0 + isolate keeps all movie-card overlays inside the card stack,
-        // preventing card title/controls from painting above the sticky navbar.
         'border border-border p-2 mobile:p-2 hover:scale-95 transitions relative z-0 isolate rounded mobile:rounded-md overflow-hidden group select-none',
         adminDraggable ? 'cursor-default' : '',
         isSelected ? 'ring-2 ring-customPurple border-customPurple' : '',
@@ -216,7 +222,6 @@ function MovieCard({
       onPointerDown={handleAdminCardPointerDown}
       onPointerEnter={handleAdminCardPointerEnter}
     >
-      {/* Admin drag handle */}
       {showAdminControls && adminDraggable ? (
         <button
           type="button"
@@ -230,7 +235,6 @@ function MovieCard({
         </button>
       ) : null}
 
-      {/* Admin controls */}
       {showAdminControls ? (
         <div
           className="absolute top-2 right-2 z-30 flex items-center gap-1"
@@ -256,8 +260,7 @@ function MovieCard({
                 title="Move / Add"
               >
                 <TbChevronDown
-                  className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''
-                    }`}
+                  className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
@@ -293,6 +296,19 @@ function MovieCard({
                     </>
                   ) : null}
 
+                  {typeof onMoveToPopularClick === 'function' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={pickPopular}
+                        className="block w-full text-left text-xs px-3 py-2 hover:bg-customPurple text-white transitions"
+                      >
+                        Popular
+                      </button>
+                      <div className="border-t border-border" />
+                    </>
+                  ) : null}
+
                   {pagesList.map((p) => (
                     <button
                       key={p}
@@ -310,7 +326,6 @@ function MovieCard({
         </div>
       ) : null}
 
-      {/* Thumbnail badge */}
       {movie?.thumbnailInfo ? (
         <div
           className={`absolute ${showAdminControls && adminDraggable ? 'top-12 left-2' : 'top-2 left-2'
@@ -321,7 +336,6 @@ function MovieCard({
         </div>
       ) : null}
 
-      {/* Selected overlay */}
       {showAdminControls && isSelected ? (
         <div className="absolute inset-0 z-10 pointer-events-none bg-customPurple/10" />
       ) : null}

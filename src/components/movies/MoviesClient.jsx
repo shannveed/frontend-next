@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import MovieCard from '../movie/MovieCard';
 import MoviesFilters from './Filters';
 import Pagination from './Pagination';
+import Loader from '../common/Loader';
 
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
@@ -25,8 +26,16 @@ import {
   reorderMoviesInPage,
   setBannerMovies,
   setLatestNewMovies,
+
+  // ✅ NEW popular APIs
+  getPopularMovies,
+  getPopularMoviesAdmin,
+  setPopularMovies,
+  reorderPopularMovies,
 } from '../../lib/client/moviesAdmin';
 import { getDedicatedListingPath } from '../../lib/discoveryPages';
+
+const POPULAR_PAGE_LIMIT = 30;
 
 const toNum = (v, fallback = 1) => {
   const n = Number(v);
@@ -34,6 +43,27 @@ const toNum = (v, fallback = 1) => {
 };
 
 const asId = (value) => String(value || '').trim();
+
+const normalizeTypeParam = (value = '') => {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+
+  if (key === 'movie' || key === 'movies') return 'Movie';
+
+  if (
+    key === 'webseries' ||
+    key === 'webseries' ||
+    key === 'tvshow' ||
+    key === 'tvshows' ||
+    key === 'series'
+  ) {
+    return 'WebSeries';
+  }
+
+  return '';
+};
 
 const moveIdsBefore = (list = [], movingIds = [], targetId = '') => {
   const target = asId(targetId);
@@ -62,6 +92,48 @@ const moveIdsBefore = (list = [], movingIds = [], targetId = '') => {
   ];
 };
 
+const mergeUniqueMovies = (prev = [], next = []) => {
+  const map = new Map();
+
+  [...(Array.isArray(prev) ? prev : []), ...(Array.isArray(next) ? next : [])].forEach(
+    (movie) => {
+      const id = asId(movie?._id);
+      if (!id) return;
+      map.set(id, movie);
+    }
+  );
+
+  return Array.from(map.values());
+};
+
+function RecentPopularTabs({ activeTab, onChange }) {
+  const activeClass =
+    'bg-customPurple hover:bg-transparent border-2 border-customPurple text-white px-10 py-3 rounded-md font-semibold text-base transitions';
+
+  const inactiveClass =
+    'bg-dry hover:bg-customPurple border-2 border-customPurple text-white px-10 py-3 rounded-md font-semibold text-base transitions motion-safe:animate-pulse';
+
+  return (
+    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+      <button
+        type="button"
+        onClick={() => onChange('recent')}
+        className={activeTab === 'recent' ? activeClass : inactiveClass}
+      >
+        Recent
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onChange('popular')}
+        className={activeTab === 'popular' ? activeClass : inactiveClass}
+      >
+        Popular
+      </button>
+    </div>
+  );
+}
+
 export default function MoviesClient({
   initialQuery = {},
   initialData = {},
@@ -79,6 +151,16 @@ export default function MoviesClient({
   );
   const [page, setPage] = useState(() => toNum(initialData?.page, 1));
   const [pages, setPages] = useState(() => toNum(initialData?.pages, 1));
+
+  const [activeTypeTab, setActiveTypeTab] = useState('recent');
+
+  const [popularMovies, setPopularMoviesState] = useState([]);
+  const [popularPage, setPopularPage] = useState(1);
+  const [popularPages, setPopularPages] = useState(1);
+  const [popularTotalMovies, setPopularTotalMovies] = useState(0);
+  const [popularLoaded, setPopularLoaded] = useState(false);
+  const [popularLoading, setPopularLoading] = useState(false);
+  const [popularLoadingMore, setPopularLoadingMore] = useState(false);
 
   const [adminMode, setAdminMode] = useState(false);
   const [localOrder, setLocalOrder] = useState([]);
@@ -102,6 +184,56 @@ export default function MoviesClient({
     lastOverId: '',
   });
   const [activeDragId, setActiveDragId] = useState('');
+
+  const queryKey = useMemo(() => JSON.stringify(initialQuery || {}), [initialQuery]);
+
+  const currentType = useMemo(
+    () => normalizeTypeParam(initialQuery?.type),
+    [initialQuery?.type]
+  );
+
+  const showTypeTabs = useMemo(() => {
+    if (!currentType) return false;
+
+    // Show Recent / Popular only on clean type pages:
+    // /movies/type/movie
+    // /movies/type/web-series
+    // and their paginated variants.
+    const extraFilters = [
+      initialQuery?.category,
+      initialQuery?.browseBy,
+      initialQuery?.language,
+      initialQuery?.year,
+      initialQuery?.time,
+      initialQuery?.rate,
+      initialQuery?.search,
+    ].some((value) => String(value || '').trim());
+
+    return !extraFilters;
+  }, [
+    currentType,
+    initialQuery?.category,
+    initialQuery?.browseBy,
+    initialQuery?.language,
+    initialQuery?.year,
+    initialQuery?.time,
+    initialQuery?.rate,
+    initialQuery?.search,
+  ]);
+
+  const baseDisplayMovies = useMemo(() => {
+    if (showTypeTabs && activeTypeTab === 'popular') return popularMovies;
+    return movies;
+  }, [showTypeTabs, activeTypeTab, popularMovies, movies]);
+
+  const baseDisplayMoviesRef = useRef(baseDisplayMovies);
+
+  useEffect(() => {
+    baseDisplayMoviesRef.current = baseDisplayMovies;
+  }, [baseDisplayMovies]);
+
+  const displayMovies =
+    isAdmin && adminMode && localOrder.length ? localOrder : baseDisplayMovies;
 
   useEffect(() => {
     selectedIdsRef.current = selectedIds;
@@ -135,7 +267,24 @@ export default function MoviesClient({
     };
   }, [initialData]);
 
-  const queryKey = useMemo(() => JSON.stringify(initialQuery || {}), [initialQuery]);
+  useEffect(() => {
+    setActiveTypeTab('recent');
+    setPopularMoviesState([]);
+    setPopularPage(1);
+    setPopularPages(1);
+    setPopularTotalMovies(0);
+    setPopularLoaded(false);
+    setPopularLoading(false);
+    setPopularLoadingMore(false);
+  }, [queryKey, currentType]);
+
+  useEffect(() => {
+    setPopularMoviesState([]);
+    setPopularPage(1);
+    setPopularPages(1);
+    setPopularTotalMovies(0);
+    setPopularLoaded(false);
+  }, [isAdmin, token]);
 
   useEffect(() => {
     if (!isAdmin || !token) return;
@@ -160,9 +309,62 @@ export default function MoviesClient({
     };
   }, [isAdmin, token, queryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadPopularPage = useCallback(
+    async ({ pageNumber = 1, append = false } = {}) => {
+      if (!showTypeTabs || !currentType) return;
+
+      try {
+        if (append) setPopularLoadingMore(true);
+        else setPopularLoading(true);
+
+        const query = {
+          type: currentType,
+          pageNumber,
+          limit: POPULAR_PAGE_LIMIT,
+        };
+
+        const data =
+          isAdmin && token
+            ? await getPopularMoviesAdmin(token, query)
+            : await getPopularMovies(query);
+
+        const list = Array.isArray(data?.movies) ? data.movies : [];
+
+        setPopularMoviesState((prev) =>
+          append ? mergeUniqueMovies(prev, list) : list
+        );
+
+        setPopularPage(toNum(data?.page, pageNumber));
+        setPopularPages(toNum(data?.pages, 1));
+        setPopularTotalMovies(Number(data?.totalMovies || 0));
+        setPopularLoaded(true);
+      } catch (e) {
+        toast.error(e?.message || 'Failed to load popular titles');
+      } finally {
+        if (append) setPopularLoadingMore(false);
+        else setPopularLoading(false);
+      }
+    },
+    [showTypeTabs, currentType, isAdmin, token]
+  );
+
+  useEffect(() => {
+    if (!showTypeTabs) return;
+    if (activeTypeTab !== 'popular') return;
+    if (popularLoaded || popularLoading) return;
+
+    loadPopularPage({ pageNumber: 1, append: false });
+  }, [
+    showTypeTabs,
+    activeTypeTab,
+    popularLoaded,
+    popularLoading,
+    loadPopularPage,
+  ]);
+
   useEffect(() => {
     if (isAdmin && adminMode) {
-      setLocalOrder([...movies]);
+      setLocalOrder([...(Array.isArray(baseDisplayMovies) ? baseDisplayMovies : [])]);
       setPendingReorder(false);
       setSelectionPainting(false);
       setActiveDragId('');
@@ -180,10 +382,7 @@ export default function MoviesClient({
         lastOverId: '',
       };
     }
-  }, [isAdmin, adminMode, movies]);
-
-  const displayMovies =
-    isAdmin && adminMode && localOrder.length ? localOrder : movies;
+  }, [isAdmin, adminMode, activeTypeTab, baseDisplayMovies]);
 
   const buildQueryUrl = useCallback((nextQuery = {}) => {
     const q = { ...nextQuery };
@@ -225,6 +424,21 @@ export default function MoviesClient({
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTypeTab(tab);
+
+    setAdminMode(false);
+    setLocalOrder([]);
+    setPendingReorder(false);
+    setSelectedIds([]);
+    setSelectionPainting(false);
+    setActiveDragId('');
+
+    if (tab === 'popular' && !popularLoaded && !popularLoading) {
+      loadPopularPage({ pageNumber: 1, append: false });
+    }
+  };
+
   const addSelection = useCallback((id) => {
     const safe = asId(id);
     if (!safe) return;
@@ -254,6 +468,7 @@ export default function MoviesClient({
   }, []);
 
   const clearSelection = () => setSelectedIds([]);
+
   const bulkOrSingle = (baseId) =>
     selectedIds.length ? selectedIds : [baseId].filter(Boolean);
 
@@ -351,7 +566,9 @@ export default function MoviesClient({
         lastOverId: '',
       };
 
-      if (!localOrder.length) setLocalOrder([...movies]);
+      if (!localOrder.length) {
+        setLocalOrder([...(baseDisplayMoviesRef.current || [])]);
+      }
 
       setActiveDragId(safe);
 
@@ -362,7 +579,7 @@ export default function MoviesClient({
         // ignore
       }
     },
-    [adminMode, isAdmin, localOrder.length, movies]
+    [adminMode, isAdmin, localOrder.length]
   );
 
   useEffect(() => {
@@ -383,7 +600,7 @@ export default function MoviesClient({
       state.lastOverId = overId;
 
       setLocalOrder((prev) => {
-        const source = prev.length ? prev : movies;
+        const source = prev.length ? prev : baseDisplayMoviesRef.current || [];
         const next = moveIdsBefore(source, state.movingIds, overId);
         return next === source ? prev : next;
       });
@@ -423,13 +640,26 @@ export default function MoviesClient({
       window.removeEventListener('pointercancel', stopDrag);
       window.removeEventListener('blur', stopDrag);
     };
-  }, [movies]);
+  }, []);
 
   const saveOrder = async () => {
     if (!isAdmin || !token) return;
 
     try {
       setSaving(true);
+
+      if (showTypeTabs && activeTypeTab === 'popular') {
+        await reorderPopularMovies(
+          token,
+          localOrder.map((m) => m._id),
+          currentType
+        );
+
+        setPopularMoviesState(localOrder);
+        setPendingReorder(false);
+        toast.success('Popular order saved');
+        return;
+      }
 
       await reorderMoviesInPage(
         token,
@@ -472,6 +702,31 @@ export default function MoviesClient({
     }
   };
 
+  const addToPopular = async (baseId) => {
+    if (!isAdmin || !token) return;
+
+    try {
+      await setPopularMovies(token, bulkOrSingle(baseId), true);
+
+      toast.success('Added to Popular');
+
+      clearSelection();
+
+      // Reset Popular tab cache so newly added title appears immediately.
+      setPopularMoviesState([]);
+      setPopularPage(1);
+      setPopularPages(1);
+      setPopularTotalMovies(0);
+      setPopularLoaded(false);
+
+      if (activeTypeTab === 'popular') {
+        await loadPopularPage({ pageNumber: 1, append: false });
+      }
+    } catch (e) {
+      toast.error(e?.message || 'Failed to add to Popular');
+    }
+  };
+
   const moveToAnyPage = async (baseId, targetPage) => {
     if (!isAdmin || !token) return;
     const tp = toNum(targetPage, 1);
@@ -486,7 +741,42 @@ export default function MoviesClient({
     }
   };
 
+  const loadMorePopular = () => {
+    if (popularLoadingMore) return;
+    if (popularPage >= popularPages) return;
+
+    loadPopularPage({
+      pageNumber: popularPage + 1,
+      append: true,
+    });
+  };
+
   const showAds = displayMovies.length > 0;
+
+  const totalLine =
+    showTypeTabs && activeTypeTab === 'popular' ? (
+      <>
+        Total{' '}
+        <span className="font-bold text-customPurple">
+          {popularTotalMovies}
+        </span>{' '}
+        Popular Items
+      </>
+    ) : (
+      <>
+        Total{' '}
+        <span className="font-bold text-customPurple">
+          {displayMovies ? displayMovies.length : 0}
+        </span>{' '}
+        Items Found On This Page
+      </>
+    );
+
+  const showPopularEmpty =
+    showTypeTabs &&
+    activeTypeTab === 'popular' &&
+    !popularLoading &&
+    !displayMovies.length;
 
   return (
     <section className="container py-6">
@@ -495,6 +785,10 @@ export default function MoviesClient({
         browseByDistinct={browseByDistinct}
         query={initialQuery}
       />
+
+      {showTypeTabs ? (
+        <RecentPopularTabs activeTab={activeTypeTab} onChange={handleTabChange} />
+      ) : null}
 
       {isAdmin ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -517,8 +811,10 @@ export default function MoviesClient({
 
           {adminMode ? (
             <p className="text-xs text-dryGray">
-              Tip: click/drag over cards to select multiple. Ctrl/Cmd + click or
-              drag over selected cards to deselect. Use the drag icon to reorder.
+              Tip: click/drag over cards to select multiple. Use the drag icon to reorder.
+              {showTypeTabs && activeTypeTab === 'recent'
+                ? ' Use card dropdown → Popular to add titles to Popular.'
+                : ''}
             </p>
           ) : null}
 
@@ -549,15 +845,11 @@ export default function MoviesClient({
         </div>
       ) : null}
 
-      <p className="text-md font-medium my-4 mobile:px-4">
-        Total{' '}
-        <span className="font-bold text-customPurple">
-          {displayMovies ? displayMovies.length : 0}
-        </span>{' '}
-        Items Found On This Page
-      </p>
+      <p className="text-md font-medium my-4 mobile:px-4">{totalLine}</p>
 
-      {displayMovies.length ? (
+      {showTypeTabs && activeTypeTab === 'popular' && popularLoading && !displayMovies.length ? (
+        <Loader />
+      ) : displayMovies.length ? (
         <>
           <div className="mt-6 grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-5 gap-4">
             {displayMovies.map((m) => {
@@ -574,10 +866,23 @@ export default function MoviesClient({
                   showAdminControls={isAdmin && adminMode}
                   isSelected={selectedIds.includes(m._id)}
                   onSelectToggle={toggleSelect}
-                  totalPages={pages}
-                  onMoveToPageClick={(movieId, p) => moveToAnyPage(movieId, p)}
+                  totalPages={
+                    showTypeTabs && activeTypeTab === 'popular'
+                      ? undefined
+                      : pages
+                  }
+                  onMoveToPageClick={
+                    showTypeTabs && activeTypeTab === 'popular'
+                      ? undefined
+                      : (movieId, p) => moveToAnyPage(movieId, p)
+                  }
                   onMoveToLatestNewClick={(movieId) => addToTrending(movieId)}
                   onMoveToBannerClick={(movieId) => addToBanner(movieId)}
+                  onMoveToPopularClick={
+                    showTypeTabs && activeTypeTab === 'recent'
+                      ? (movieId) => addToPopular(movieId)
+                      : undefined
+                  }
                   adminDraggable={isAdmin && adminMode}
                   onAdminCardPointerDown={startPaintSelection}
                   onAdminCardPointerEnter={paintSelectionOver}
@@ -589,7 +894,20 @@ export default function MoviesClient({
             })}
           </div>
 
-          {pages > 1 ? (
+          {showTypeTabs && activeTypeTab === 'popular' ? (
+            popularPage < popularPages ? (
+              <div className="flex justify-center mt-10">
+                <button
+                  type="button"
+                  onClick={loadMorePopular}
+                  disabled={popularLoadingMore}
+                  className="bg-customPurple hover:bg-transparent border-2 border-customPurple text-white px-10 py-3 rounded-md font-semibold text-base transitions disabled:opacity-60"
+                >
+                  {popularLoadingMore ? 'Loading...' : 'Show More'}
+                </button>
+              </div>
+            ) : null
+          ) : pages > 1 ? (
             <div className="mt-10 flex justify-center">
               <Pagination page={page} pages={pages} onChange={onPageChange} />
             </div>
@@ -597,11 +915,34 @@ export default function MoviesClient({
 
           {showAds ? (
             <div className="mt-8 space-y-6">
-              <EffectiveGateNativeBanner refreshKey={`movies-${page}`} />
-              <EffectiveGateSquareAd refreshKey={`movies-square-${page}`} />
+              <EffectiveGateNativeBanner
+                refreshKey={
+                  showTypeTabs && activeTypeTab === 'popular'
+                    ? `movies-popular-${currentType}-${popularPage}`
+                    : `movies-${page}`
+                }
+              />
+              <EffectiveGateSquareAd
+                refreshKey={
+                  showTypeTabs && activeTypeTab === 'popular'
+                    ? `movies-popular-square-${currentType}-${popularPage}`
+                    : `movies-square-${page}`
+                }
+              />
             </div>
           ) : null}
         </>
+      ) : showPopularEmpty ? (
+        <div className="mt-10 bg-dry border border-border rounded-lg p-6 text-center">
+          <h3 className="text-white font-semibold text-lg">
+            No Popular titles yet
+          </h3>
+
+          <p className="text-dryGray text-sm mt-2">
+            Admin can open the Recent tab, enter Admin Mode, and use each movie card
+            dropdown to add titles to Popular.
+          </p>
+        </div>
       ) : (
         <div className="mt-10 text-center text-gray-300">No movies found.</div>
       )}

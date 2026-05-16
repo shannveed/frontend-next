@@ -21,6 +21,21 @@ const buildQuery = (q = {}) => {
   return p.toString();
 };
 
+const buildPopularQuery = (q = {}) => {
+  const p = new URLSearchParams();
+
+  const set = (k, v) => {
+    if (v === undefined || v === null || v === '') return;
+    p.set(k, String(v));
+  };
+
+  set('type', q.type);
+  set('pageNumber', q.pageNumber || 1);
+  set('limit', q.limit || 30);
+
+  return p.toString();
+};
+
 // ADMIN: /api/movies/admin
 export const getMoviesAdmin = (token, query = {}) =>
   apiFetch(`/api/movies/admin?${buildQuery(query)}`, { token });
@@ -65,6 +80,34 @@ export const setBannerMovies = (token, movieIds = [], value = true) =>
     body: { movieIds, value },
   });
 
+/* ============================================================
+   ✅ NEW: Popular tab APIs
+   ============================================================ */
+
+// PUBLIC popular list
+export const getPopularMovies = (query = {}) =>
+  apiFetch(`/api/movies/popular?${buildPopularQuery(query)}`);
+
+// ADMIN popular list
+export const getPopularMoviesAdmin = (token, query = {}) =>
+  apiFetch(`/api/movies/admin/popular?${buildPopularQuery(query)}`, {
+    token,
+  });
+
+export const setPopularMovies = (token, movieIds = [], value = true) =>
+  apiFetch(`/api/movies/admin/popular`, {
+    method: 'POST',
+    token,
+    body: { movieIds, value },
+  });
+
+export const reorderPopularMovies = (token, orderedIds = [], type = '') =>
+  apiFetch(`/api/movies/admin/popular/reorder`, {
+    method: 'POST',
+    token,
+    body: { orderedIds, type },
+  });
+
 // ADMIN: reorder within page
 export const reorderMoviesInPage = (token, pageNumber, orderedIds = [], query = {}) =>
   apiFetch(`/api/movies/admin/reorder-page`, {
@@ -90,10 +133,6 @@ export const getRelatedMoviesAdmin = (token, idOrSlug, limit = 20) => {
     { token }
   );
 };
-
-/* ============================================================
-   ✅ NEW: Create / Update / Delete / Bulk (Admin pages parity)
-   ============================================================ */
 
 export const createMovieAdmin = (token, payload) =>
   apiFetch('/api/movies', {
@@ -128,7 +167,7 @@ export const bulkCreateMoviesAdmin = (token, movies = []) =>
     body: { movies },
   });
 
-  export const bulkExactUpdateMoviesAdmin = (token, movies = []) =>
+export const bulkExactUpdateMoviesAdmin = (token, movies = []) =>
   apiFetch('/api/movies/bulk-exact', {
     method: 'PUT',
     token,
