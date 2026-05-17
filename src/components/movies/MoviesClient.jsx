@@ -107,17 +107,25 @@ const mergeUniqueMovies = (prev = [], next = []) => {
 };
 
 function RecentPopularTabs({ activeTab, onChange }) {
-  const activeClass =
-    'bg-customPurple hover:bg-transparent border-2 border-customPurple text-white px-10 py-3 rounded-md font-semibold text-base transitions';
+  /**
+   * ✅ Q1 update:
+   * - Buttons now span the same full width as the filters.
+   * - Each button takes 50% width.
+   * - Height is slightly reduced.
+   */
+  const baseClass =
+    'w-full inline-flex items-center justify-center rounded-md border-2 border-customPurple px-4 py-2 sm:py-2.5 text-sm font-semibold transitions';
 
-  const inactiveClass =
-    'bg-dry hover:bg-customPurple border-2 border-customPurple text-white px-10 py-3 rounded-md font-semibold text-base transitions motion-safe:animate-pulse';
+  const activeClass = `${baseClass} bg-customPurple text-white hover:bg-transparent`;
+
+  const inactiveClass = `${baseClass} bg-dry text-white hover:bg-customPurple motion-safe:animate-pulse`;
 
   return (
-    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+    <div className="mt-4 grid w-full grid-cols-2 gap-3">
       <button
         type="button"
         onClick={() => onChange('recent')}
+        aria-pressed={activeTab === 'recent'}
         className={activeTab === 'recent' ? activeClass : inactiveClass}
       >
         Recent
@@ -126,6 +134,7 @@ function RecentPopularTabs({ activeTab, onChange }) {
       <button
         type="button"
         onClick={() => onChange('popular')}
+        aria-pressed={activeTab === 'popular'}
         className={activeTab === 'popular' ? activeClass : inactiveClass}
       >
         Popular
