@@ -40,6 +40,16 @@ const UpdateAvailablePopup = dynamic(
   { ssr: false }
 );
 
+const RewardSharePopup = dynamic(() => import('../modals/RewardSharePopup'), {
+  ssr: false,
+});
+
+const RewardReferralCapture = dynamic(
+  () => import('../modals/RewardReferralCapture'),
+  { ssr: false }
+);
+
+
 const POPUP_COOLDOWN_MS = 20000;
 const POPUP_RETRY_MS = 2000;
 
@@ -80,6 +90,8 @@ export default function SiteChromeRuntime() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [telegramOpen, setTelegramOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
+  const [rewardShareOpen, setRewardShareOpen] = useState(false);
+
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
@@ -350,6 +362,24 @@ export default function SiteChromeRuntime() {
     });
   }, [pathname, isAdmin, schedulePopup]);
 
+  useEffect(() => {
+    const shouldSkip = () => {
+      if (isAdmin) return true;
+      if (pathname === '/login' || pathname === '/register') return true;
+      if (pathname.startsWith('/watch')) return true;
+      if (pathname.startsWith('/reward')) return true;
+      if (pathname.startsWith('/dashboard')) return true;
+      return false;
+    };
+
+    return schedulePopup({
+      storageKey: 'rewardSharePopupShown',
+      delayMs: 30000,
+      open: () => setRewardShareOpen(true),
+      shouldSkip,
+    });
+  }, [pathname, isAdmin, schedulePopup]);
+
   return (
     <>
       <AnalyticsBootstrap />
@@ -407,8 +437,21 @@ export default function SiteChromeRuntime() {
           Icon={FaTelegramPlane}
           showMaybeLater={true}
           maybeLaterText="Close"
+
         />
       ) : null}
+      {enhancementsReady ? <RewardReferralCapture /> : null}
+
+      {rewardShareOpen ? (
+        <RewardSharePopup
+          open={rewardShareOpen}
+          onClose={() => {
+            setRewardShareOpen(false);
+            markPopupClosed();
+          }}
+        />
+      ) : null}
+
     </>
   );
 }

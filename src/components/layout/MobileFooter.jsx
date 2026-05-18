@@ -10,7 +10,7 @@ import { CgMenuBoxed } from 'react-icons/cg';
 import { BiHomeAlt, BiCategory } from 'react-icons/bi';
 import { IoClose } from 'react-icons/io5';
 import { MdLiveTv } from 'react-icons/md';
-import { FaRegNewspaper } from 'react-icons/fa';
+import { FaGift } from 'react-icons/fa';
 
 import { SidebarContext } from '../../context/DrawerContext';
 import { getUserInfo } from '../../lib/client/auth';
@@ -103,7 +103,7 @@ function MobileFooterInner() {
   const [replyLoading, setReplyLoading] = useState(false);
 
   const isHomePage = pathnameValue === '/';
-  const isBlogPage = pathnameValue === '/blog' || pathnameValue.startsWith('/blog/');
+  const isRewardPage = pathnameValue === '/reward' || pathnameValue.startsWith('/reward/');
 
   useEffect(() => {
     setUserInfoState(getUserInfo());
@@ -310,7 +310,7 @@ function MobileFooterInner() {
   // Fixed: /movies/type/web-series now selects only Tv Shows.
   const isMoviesActive = isMoviesListingPage && !isTvShowsType;
   const isTvShowsActive = isMoviesListingPage && isTvShowsType;
-  const isBlogActive = isBlogPage;
+  const isRewardActive = isRewardPage;
 
   const handleHomeClick = (e) => {
     e.preventDefault();
@@ -351,10 +351,10 @@ function MobileFooterInner() {
     router.push('/movies?type=WebSeries');
   };
 
-  const handleBlogClick = (e) => {
+  const handleRewardClick = (e) => {
     e.preventDefault();
     closeAllOverlays();
-    router.push('/blog');
+    router.push('/reward');
   };
 
   const handleMenuClick = () => {
@@ -558,14 +558,14 @@ function MobileFooterInner() {
           </button>
 
           <button
-            onClick={handleBlogClick}
-            className={isBlogActive ? `${active} ${inActive}` : inActive}
-            aria-label="Blog"
+            onClick={handleRewardClick}
+            className={isRewardActive ? `${active} ${inActive}` : inActive}
+            aria-label="Reward"
             type="button"
           >
             <div className="flex flex-col items-center">
-              <FaRegNewspaper className="text-lg" />
-              <span className="text-[9px] mt-0.5">Blog</span>
+              <FaGift className="text-lg" />
+              <span className="text-[9px] mt-0.5">Reward</span>
             </div>
           </button>
 

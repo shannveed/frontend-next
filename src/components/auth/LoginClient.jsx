@@ -1,4 +1,3 @@
-// src/components/auth/LoginClient.jsx
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -11,6 +10,11 @@ import { FiLogIn } from 'react-icons/fi';
 import { apiFetch } from '../../lib/client/apiFetch';
 import { getUserInfo, setUserInfo } from '../../lib/client/auth';
 import { isValidGoogleClientId } from '../../lib/client/googleOAuth';
+import {
+  clearStoredReferralCode,
+  getReferralDeviceId,
+  getStoredReferralCode,
+} from '../../lib/client/rewardTracking';
 
 import { Input } from '../forms/Usedinputs';
 import InlineError from '../forms/InlineError';
@@ -149,12 +153,21 @@ export default function LoginClient({
     try {
       setLoading(true);
 
+      const referralCode = getStoredReferralCode();
+      const deviceId = await getReferralDeviceId();
+
       const data = await apiFetch('/api/users/login', {
         method: 'POST',
-        body: { email: email.trim(), password },
+        body: {
+          email: email.trim(),
+          password,
+          referralCode,
+          deviceId,
+        },
       });
 
       setUserInfo(data);
+      clearStoredReferralCode();
       toast.success(`Welcome back ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);
@@ -169,12 +182,20 @@ export default function LoginClient({
     try {
       setLoading(true);
 
+      const referralCode = getStoredReferralCode();
+      const deviceId = await getReferralDeviceId();
+
       const data = await apiFetch('/api/users/google-login', {
         method: 'POST',
-        body: { accessToken },
+        body: {
+          accessToken,
+          referralCode,
+          deviceId,
+        },
       });
 
       setUserInfo(data);
+      clearStoredReferralCode();
       toast.success(`Welcome back ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);

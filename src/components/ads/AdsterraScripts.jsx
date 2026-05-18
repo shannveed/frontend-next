@@ -1,7 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+
+import { getUserInfo } from '../../lib/client/auth';
+import { getMyRewardStatus } from '../../lib/client/rewards';
+import {
+  isCachedRewardAdFreeActive,
+  setCachedRewardFromSummary,
+} from '../../lib/client/rewardTracking';
 
 const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
@@ -20,7 +27,6 @@ const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
 
 const SCRIPT_ID = 'mf-profitable-popunder-script';
 
-// keep ads off account/admin/auth routes
 const EXCLUDED_PREFIXES = [
   '/dashboard',
   '/movieslist',
@@ -35,7 +41,9 @@ const EXCLUDED_PREFIXES = [
   '/profile',
   '/password',
   '/favorites',
+  '/reward',
 ];
+
 const EXCLUDED_EXACT = ['/login', '/register'];
 
 const toSafeDelay = (value, fallback) => {
@@ -56,8 +64,6 @@ const injectProfitablePopunderScript = () => {
   if (typeof document === 'undefined') return;
   if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-  // We control injection timing here.
-  // Exact popup behavior is still ultimately controlled by the ad network script.
   removeInjectedScript();
 
   const script = document.createElement('script');
@@ -79,17 +85,73 @@ export default function AdsterraScripts() {
     return EXCLUDED_PREFIXES.some((p) => pathname.startsWith(p));
   }, [pathname]);
 
+  const [rewardChecked, setRewardChecked] = useState(false);
+  const [rewardAdFreeActive, setRewardAdFreeActive] = useState(false);
+
   const activatedRef = useRef(false);
   const initialTimerRef = useRef(null);
   const repeatTimerRef = useRef(null);
   const lastInjectAtRef = useRef(0);
 
   useEffect(() => {
-    if (!ADS_ENABLED || isExcluded) return;
+    let cancelled = false;
+
+    const run = async () => {
+      if (!ADS_ENABLED || isExcluded) {
+        setRewardAdFreeActive(false);
+        setRewardChecked(true);
+        return;
+      }
+
+      const ui = getUserInfo();
+
+      if (!ui?.token) {
+        setRewardAdFreeActive(false);
+        setRewardChecked(true);
+        return;
+      }
+
+      if (isCachedRewardAdFreeActive()) {
+        setRewardAdFreeActive(true);
+        setRewardChecked(true);
+        return;
+      }
+
+      try {
+        const data = await getMyRewardStatus(ui.token);
+
+        if (cancelled) return;
+
+        if (data?.summary) {
+          setCachedRewardFromSummary(data.summary);
+          setRewardAdFreeActive(!!data.summary.activeAdFree);
+        } else {
+          setRewardAdFreeActive(false);
+        }
+      } catch {
+        if (!cancelled) setRewardAdFreeActive(false);
+      } finally {
+        if (!cancelled) setRewardChecked(true);
+      }
+    };
+
+    setRewardChecked(false);
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, isExcluded]);
+
+  useEffect(() => {
+    if (!ADS_ENABLED || isExcluded || rewardAdFreeActive || !rewardChecked) {
+      removeInjectedScript();
+      return;
+    }
+
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-    // Guard against React StrictMode double-effects
     if (window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__) return;
     window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = true;
 
@@ -117,7 +179,6 @@ export default function AdsterraScripts() {
 
       const now = Date.now();
 
-      // Keep at least the requested gap between re-injections
       if (
         lastInjectAtRef.current &&
         now - lastInjectAtRef.current < repeatDelay - 250
@@ -141,11 +202,7 @@ export default function AdsterraScripts() {
     const activate = () => {
       activatedRef.current = true;
       initialTimerRef.current = null;
-
-      // First load after 1 minute
       injectIfAllowed();
-
-      // Then re-inject every 30 seconds
       startRepeater();
     };
 
@@ -163,6 +220,7 @@ export default function AdsterraScripts() {
 
     return () => {
       clearAll();
+
       window.removeEventListener('focus', injectIfAllowed);
       document.removeEventListener('visibilitychange', onVisibilityChange);
 
@@ -172,7 +230,7 @@ export default function AdsterraScripts() {
       removeInjectedScript();
       window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = false;
     };
-  }, [isExcluded]);
+  }, [isExcluded, rewardAdFreeActive, rewardChecked]);
 
   return null;
 }

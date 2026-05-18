@@ -17,7 +17,7 @@ import {
 } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { OPEN_NOTIFICATIONS_PANEL } from '../../lib/events';
-
+import { FaGift } from 'react-icons/fa';
 const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
   }`.replace(/\/+$/, '') + '/';
 
@@ -76,6 +76,13 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
       icon: HiOutlineUserGroup,
       onClick: () => goExternal(HINDI_SITE_URL),
     },
+    {
+      name: 'Reward',
+      href: '/reward',
+      icon: FaGift,
+      onClick: () => goTo('/reward'),
+    },
+
     {
       name: 'Alerts',
       icon: FaBell,

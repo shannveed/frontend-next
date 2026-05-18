@@ -726,6 +726,10 @@ export default function NavBar() {
           >
             MovieFrost Hindi
           </a>
+          <Link href="/reward" className={hover}>
+            Reward
+          </Link>
+
 
           <div className="relative group">
             <button className={`${hover} inline-flex items-center`} type="button">
