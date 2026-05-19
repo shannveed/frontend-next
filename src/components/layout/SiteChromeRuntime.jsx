@@ -18,6 +18,12 @@ const AdsterraScripts = dynamic(() => import('../ads/AdsterraScripts'), {
   ssr: false,
 });
 
+const RewardActivityTracker = dynamic(
+  () => import('../reward/RewardActivityTracker'),
+  { ssr: false }
+);
+
+
 const FloatingShareIcons = dynamic(
   () => import('../social/FloatingShareIcons'),
   { ssr: false }
@@ -442,6 +448,8 @@ export default function SiteChromeRuntime() {
         />
       ) : null}
       {enhancementsReady ? <RewardReferralCapture /> : null}
+      {enhancementsReady ? <RewardActivityTracker /> : null}
+
 
       {rewardShareOpen ? (
         <RewardSharePopup

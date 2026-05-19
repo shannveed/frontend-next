@@ -4,12 +4,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { FaGift, FaShareAlt, FaCopy, FaCheckCircle } from 'react-icons/fa';
+import {
+  FaGift,
+  FaShareAlt,
+  FaCopy,
+  FaCheckCircle,
+  FaUserCheck,
+  FaClock,
+  FaShieldAlt,
+} from 'react-icons/fa';
 import { IoClose } from 'react-icons/io5';
 
 import { getUserInfo } from '../../lib/client/auth';
 import {
   captureReferralFromLocation,
+  clearStoredReferralCode,
   getReferralDeviceId,
   getStoredReferralCode,
 } from '../../lib/client/rewardTracking';
@@ -40,11 +49,11 @@ const getDaysLeft = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return 0;
 
-  return Math.max(
-    0,
-    Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-  );
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
 };
+
+const minutesFromSeconds = (seconds = 0) =>
+  Math.floor(Math.max(0, Number(seconds || 0)) / 60);
 
 function RewardPolicyModal({ open, onClose }) {
   if (!open) return null;
@@ -69,29 +78,27 @@ function RewardPolicyModal({ open, onClose }) {
           <IoClose />
         </button>
 
-        <h2 className="text-xl font-bold pr-10">Ad Free Policy</h2>
+        <h2 className="text-xl font-bold pr-10">Ad-Free Policy</h2>
 
         <div className="mt-4 text-sm text-text leading-7 space-y-3">
           <p>
-            All popunder ads will be disabled for active reward users on the
-            MovieFrost website.
+            Active reward users get an ad-free experience from MovieFrost’s intrusive
+            ad formats during the reward period.
           </p>
 
           <p>
-            Server 2 and Server 3 use third-party video providers. Those
-            third-party players may contain their own ads, and MovieFrost cannot
-            fully control them.
+            Some video servers are third-party players. Those players may show their
+            own ads, and MovieFrost cannot fully control third-party player behavior.
           </p>
 
           <p>
-            We keep native ads active because they are less distracting and help
-            us keep the website running.
+            Native ads may remain because they are less distracting and help keep
+            MovieFrost running.
           </p>
 
           <p className="text-red-300">
-            Do not try to exploit this Reward system. Fake accounts,
-            self-referrals, duplicate devices, or suspicious activity can cause
-            referral rejection and account blocking.
+            Fake accounts, self-referrals, duplicate devices, or suspicious activity
+            can make referrals pending or rejected.
           </p>
         </div>
 
@@ -107,11 +114,25 @@ function RewardPolicyModal({ open, onClose }) {
   );
 }
 
-function ProgressBar({ label, current = 0, target = 3 }) {
-  const pct = Math.max(
-    0,
-    Math.min(100, (Number(current || 0) / Number(target || 1)) * 100)
+function InfoCard({ icon: Icon, title, children }) {
+  return (
+    <div className="bg-main border border-border rounded-xl p-5">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-full bg-customPurple/20 border border-customPurple flex items-center justify-center shrink-0">
+          <Icon className="text-customPurple text-lg" />
+        </div>
+
+        <div className="min-w-0">
+          <h3 className="text-white font-semibold">{title}</h3>
+          <div className="text-dryGray text-sm leading-7 mt-1">{children}</div>
+        </div>
+      </div>
+    </div>
   );
+}
+
+function ProgressBar({ label, current = 0, target = 3 }) {
+  const pct = Math.max(0, Math.min(100, (Number(current || 0) / Number(target || 1)) * 100));
 
   return (
     <div className="bg-main border border-border rounded-lg p-4">
@@ -123,7 +144,10 @@ function ProgressBar({ label, current = 0, target = 3 }) {
       </div>
 
       <div className="h-2 bg-dry rounded-full overflow-hidden mt-3">
-        <div className="h-full bg-customPurple" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full bg-customPurple"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -161,6 +185,7 @@ export default function RewardPageClient() {
 
     try {
       setLoading(true);
+
       const data = await getMyRewardStatus(token);
       setSummary(data?.summary || null);
     } catch (e) {
@@ -189,13 +214,15 @@ export default function RewardPageClient() {
           deviceId,
         });
 
-        if (data?.result?.bonusUntil) {
-          toast.success('Your 2-day reward has been activated.');
-        }
-
         if (data?.summary) setSummary(data.summary);
+
+        clearStoredReferralCode();
+
+        if (data?.result?.bonusPendingActivity) {
+          toast.success('Referral saved. Spend 5 minutes on MovieFrost to unlock your 2-day reward.');
+        }
       } catch {
-        // ignore silent
+        clearStoredReferralCode();
       }
     };
 
@@ -206,22 +233,17 @@ export default function RewardPageClient() {
   const adFreeActive = !!summary?.activeAdFree;
   const adFreeUntil = summary?.adFreeUntil || null;
   const daysLeft = getDaysLeft(adFreeUntil);
-
   const unclaimedCount = Number(summary?.unclaimedCount || 0);
   const qualifiedCount = Number(summary?.qualifiedCount || 0);
   const pendingCount = Number(summary?.pendingCount || 0);
-  const reviewCount = Number(summary?.reviewCount || 0);
   const rejectedCount = Number(summary?.rejectedCount || 0);
 
-  const activity = summary?.activity || {};
-  const activeDaysCount = Number(activity?.activeDaysCount || 0);
-  const activeDaysRequired = Number(activity?.activeDaysRequired || 2);
-  const watchSeconds = Number(activity?.watchSeconds || 0);
-  const watchSecondsRequired = Number(activity?.watchSecondsRequired || 300);
+  const bonusActivity = summary?.bonusActivity || null;
+  const bonusRemainingMinutes = minutesFromSeconds(bonusActivity?.remainingSeconds || 0);
 
   const inviteText = useMemo(
     () =>
-      `Join MovieFrost using my referral link and get 2 days of popunder-free streaming: ${referralUrl}`,
+      `Join MovieFrost using my referral link and earn ad-free streaming rewards: ${referralUrl}`,
     [referralUrl]
   );
 
@@ -251,7 +273,7 @@ export default function RewardPageClient() {
         toast.success('Share text copied');
       }
     } catch {
-      // user cancelled share
+      // User cancelled share.
     }
   };
 
@@ -311,7 +333,7 @@ export default function RewardPageClient() {
       <RewardPolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-        <div className="bg-dry border border-border rounded-2xl p-5 sm:p-8">
+        <section className="bg-dry border border-border rounded-2xl p-5 sm:p-8">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
             <div>
               <p className="text-customPurple text-xs font-semibold uppercase tracking-wide">
@@ -323,10 +345,9 @@ export default function RewardPageClient() {
               </h1>
 
               <p className="text-text leading-7 mt-3 max-w-3xl">
-                Share MovieFrost with real friends and family. Qualified
-                referrals now use a softer risk score plus real activity checks,
-                so family members on the same WiFi can still count when their
-                device/activity is different.
+                Share your referral link with real friends. When they create a new
+                account and verify email, they can unlock a 2-day ad-free reward after
+                spending 5 minutes on MovieFrost.
               </p>
             </div>
 
@@ -335,101 +356,38 @@ export default function RewardPageClient() {
               onClick={() => setPolicyOpen(true)}
               className="border border-customPurple text-customPurple hover:bg-customPurple hover:text-white transition px-5 py-3 rounded font-semibold"
             >
-              Ad Free Policy
+              Ad-Free Policy
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mt-8">
-            <div className="bg-main border border-border rounded-xl p-5">
-              <div className="flex items-center gap-3">
-                <FaGift className="text-customPurple text-2xl" />
-                <div>
-                  <h2 className="text-white font-semibold text-lg">
-                    3 Friends = 1 Week
-                  </h2>
-                  <p className="text-dryGray text-sm mt-1">
-                    Invite 3 qualified friends and claim 1 week of ad-free
-                    streaming.
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-8">
+            <InfoCard icon={FaShareAlt} title="1. Share your link">
+              Copy your referral link and send it to friends or family.
+            </InfoCard>
 
-            <div className="bg-main border border-border rounded-xl p-5">
-              <div className="flex items-center gap-3">
-                <FaGift className="text-customPurple text-2xl" />
-                <div>
-                  <h2 className="text-white font-semibold text-lg">
-                    10 Friends = 1 Month
-                  </h2>
-                  <p className="text-dryGray text-sm mt-1">
-                    Save your qualified referrals and claim 1 full month.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <InfoCard icon={FaUserCheck} title="2. Friend joins">
+              Your friend must create a new account and verify their email.
+            </InfoCard>
+
+            <InfoCard icon={FaClock} title="3. Friend stays 5 minutes">
+              They unlock their 2-day ad-free reward after 5 minutes on the website or watching.
+            </InfoCard>
+
+            <InfoCard icon={FaGift} title="4. You claim rewards">
+              3 qualified friends = 1 week. 10 qualified friends = 1 month.
+            </InfoCard>
           </div>
-
-          <form
-            onSubmit={sendFeedback}
-            className="bg-main border border-border rounded-xl p-5 mt-6"
-          >
-            <h2 className="text-white font-semibold text-lg">
-              What can we improve?
-            </h2>
-
-            <p className="text-dryGray text-sm mt-1">
-              No login required. Your message will go directly to the admin
-              notification bell.
-            </p>
-
-            <div className="grid md:grid-cols-2 gap-3 mt-4">
-              <input
-                value={feedbackName}
-                onChange={(e) => setFeedbackName(e.target.value)}
-                placeholder="Your name (optional)"
-                className="w-full bg-dry border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple"
-              />
-
-              <input
-                value={feedbackEmail}
-                onChange={(e) => setFeedbackEmail(e.target.value)}
-                placeholder="Your email (optional)"
-                type="email"
-                className="w-full bg-dry border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple"
-              />
-            </div>
-
-            <textarea
-              value={feedbackMessage}
-              onChange={(e) => setFeedbackMessage(e.target.value)}
-              placeholder="Tell us what we can improve..."
-              className="w-full bg-dry border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple min-h-[120px] mt-3"
-            />
-
-            <button
-              type="submit"
-              disabled={feedbackSending}
-              className="mt-3 bg-customPurple hover:bg-opacity-90 transition text-white px-5 py-3 rounded font-semibold disabled:opacity-60"
-            >
-              {feedbackSending ? 'Sending...' : 'Send Feedback'}
-            </button>
-          </form>
-        </div>
+        </section>
 
         <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-6 mt-6">
-          <div className="bg-dry border border-border rounded-2xl p-5 sm:p-6">
-            <h2 className="text-white text-xl font-semibold">
-              Your Reward Progress
-            </h2>
+          <section className="bg-dry border border-border rounded-2xl p-5 sm:p-6">
+            <h2 className="text-white text-xl font-semibold">Your Progress</h2>
 
             {!token ? (
               <div className="bg-main border border-border rounded-xl p-5 mt-5">
                 <h3 className="text-white font-semibold">Login required</h3>
                 <p className="text-text text-sm leading-7 mt-2">
-                  You can read the reward rules without login, but ad-free
-                  rewards require a MovieFrost account so we can track real
-                  unique referrals.
+                  Login or create a free account to get your referral link and track rewards.
                 </p>
 
                 <div className="flex flex-wrap gap-3 mt-4">
@@ -439,7 +397,6 @@ export default function RewardPageClient() {
                   >
                     Login
                   </Link>
-
                   <Link
                     href="/register"
                     className="border border-border text-white px-5 py-3 rounded font-semibold hover:bg-main transition"
@@ -449,97 +406,87 @@ export default function RewardPageClient() {
                 </div>
               </div>
             ) : loading ? (
-              <p className="text-dryGray text-sm mt-5">
-                Loading reward status...
-              </p>
+              <p className="text-dryGray text-sm mt-5">Loading reward status...</p>
             ) : (
               <>
-                <div className="grid md:grid-cols-4 gap-3 mt-5">
+                <div className="grid md:grid-cols-3 gap-3 mt-5">
                   <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Qualified</p>
-                    <p className="text-white text-2xl font-bold mt-1">
-                      {qualifiedCount}
-                    </p>
+                    <p className="text-dryGray text-xs">Qualified Friends</p>
+                    <p className="text-white text-2xl font-bold mt-1">{qualifiedCount}</p>
                   </div>
 
                   <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Pending Activity</p>
-                    <p className="text-white text-2xl font-bold mt-1">
-                      {pendingCount}
-                    </p>
-                  </div>
-
-                  <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Manual Review</p>
-                    <p className="text-white text-2xl font-bold mt-1">
-                      {reviewCount}
-                    </p>
+                    <p className="text-dryGray text-xs">Pending</p>
+                    <p className="text-white text-2xl font-bold mt-1">{pendingCount}</p>
                   </div>
 
                   <div className="bg-main border border-border rounded-lg p-4">
                     <p className="text-dryGray text-xs">Rejected</p>
-                    <p className="text-white text-2xl font-bold mt-1">
-                      {rejectedCount}
-                    </p>
+                    <p className="text-white text-2xl font-bold mt-1">{rejectedCount}</p>
                   </div>
                 </div>
 
                 <div className="bg-main border border-border rounded-xl p-5 mt-5">
                   <div className="flex items-start gap-3">
                     <FaCheckCircle
-                      className={
-                        adFreeActive ? 'text-green-400 mt-1' : 'text-border mt-1'
-                      }
+                      className={adFreeActive ? 'text-green-400 mt-1' : 'text-border mt-1'}
                     />
 
                     <div>
                       <h3 className="text-white font-semibold">
-                        {adFreeActive ? 'Reward active' : 'No active reward yet'}
+                        {adFreeActive ? 'Ad-free reward active' : 'No active reward yet'}
                       </h3>
 
                       {adFreeActive ? (
                         <p className="text-text text-sm mt-1">
-                          Your popunder-free reward expires on{' '}
-                          <span className="text-white">
-                            {formatDateTime(adFreeUntil)}
-                          </span>
+                          Your reward expires on{' '}
+                          <span className="text-white">{formatDateTime(adFreeUntil)}</span>
                           {daysLeft ? ` (${daysLeft} day(s) left)` : ''}.
                         </p>
                       ) : (
                         <p className="text-text text-sm mt-1">
-                          Share your referral link with unique friends and claim
-                          a reward when enough friends qualify.
+                          Share your link and claim rewards when friends qualify.
                         </p>
                       )}
                     </div>
                   </div>
                 </div>
 
+                {bonusActivity && bonusActivity.eligible && !bonusActivity.bonusGranted ? (
+                  <div className="bg-main border border-customPurple rounded-xl p-5 mt-5">
+                    <h3 className="text-white font-semibold">Your invited-user bonus</h3>
+                    <p className="text-text text-sm leading-7 mt-2">
+                      Stay active for 5 minutes to unlock your 2-day ad-free reward.
+                      {bonusRemainingMinutes > 0
+                        ? ` About ${bonusRemainingMinutes} minute(s) remaining.`
+                        : ' Almost done.'}
+                    </p>
+
+                    <div className="h-2 bg-dry rounded-full overflow-hidden mt-3">
+                      <div
+                        className="h-full bg-customPurple"
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(100, (Number(bonusActivity.bestSeconds || 0) / Number(bonusActivity.requiredSeconds || 300)) * 100)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="grid md:grid-cols-2 gap-4 mt-5">
                   <ProgressBar
-                    label="Progress to 1 Week"
+                    label="Claim 1 Week"
                     current={Math.min(unclaimedCount, 3)}
                     target={3}
                   />
 
                   <ProgressBar
-                    label="Progress to 1 Month"
+                    label="Claim 1 Month"
                     current={Math.min(unclaimedCount, 10)}
                     target={10}
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4 mt-5">
-                  <ProgressBar
-                    label="Your Activity: Visit Days"
-                    current={Math.min(activeDaysCount, activeDaysRequired)}
-                    target={activeDaysRequired}
-                  />
-
-                  <ProgressBar
-                    label="Your Activity: Watch 5+ Minutes"
-                    current={Math.min(watchSeconds, watchSecondsRequired)}
-                    target={watchSecondsRequired}
                   />
                 </div>
 
@@ -564,24 +511,19 @@ export default function RewardPageClient() {
                 </div>
 
                 <p className="text-xs text-dryGray mt-3">
-                  Unclaimed qualified friends: {unclaimedCount}. A friend counts
-                  after email verification, 5+ minutes watch activity, 2 active
-                  days, and low/approved fraud risk.
+                  Unclaimed qualified friends: {unclaimedCount}.
                 </p>
               </>
             )}
-          </div>
+          </section>
 
           <aside className="bg-dry border border-border rounded-2xl p-5 sm:p-6">
-            <h2 className="text-white text-xl font-semibold">
-              Your Referral Link
-            </h2>
+            <h2 className="text-white text-xl font-semibold">Your Referral Link</h2>
 
             {token && referralUrl ? (
               <>
                 <p className="text-dryGray text-sm mt-2">
-                  Share this link. New users joining from your link get a 2-day
-                  popunder-free bonus.
+                  Share this link with real friends. New users must verify email before they count.
                 </p>
 
                 <div className="bg-main border border-border rounded-lg p-3 mt-4 break-all text-sm text-white font-mono">
@@ -622,16 +564,64 @@ export default function RewardPageClient() {
             )}
 
             <div className="bg-main border border-border rounded-lg p-4 mt-5">
-              <h3 className="text-white font-semibold">Fraud prevention</h3>
+              <div className="flex items-center gap-2">
+                <FaShieldAlt className="text-customPurple" />
+                <h3 className="text-white font-semibold">Fraud protection</h3>
+              </div>
+
               <ul className="text-dryGray text-sm leading-7 list-disc ml-5 mt-2">
-                <li>Same WiFi is allowed if other strong signals are clean.</li>
-                <li>Medium-risk referrals go to manual review.</li>
-                <li>Duplicate device/self-referrals can be rejected.</li>
-                <li>Email verification and real watch activity are required.</li>
+                <li>Same WiFi is allowed when devices are different.</li>
+                <li>Multiple strong fraud signals may become pending or rejected.</li>
+                <li>Email verification is required before a friend counts.</li>
               </ul>
             </div>
           </aside>
         </div>
+
+        <form
+          onSubmit={sendFeedback}
+          className="bg-dry border border-border rounded-xl p-5 mt-6"
+        >
+          <h2 className="text-white font-semibold text-lg">
+            What can we improve?
+          </h2>
+
+          <p className="text-dryGray text-sm mt-1">
+            No login required. Your message goes to the admin notification bell.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-3 mt-4">
+            <input
+              value={feedbackName}
+              onChange={(e) => setFeedbackName(e.target.value)}
+              placeholder="Your name (optional)"
+              className="w-full bg-main border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple"
+            />
+
+            <input
+              value={feedbackEmail}
+              onChange={(e) => setFeedbackEmail(e.target.value)}
+              placeholder="Your email (optional)"
+              type="email"
+              className="w-full bg-main border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple"
+            />
+          </div>
+
+          <textarea
+            value={feedbackMessage}
+            onChange={(e) => setFeedbackMessage(e.target.value)}
+            placeholder="Tell us what we can improve..."
+            className="w-full bg-main border border-border rounded px-3 py-3 text-sm text-white outline-none focus:border-customPurple min-h-[120px] mt-3"
+          />
+
+          <button
+            type="submit"
+            disabled={feedbackSending}
+            className="mt-3 bg-customPurple hover:bg-opacity-90 transition text-white px-5 py-3 rounded font-semibold disabled:opacity-60"
+          >
+            {feedbackSending ? 'Sending...' : 'Send Feedback'}
+          </button>
+        </form>
       </div>
     </>
   );

@@ -44,7 +44,7 @@ export default function RewardSharePopup({ open, onClose }) {
           <br />
           <span className="text-white font-semibold">10 Friends = 1 month</span>
           <br />
-          of popunder-free streaming.
+          of ad-free streaming.
         </p>
 
         <div className="grid grid-cols-2 gap-3 mt-5">

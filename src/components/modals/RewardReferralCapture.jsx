@@ -50,8 +50,8 @@ export default function RewardReferralCapture() {
 
         if (cancelled) return;
 
-        if (data?.result?.bonusUntil) {
-          toast.success('Your 2-day reward has been activated.');
+        if (data?.result?.bonusPendingActivity) {
+          toast.success('Referral saved. Spend 5 minutes on MovieFrost to unlock your 2-day reward.');
         }
 
         clearStoredReferralCode();
@@ -115,8 +115,11 @@ export default function RewardReferralCapture() {
         </h3>
 
         <p className="text-text text-sm leading-7 mt-2">
-          Login or register with this referral to receive{' '}
-          <span className="text-white font-semibold">2 days of popunder-free streaming</span>.
+          Login or register with this referral. After verification, spend 5 minutes
+          on MovieFrost to unlock{' '}
+          <span className="text-white font-semibold">
+            2 days of ad-free streaming
+          </span>.
         </p>
 
         <div className="grid grid-cols-2 gap-3 mt-5">

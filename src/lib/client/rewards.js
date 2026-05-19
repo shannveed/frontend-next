@@ -40,14 +40,14 @@ export const applyReferral = async (token, { referralCode, deviceId }) => {
   return data;
 };
 
-export const recordRewardActivity = async (
+export const trackRewardActivity = async (
   token,
-  { type = 'visit', movieId = '', seconds = 0 } = {}
+  { kind = 'site', seconds = 30 } = {}
 ) => {
   const data = await apiFetch('/api/rewards/activity', {
     method: 'POST',
     token,
-    body: { type, movieId, seconds },
+    body: { kind, seconds },
   });
 
   if (data?.summary) {
