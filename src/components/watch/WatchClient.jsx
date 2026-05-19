@@ -41,6 +41,8 @@ import {
   getRelatedMoviesAdmin,
 } from '../../lib/client/moviesAdmin';
 import { apiFetch } from '../../lib/client/apiFetch';
+import { recordRewardActivity } from '../../lib/client/rewards';
+
 
 const RELATED_MOVIES_LIMIT = 10;
 
@@ -134,6 +136,39 @@ export default function WatchClient({
   const [ratingComment, setRatingComment] = useState('');
   const [myRatingLoading, setMyRatingLoading] = useState(false);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!token || !movie?._id || !play) return;
+
+    const storageKey = `mf_reward_watch_ping:${movie._id}`;
+
+    try {
+      if (sessionStorage.getItem(storageKey) === '1') return;
+    } catch {
+      // ignore
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        await recordRewardActivity(token, {
+          type: 'watch',
+          movieId: movie._id,
+          seconds: 300,
+        });
+
+        try {
+          sessionStorage.setItem(storageKey, '1');
+        } catch {
+          // ignore
+        }
+      } catch {
+        // silent
+      }
+    }, 5 * 60 * 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [token, movie?._id, play]);
+
 
   useEffect(() => {
     setUserInfo(getUserInfo());

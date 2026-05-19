@@ -40,7 +40,10 @@ const getDaysLeft = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return 0;
 
-  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+  return Math.max(
+    0,
+    Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+  );
 };
 
 function RewardPolicyModal({ open, onClose }) {
@@ -70,24 +73,25 @@ function RewardPolicyModal({ open, onClose }) {
 
         <div className="mt-4 text-sm text-text leading-7 space-y-3">
           <p>
-            All popunder ads will be disabled for active reward users on the MovieFrost
-            website.
+            All popunder ads will be disabled for active reward users on the
+            MovieFrost website.
           </p>
 
           <p>
-            Server 2 and Server 3 use third-party video providers. Those third-party
-            players may contain their own ads, and MovieFrost cannot fully control them.
+            Server 2 and Server 3 use third-party video providers. Those
+            third-party players may contain their own ads, and MovieFrost cannot
+            fully control them.
           </p>
 
           <p>
-            We keep native ads active because they are less distracting and help us keep
-            the website running.
+            We keep native ads active because they are less distracting and help
+            us keep the website running.
           </p>
 
           <p className="text-red-300">
-            Do not try to exploit this Reward system. Fake accounts, self-referrals,
-            duplicate devices, or suspicious activity can cause referral rejection and
-            account blocking.
+            Do not try to exploit this Reward system. Fake accounts,
+            self-referrals, duplicate devices, or suspicious activity can cause
+            referral rejection and account blocking.
           </p>
         </div>
 
@@ -104,7 +108,10 @@ function RewardPolicyModal({ open, onClose }) {
 }
 
 function ProgressBar({ label, current = 0, target = 3 }) {
-  const pct = Math.max(0, Math.min(100, (Number(current || 0) / Number(target || 1)) * 100));
+  const pct = Math.max(
+    0,
+    Math.min(100, (Number(current || 0) / Number(target || 1)) * 100)
+  );
 
   return (
     <div className="bg-main border border-border rounded-lg p-4">
@@ -116,10 +123,7 @@ function ProgressBar({ label, current = 0, target = 3 }) {
       </div>
 
       <div className="h-2 bg-dry rounded-full overflow-hidden mt-3">
-        <div
-          className="h-full bg-customPurple"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-customPurple" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -157,7 +161,6 @@ export default function RewardPageClient() {
 
     try {
       setLoading(true);
-
       const data = await getMyRewardStatus(token);
       setSummary(data?.summary || null);
     } catch (e) {
@@ -203,10 +206,18 @@ export default function RewardPageClient() {
   const adFreeActive = !!summary?.activeAdFree;
   const adFreeUntil = summary?.adFreeUntil || null;
   const daysLeft = getDaysLeft(adFreeUntil);
+
   const unclaimedCount = Number(summary?.unclaimedCount || 0);
   const qualifiedCount = Number(summary?.qualifiedCount || 0);
   const pendingCount = Number(summary?.pendingCount || 0);
+  const reviewCount = Number(summary?.reviewCount || 0);
   const rejectedCount = Number(summary?.rejectedCount || 0);
+
+  const activity = summary?.activity || {};
+  const activeDaysCount = Number(activity?.activeDaysCount || 0);
+  const activeDaysRequired = Number(activity?.activeDaysRequired || 2);
+  const watchSeconds = Number(activity?.watchSeconds || 0);
+  const watchSecondsRequired = Number(activity?.watchSecondsRequired || 300);
 
   const inviteText = useMemo(
     () =>
@@ -254,7 +265,7 @@ export default function RewardPageClient() {
       setClaiming(true);
 
       const data = await claimReward(token, tier);
-      setSummary(data?.summary || data?.summary || null);
+      setSummary(data?.summary || null);
 
       toast.success(data?.message || 'Reward activated');
       await loadReward();
@@ -312,8 +323,10 @@ export default function RewardPageClient() {
               </h1>
 
               <p className="text-text leading-7 mt-3 max-w-3xl">
-                Share MovieFrost with real friends and family. When qualified friends
-                join using your referral link, you can claim popunder-free streaming rewards.
+                Share MovieFrost with real friends and family. Qualified
+                referrals now use a softer risk score plus real activity checks,
+                so family members on the same WiFi can still count when their
+                device/activity is different.
               </p>
             </div>
 
@@ -335,7 +348,8 @@ export default function RewardPageClient() {
                     3 Friends = 1 Week
                   </h2>
                   <p className="text-dryGray text-sm mt-1">
-                    Invite 3 qualified friends and claim 1 week of ad-free streaming.
+                    Invite 3 qualified friends and claim 1 week of ad-free
+                    streaming.
                   </p>
                 </div>
               </div>
@@ -365,7 +379,8 @@ export default function RewardPageClient() {
             </h2>
 
             <p className="text-dryGray text-sm mt-1">
-              No login required. Your message will go directly to the admin notification bell.
+              No login required. Your message will go directly to the admin
+              notification bell.
             </p>
 
             <div className="grid md:grid-cols-2 gap-3 mt-4">
@@ -404,14 +419,17 @@ export default function RewardPageClient() {
 
         <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-6 mt-6">
           <div className="bg-dry border border-border rounded-2xl p-5 sm:p-6">
-            <h2 className="text-white text-xl font-semibold">Your Reward Progress</h2>
+            <h2 className="text-white text-xl font-semibold">
+              Your Reward Progress
+            </h2>
 
             {!token ? (
               <div className="bg-main border border-border rounded-xl p-5 mt-5">
                 <h3 className="text-white font-semibold">Login required</h3>
                 <p className="text-text text-sm leading-7 mt-2">
-                  You can read the reward rules without login, but ad-free rewards require a
-                  MovieFrost account so we can track real unique referrals.
+                  You can read the reward rules without login, but ad-free
+                  rewards require a MovieFrost account so we can track real
+                  unique referrals.
                 </p>
 
                 <div className="flex flex-wrap gap-3 mt-4">
@@ -421,6 +439,7 @@ export default function RewardPageClient() {
                   >
                     Login
                   </Link>
+
                   <Link
                     href="/register"
                     className="border border-border text-white px-5 py-3 rounded font-semibold hover:bg-main transition"
@@ -430,26 +449,35 @@ export default function RewardPageClient() {
                 </div>
               </div>
             ) : loading ? (
-              <p className="text-dryGray text-sm mt-5">Loading reward status...</p>
+              <p className="text-dryGray text-sm mt-5">
+                Loading reward status...
+              </p>
             ) : (
               <>
-                <div className="grid md:grid-cols-3 gap-3 mt-5">
+                <div className="grid md:grid-cols-4 gap-3 mt-5">
                   <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Qualified Friends</p>
+                    <p className="text-dryGray text-xs">Qualified</p>
                     <p className="text-white text-2xl font-bold mt-1">
                       {qualifiedCount}
                     </p>
                   </div>
 
                   <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Pending Verification</p>
+                    <p className="text-dryGray text-xs">Pending Activity</p>
                     <p className="text-white text-2xl font-bold mt-1">
                       {pendingCount}
                     </p>
                   </div>
 
                   <div className="bg-main border border-border rounded-lg p-4">
-                    <p className="text-dryGray text-xs">Rejected / Fraud Filter</p>
+                    <p className="text-dryGray text-xs">Manual Review</p>
+                    <p className="text-white text-2xl font-bold mt-1">
+                      {reviewCount}
+                    </p>
+                  </div>
+
+                  <div className="bg-main border border-border rounded-lg p-4">
+                    <p className="text-dryGray text-xs">Rejected</p>
                     <p className="text-white text-2xl font-bold mt-1">
                       {rejectedCount}
                     </p>
@@ -459,7 +487,9 @@ export default function RewardPageClient() {
                 <div className="bg-main border border-border rounded-xl p-5 mt-5">
                   <div className="flex items-start gap-3">
                     <FaCheckCircle
-                      className={adFreeActive ? 'text-green-400 mt-1' : 'text-border mt-1'}
+                      className={
+                        adFreeActive ? 'text-green-400 mt-1' : 'text-border mt-1'
+                      }
                     />
 
                     <div>
@@ -470,12 +500,15 @@ export default function RewardPageClient() {
                       {adFreeActive ? (
                         <p className="text-text text-sm mt-1">
                           Your popunder-free reward expires on{' '}
-                          <span className="text-white">{formatDateTime(adFreeUntil)}</span>
+                          <span className="text-white">
+                            {formatDateTime(adFreeUntil)}
+                          </span>
                           {daysLeft ? ` (${daysLeft} day(s) left)` : ''}.
                         </p>
                       ) : (
                         <p className="text-text text-sm mt-1">
-                          Share your referral link with unique friends and claim a reward.
+                          Share your referral link with unique friends and claim
+                          a reward when enough friends qualify.
                         </p>
                       )}
                     </div>
@@ -493,6 +526,20 @@ export default function RewardPageClient() {
                     label="Progress to 1 Month"
                     current={Math.min(unclaimedCount, 10)}
                     target={10}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4 mt-5">
+                  <ProgressBar
+                    label="Your Activity: Visit Days"
+                    current={Math.min(activeDaysCount, activeDaysRequired)}
+                    target={activeDaysRequired}
+                  />
+
+                  <ProgressBar
+                    label="Your Activity: Watch 5+ Minutes"
+                    current={Math.min(watchSeconds, watchSecondsRequired)}
+                    target={watchSecondsRequired}
                   />
                 </div>
 
@@ -517,21 +564,24 @@ export default function RewardPageClient() {
                 </div>
 
                 <p className="text-xs text-dryGray mt-3">
-                  Unclaimed qualified friends: {unclaimedCount}. After your reward expires,
-                  keep sharing with unique friends and claim again when you reach a tier.
+                  Unclaimed qualified friends: {unclaimedCount}. A friend counts
+                  after email verification, 5+ minutes watch activity, 2 active
+                  days, and low/approved fraud risk.
                 </p>
               </>
             )}
           </div>
 
           <aside className="bg-dry border border-border rounded-2xl p-5 sm:p-6">
-            <h2 className="text-white text-xl font-semibold">Your Referral Link</h2>
+            <h2 className="text-white text-xl font-semibold">
+              Your Referral Link
+            </h2>
 
             {token && referralUrl ? (
               <>
                 <p className="text-dryGray text-sm mt-2">
-                  Share this link. New users joining from your link get a 2-day reward
-                  after verification.
+                  Share this link. New users joining from your link get a 2-day
+                  popunder-free bonus.
                 </p>
 
                 <div className="bg-main border border-border rounded-lg p-3 mt-4 break-all text-sm text-white font-mono">
@@ -574,9 +624,10 @@ export default function RewardPageClient() {
             <div className="bg-main border border-border rounded-lg p-4 mt-5">
               <h3 className="text-white font-semibold">Fraud prevention</h3>
               <ul className="text-dryGray text-sm leading-7 list-disc ml-5 mt-2">
-                <li>Same IP abuse is filtered.</li>
-                <li>Duplicate device/browser fingerprint is filtered.</li>
-                <li>Email verification is required before a friend counts.</li>
+                <li>Same WiFi is allowed if other strong signals are clean.</li>
+                <li>Medium-risk referrals go to manual review.</li>
+                <li>Duplicate device/self-referrals can be rejected.</li>
+                <li>Email verification and real watch activity are required.</li>
               </ul>
             </div>
           </aside>

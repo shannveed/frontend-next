@@ -71,8 +71,10 @@ const writeBrowseByCache = (list) => {
 const normalizeAvatarUrl = (value) => {
   const v = String(value ?? '').trim();
   if (!v) return '';
+
   const lower = v.toLowerCase();
   if (lower === 'null' || lower === 'undefined') return '';
+
   return v;
 };
 
@@ -122,8 +124,10 @@ export default function NavBar() {
 
   useEffect(() => {
     setUserInfo(getUserInfo());
+
     const onStorage = () => setUserInfo(getUserInfo());
     window.addEventListener('storage', onStorage);
+
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
@@ -145,6 +149,7 @@ export default function NavBar() {
     };
 
     document.addEventListener('mousedown', onDown);
+
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
@@ -177,36 +182,14 @@ export default function NavBar() {
       }
     };
 
-    let timerId = null;
-    let idleId = null;
-
-    if (
-      typeof window !== 'undefined' &&
-      typeof window.requestIdleCallback === 'function'
-    ) {
-      idleId = window.requestIdleCallback(
-        () => {
-          run().catch(() => { });
-        },
-        { timeout: 1500 }
-      );
-    } else {
-      timerId = window.setTimeout(() => {
-        run().catch(() => { });
-      }, 800);
-    }
+    const timerId = window.setTimeout(() => {
+      run().catch(() => { });
+    }, 800);
 
     return () => {
       cancelled = true;
       controller.abort();
-
-      if (timerId) window.clearTimeout(timerId);
-      if (
-        idleId !== null &&
-        typeof window.cancelIdleCallback === 'function'
-      ) {
-        window.cancelIdleCallback(idleId);
-      }
+      window.clearTimeout(timerId);
     };
   }, []);
 
@@ -216,9 +199,7 @@ export default function NavBar() {
     syncFromCache();
     window.addEventListener(FAVORITES_UPDATED_EVENT, syncFromCache);
 
-    return () => {
-      window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFromCache);
-    };
+    return () => window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFromCache);
   }, []);
 
   useEffect(() => {
@@ -244,35 +225,13 @@ export default function NavBar() {
       }
     };
 
-    let timerId = null;
-    let idleId = null;
-
-    if (
-      typeof window !== 'undefined' &&
-      typeof window.requestIdleCallback === 'function'
-    ) {
-      idleId = window.requestIdleCallback(
-        () => {
-          run().catch(() => { });
-        },
-        { timeout: 2000 }
-      );
-    } else {
-      timerId = window.setTimeout(() => {
-        run().catch(() => { });
-      }, 1200);
-    }
+    const timerId = window.setTimeout(() => {
+      run().catch(() => { });
+    }, 1200);
 
     return () => {
       cancelled = true;
-
-      if (timerId) window.clearTimeout(timerId);
-      if (
-        idleId !== null &&
-        typeof window.cancelIdleCallback === 'function'
-      ) {
-        window.cancelIdleCallback(idleId);
-      }
+      window.clearTimeout(timerId);
     };
   }, [token]);
 
@@ -307,8 +266,6 @@ export default function NavBar() {
 
     let cancelled = false;
     let intervalId = null;
-    let timerId = null;
-    let idleId = null;
 
     const start = async () => {
       if (cancelled) return;
@@ -322,34 +279,14 @@ export default function NavBar() {
       }
     };
 
-    if (
-      typeof window !== 'undefined' &&
-      typeof window.requestIdleCallback === 'function'
-    ) {
-      idleId = window.requestIdleCallback(
-        () => {
-          start().catch(() => { });
-        },
-        { timeout: 2000 }
-      );
-    } else {
-      timerId = window.setTimeout(() => {
-        start().catch(() => { });
-      }, 1200);
-    }
+    const timerId = window.setTimeout(() => {
+      start().catch(() => { });
+    }, 1200);
 
     return () => {
       cancelled = true;
-
-      if (intervalId) clearInterval(intervalId);
-      if (timerId) window.clearTimeout(timerId);
-
-      if (
-        idleId !== null &&
-        typeof window.cancelIdleCallback === 'function'
-      ) {
-        window.cancelIdleCallback(idleId);
-      }
+      window.clearTimeout(timerId);
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [token, refreshNotifications]);
 
@@ -361,6 +298,7 @@ export default function NavBar() {
     };
 
     window.addEventListener(PUSH_RECEIVED_EVENT, handler);
+
     return () => window.removeEventListener(PUSH_RECEIVED_EVENT, handler);
   }, [token, refreshNotifications]);
 
@@ -384,6 +322,7 @@ export default function NavBar() {
 
         const data = await res.json();
         const list = Array.isArray(data?.movies) ? data.movies : [];
+
         setSearchResults(list.slice(0, 5));
         setShowDropdown(true);
       } catch {
@@ -418,6 +357,7 @@ export default function NavBar() {
         await ensurePushSubscription(token);
       } else if (Notification.permission === 'default') {
         const key = 'pushPermissionPrompted';
+
         if (!sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, '1');
           await requestPermissionAndSubscribe(token);
@@ -499,6 +439,7 @@ export default function NavBar() {
       setReplyLoading(true);
 
       const { replyToWatchRequest } = await loadWatchRequestApi();
+
       await replyToWatchRequest(token, requestId, {
         link,
         message: replyMessage.trim(),
@@ -524,8 +465,6 @@ export default function NavBar() {
     [browseBy]
   );
 
-  // Indian items are now available under Browse By if present,
-  // while the old Indian nav dropdown is replaced by MovieFrost Hindi.
   const leftoverBrowseBy = useMemo(() => {
     const h = new Set(hollywoodBrowseBy);
     return (browseBy || []).filter((x) => x && !h.has(x));
@@ -546,6 +485,7 @@ export default function NavBar() {
       const label = industry?.label || value;
 
       if (seen.has(href)) continue;
+
       seen.add(href);
       out.push({ label, href });
     }
@@ -573,16 +513,22 @@ export default function NavBar() {
     [leftoverBrowseBy, buildBrowseMenuItems]
   );
 
-  const avatarSrc = useMemo(() => {
-    return normalizeAvatarUrl(userInfo?.image) || DEFAULT_PROFILE_IMAGE;
-  }, [userInfo?.image]);
+  const avatarSrc = useMemo(
+    () => normalizeAvatarUrl(userInfo?.image) || DEFAULT_PROFILE_IMAGE,
+    [userInfo?.image]
+  );
 
-  const hover = 'hover:text-customPurple transitions text-white whitespace-nowrap';
+  const hover =
+    'hover:text-customPurple transitions text-white whitespace-nowrap';
+
+  const menuBox =
+    'absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50';
 
   return (
     <div className="bg-main shadow-md sticky top-0 z-20 hidden lg:block">
-      <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-8 above-1000:gap-6 grid-cols-7 justify-between items-center">
-        <div className="col-span-1">
+      <div className="container py-5 above-1000:py-4 px-8 flex items-center gap-4 xl:gap-5">
+        {/* Logo */}
+        <div className="shrink-0 w-[155px] xl:w-[180px]">
           <Link
             href="/"
             className="inline-flex items-center min-h-[40px]"
@@ -600,10 +546,15 @@ export default function NavBar() {
           </Link>
         </div>
 
-        <div className="col-span-2 relative" ref={desktopSearchRef}>
+        {/* Search */}
+        <div
+          className="relative shrink-0 w-[250px] xl:w-[320px] 2xl:w-[360px]"
+          ref={desktopSearchRef}
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
+
               const term = search.trim();
 
               if (!term) {
@@ -688,7 +639,8 @@ export default function NavBar() {
           ) : null}
         </div>
 
-        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-6 2xl:gap-7 justify-end items-center hidden lg:flex">
+        {/* Nav */}
+        <div className="flex-1 min-w-0 font-medium text-[10px] xl:text-[11px] 2xl:text-xs gap-x-3 xl:gap-x-4 2xl:gap-x-5 gap-y-2 justify-end items-center hidden lg:flex flex-wrap">
           <Link href="/movies?type=Movie" className={hover}>
             Movies
           </Link>
@@ -702,7 +654,7 @@ export default function NavBar() {
               Hollywood
             </button>
 
-            <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+            <div className={menuBox}>
               {hollywoodMenuItems.length ? (
                 hollywoodMenuItems.map((item) => (
                   <Link
@@ -714,7 +666,9 @@ export default function NavBar() {
                   </Link>
                 ))
               ) : (
-                <p className="px-3 py-2 text-sm opacity-80">No Hollywood data</p>
+                <p className="px-3 py-2 text-sm opacity-80">
+                  No Hollywood data
+                </p>
               )}
             </div>
           </div>
@@ -726,17 +680,17 @@ export default function NavBar() {
           >
             MovieFrost Hindi
           </a>
+
           <Link href="/reward" className={hover}>
             Reward
           </Link>
-
 
           <div className="relative group">
             <button className={`${hover} inline-flex items-center`} type="button">
               Browse By
             </button>
 
-            <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+            <div className={menuBox}>
               {browseMenuItems.length ? (
                 browseMenuItems.map((item) => (
                   <Link
@@ -762,7 +716,7 @@ export default function NavBar() {
               Contact
             </button>
 
-            <div className="absolute left-0 top-full bg-black text-white min-w-[220px] p-2 rounded shadow-md opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-200 z-50">
+            <div className={menuBox}>
               {contactMenuItems.map((item) => (
                 <Link
                   key={item.href}
@@ -775,6 +729,7 @@ export default function NavBar() {
             </div>
           </div>
 
+          {/* Notifications */}
           <div className="relative" ref={notifyRef}>
             <button
               className="relative flex items-center justify-center"
@@ -783,6 +738,7 @@ export default function NavBar() {
               type="button"
             >
               <FaBell className="w-5 h-5 text-white" />
+
               {unreadCount > 0 ? (
                 <span className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-2 -right-2.5">
                   {unreadCount}
@@ -824,7 +780,9 @@ export default function NavBar() {
                   <p className="text-xs text-border px-2 py-2">Loading...</p>
                 ) : notifications.length === 0 ? (
                   <div className="px-2 py-2">
-                    <p className="text-sm text-border mb-2">No notifications</p>
+                    <p className="text-sm text-border mb-2">
+                      No notifications
+                    </p>
 
                     {!isAdmin ? (
                       <button
@@ -861,6 +819,7 @@ export default function NavBar() {
                                 {notif.title}
                               </p>
                             ) : null}
+
                             <p className="text-sm">{notif.message}</p>
                           </button>
 
@@ -900,6 +859,7 @@ export default function NavBar() {
                                   placeholder="Paste movie link (https://...)"
                                   className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
                                 />
+
                                 <input
                                   value={replyMessage}
                                   onChange={(e) =>
@@ -908,6 +868,7 @@ export default function NavBar() {
                                   placeholder="Optional message to user"
                                   className="w-full bg-main border border-border rounded px-2 py-2 text-xs outline-none focus:border-customPurple"
                                 />
+
                                 <button
                                   onClick={() => handleAdminReply(notif)}
                                   className="w-full bg-customPurple text-white rounded py-2 text-xs disabled:opacity-60"
@@ -927,6 +888,7 @@ export default function NavBar() {
             ) : null}
           </div>
 
+          {/* Profile */}
           <Link
             href={isAdmin ? '/dashboard' : token ? '/profile' : '/login'}
             className={hover}
@@ -947,12 +909,14 @@ export default function NavBar() {
             )}
           </Link>
 
+          {/* Favorites */}
           <Link
             href="/favorites"
             className={`${hover} relative flex items-center justify-center`}
             aria-label="Favorites"
           >
             <FaHeart className="w-5 h-5" />
+
             <div className="w-4 h-4 flex-colo rounded-full text-[11px] bg-customPurple text-white absolute -top-3 -right-1.5">
               {favoritesCount}
             </div>

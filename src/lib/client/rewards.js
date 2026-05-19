@@ -40,6 +40,23 @@ export const applyReferral = async (token, { referralCode, deviceId }) => {
   return data;
 };
 
+export const recordRewardActivity = async (
+  token,
+  { type = 'visit', movieId = '', seconds = 0 } = {}
+) => {
+  const data = await apiFetch('/api/rewards/activity', {
+    method: 'POST',
+    token,
+    body: { type, movieId, seconds },
+  });
+
+  if (data?.summary) {
+    setCachedRewardFromSummary(data.summary);
+  }
+
+  return data;
+};
+
 export const submitRewardFeedback = ({ name = '', email = '', message = '' }) =>
   apiFetch('/api/rewards/feedback', {
     method: 'POST',

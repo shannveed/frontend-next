@@ -118,8 +118,9 @@ export default function SiteChromeRuntime() {
 
   useEffect(() => {
     isAnyPopupOpenRef.current =
-      requestOpen || telegramOpen || installOpen || updateOpen;
-  }, [requestOpen, telegramOpen, installOpen, updateOpen]);
+      requestOpen || telegramOpen || installOpen || updateOpen || rewardShareOpen;
+  }, [requestOpen, telegramOpen, installOpen, updateOpen, rewardShareOpen]);
+
 
   const markPopupClosed = useCallback(() => {
     lastPopupClosedAtRef.current = Date.now();

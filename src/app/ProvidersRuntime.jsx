@@ -8,9 +8,11 @@ import {
   SW_RELOAD_ON_CONTROLLERCHANGE_FLAG,
   SW_UPDATE_AVAILABLE_EVENT,
 } from '../lib/events';
+import { recordRewardActivity } from '../lib/client/rewards';
 
 const PENDING_KEY = 'pendingWatchRequest';
 const SW_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
+const REWARD_VISIT_DAY_KEY = 'mf_reward_visit_day'; // <-- NEW CONSTANT ADDED HERE
 
 const canUseWindow = () => typeof window !== 'undefined';
 
@@ -286,6 +288,48 @@ export default function ProvidersRuntime() {
     return () => {
       disposed = true;
       window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  // <-- NEW USEEFFECT ADDED HERE
+  useEffect(() => {
+    if (!canUseWindow()) return;
+
+    let disposed = false;
+
+    const recordVisit = async () => {
+      const ui = getUserInfo();
+      const token = ui?.token;
+
+      if (!token) return;
+
+      const today = new Date().toISOString().slice(0, 10);
+
+      try {
+        if (localStorage.getItem(REWARD_VISIT_DAY_KEY) === today) return;
+      } catch {
+        // ignore
+      }
+
+      try {
+        await recordRewardActivity(token, { type: 'visit' });
+
+        if (!disposed) {
+          try {
+            localStorage.setItem(REWARD_VISIT_DAY_KEY, today);
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    recordVisit();
+
+    return () => {
+      disposed = true;
     };
   }, []);
 
