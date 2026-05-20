@@ -581,8 +581,11 @@ export default function NavBar() {
 
   return (
     <div className="bg-main shadow-md sticky top-0 z-20 hidden lg:block">
-      <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-8 above-1000:gap-6 grid-cols-7 justify-between items-center">
-        <div className="col-span-1">
+      {/* Changed lg:grid grid-cols-7 to lg:flex for fluid responsiveness */}
+      <div className="container py-6 above-1000:py-4 px-8 lg:flex gap-4 xl:gap-6 justify-between items-center">
+
+        {/* Logo Container: Changed col-span-1 to flex-shrink-0 */}
+        <div className="flex-shrink-0">
           <Link
             href="/"
             className="inline-flex items-center min-h-[40px]"
@@ -600,7 +603,9 @@ export default function NavBar() {
           </Link>
         </div>
 
-        <div className="col-span-2 relative" ref={desktopSearchRef}>
+        {/* Search Container: Changed col-span-2 to a responsive max-width constraint */}
+        <div className="w-full max-w-[250px] xl:max-w-[330px] 2xl:max-w-[450px] relative" ref={desktopSearchRef}>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -688,7 +693,8 @@ export default function NavBar() {
           ) : null}
         </div>
 
-        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-6 2xl:gap-7 justify-end items-center hidden lg:flex">
+        {/* Links Container: Changed col-span-4 to flex-1 and adjusted the responsive gaps */}
+        <div className="flex-1 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-4 2xl:gap-8 justify-end items-center hidden lg:flex">
           <Link href="/movies?type=Movie" className={hover}>
             Movies
           </Link>
@@ -729,7 +735,6 @@ export default function NavBar() {
           <Link href="/reward" className={hover}>
             Reward
           </Link>
-
 
           <div className="relative group">
             <button className={`${hover} inline-flex items-center`} type="button">
@@ -959,6 +964,7 @@ export default function NavBar() {
           </Link>
         </div>
       </div>
-    </div>
+    </div >
   );
+
 }
