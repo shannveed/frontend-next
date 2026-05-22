@@ -9,13 +9,6 @@ import { FiLogIn } from 'react-icons/fi';
 import { apiFetch } from '../../lib/client/apiFetch';
 import { getUserInfo, setUserInfo } from '../../lib/client/auth';
 
-// NEW IMPORT
-import {
-  clearStoredReferralCode,
-  getReferralDeviceId,
-  getStoredReferralCode,
-} from '../../lib/client/rewardTracking';
-
 import { Input } from '../forms/Usedinputs';
 import InlineError from '../forms/InlineError';
 
@@ -98,10 +91,6 @@ export default function RegisterClient() {
     try {
       setLoading(true);
 
-      // NEW: Get referral tracking info
-      const referralCode = getStoredReferralCode();
-      const deviceId = await getReferralDeviceId();
-
       const data = await apiFetch('/api/users', {
         method: 'POST',
         body: {
@@ -109,17 +98,10 @@ export default function RegisterClient() {
           email: email.trim(),
           password,
           image: '',
-          // NEW: Add to body
-          referralCode,
-          deviceId,
         },
       });
 
       setUserInfo(data);
-
-      // NEW: Clear tracking code
-      clearStoredReferralCode();
-
       toast.success(`Welcome ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);

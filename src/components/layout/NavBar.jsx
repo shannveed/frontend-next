@@ -581,11 +581,8 @@ export default function NavBar() {
 
   return (
     <div className="bg-main shadow-md sticky top-0 z-20 hidden lg:block">
-      {/* Changed lg:grid grid-cols-7 to lg:flex for fluid responsiveness */}
-      <div className="container py-6 above-1000:py-4 px-8 lg:flex gap-4 xl:gap-6 justify-between items-center">
-
-        {/* Logo Container: Changed col-span-1 to flex-shrink-0 */}
-        <div className="flex-shrink-0">
+      <div className="container py-6 above-1000:py-4 px-8 lg:grid gap-8 above-1000:gap-6 grid-cols-7 justify-between items-center">
+        <div className="col-span-1">
           <Link
             href="/"
             className="inline-flex items-center min-h-[40px]"
@@ -603,9 +600,7 @@ export default function NavBar() {
           </Link>
         </div>
 
-        {/* Search Container: Changed col-span-2 to a responsive max-width constraint */}
-        <div className="w-full max-w-[250px] xl:max-w-[330px] 2xl:max-w-[450px] relative" ref={desktopSearchRef}>
-
+        <div className="col-span-2 relative" ref={desktopSearchRef}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -693,8 +688,7 @@ export default function NavBar() {
           ) : null}
         </div>
 
-        {/* Links Container: Changed col-span-4 to flex-1 and adjusted the responsive gaps */}
-        <div className="flex-1 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-4 2xl:gap-8 justify-end items-center hidden lg:flex">
+        <div className="col-span-4 min-w-0 font-medium text-[11px] xl:text-xs 2xl:text-xs gap-3 xl:gap-6 2xl:gap-7 justify-end items-center hidden lg:flex">
           <Link href="/movies?type=Movie" className={hover}>
             Movies
           </Link>
@@ -732,9 +726,6 @@ export default function NavBar() {
           >
             MovieFrost Hindi
           </a>
-          <Link href="/reward" className={hover}>
-            Reward
-          </Link>
 
           <div className="relative group">
             <button className={`${hover} inline-flex items-center`} type="button">
@@ -934,21 +925,21 @@ export default function NavBar() {
 
           <Link
             href={isAdmin ? '/dashboard' : token ? '/profile' : '/login'}
-            className={`${hover} relative flex items-center justify-center w-7 h-7 shrink-0`}
+            className={hover}
             aria-label={token ? `${userInfo?.fullName || 'User'} profile` : 'Login'}
           >
             {token ? (
               <img
                 src={avatarSrc}
                 alt={userInfo?.fullName || 'Profile'}
-                className="w-full h-full min-w-full min-h-full rounded-full border object-cover border-customPurple shrink-0 block"
+                className="w-6 h-6 rounded-full border object-cover border-customPurple"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = DEFAULT_PROFILE_IMAGE;
                 }}
               />
             ) : (
-              <CgUser className="w-full h-full shrink-0 block" />
+              <CgUser className="w-7 h-7" />
             )}
           </Link>
 
@@ -964,7 +955,6 @@ export default function NavBar() {
           </Link>
         </div>
       </div>
-    </div >
+    </div>
   );
-
 }
