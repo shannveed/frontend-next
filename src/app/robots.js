@@ -24,8 +24,7 @@ export default function robots() {
           '/favorites',
           '/api',
 
-          // ✅ Crawl-budget cleanup
-          '/actor',
+          // Crawl-budget cleanup
           '/watch',
           '/search',
           '/login',
@@ -35,6 +34,10 @@ export default function robots() {
       },
     ],
 
-    sitemap: [`${SITE_URL}/sitemap-index.xml`, `${SITE_URL}/sitemap.xml`],
+    sitemap: [
+      `${SITE_URL}/sitemap-index.xml`,
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/sitemap-actors.xml`,
+    ],
   };
 }

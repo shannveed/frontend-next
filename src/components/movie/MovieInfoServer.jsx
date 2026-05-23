@@ -8,6 +8,7 @@ import {
   FaCloudDownloadAlt,
 } from 'react-icons/fa';
 import { SiImdb, SiRottentomatoes } from 'react-icons/si';
+import { personSlug } from '../../lib/seo';
 
 import MovieAverageStars from './MovieAverageStars';
 import MovieShareButtonClient from './MovieShareButtonClient';
@@ -112,30 +113,52 @@ function CastScroller({ casts = [] }) {
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {list.map((c, idx) => (
-          <div
-            key={`${c?.name || 'cast'}-${idx}`}
-            className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2"
-          >
-            <div className="w-full aspect-[3/4] relative rounded-md overflow-hidden bg-black/40 border border-border">
-              <SafeImage
-                src={c?.image}
-                fallbackCandidates={['/images/placeholder.jpg']}
-                alt={c?.name || 'Actor'}
-                fill
-                sizes="140px"
-                className="object-contain"
-              />
+        {list.map((c, idx) => {
+          const slug = c?.slug || personSlug(c?.name);
+          const href = slug ? `/actor/${slug}` : '';
+
+          const card = (
+            <div className="min-w-[120px] max-w-[160px] bg-main border border-border rounded-lg p-2 hover:border-customPurple transitions">
+              <div className="w-full aspect-[3/4] relative rounded-md overflow-hidden bg-black/40 border border-border">
+                <SafeImage
+                  src={c?.image}
+                  fallbackCandidates={['/images/placeholder.jpg']}
+                  alt={c?.name || 'Actor'}
+                  fill
+                  sizes="140px"
+                  className="object-contain"
+                />
+              </div>
+
+              <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
+                {c?.name}
+              </p>
+
+              <p className="text-[10px] text-customPurple text-center mt-1">
+                View profile
+              </p>
             </div>
-            <p className="mt-1 text-[11px] font-medium text-white/90 text-center line-clamp-2 leading-tight">
-              {c?.name}
-            </p>
-          </div>
-        ))}
+          );
+
+          if (!href) {
+            return <div key={`${c?.name || 'cast'}-${idx}`}>{card}</div>;
+          }
+
+          return (
+            <Link
+              key={`${c?.name || 'cast'}-${idx}`}
+              href={href}
+              className="block"
+            >
+              {card}
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
 }
+
 
 export default function MovieInfoServer({ movie }) {
   const seg = movie?.slug || movie?._id;
@@ -224,9 +247,16 @@ export default function MovieInfoServer({ movie }) {
 
           {directorName ? (
             <div className="mt-2 text-xs text-dryGray">
-              Director: <span className="text-white">{directorName}</span>
+              Director:{' '}
+              <Link
+                href={`/actor/${personSlug(directorName)}`}
+                className="text-white hover:text-customPurple transitions"
+              >
+                {directorName}
+              </Link>
             </div>
           ) : null}
+
 
           <div className="mt-4 flex gap-2">
             <Link
@@ -343,9 +373,15 @@ export default function MovieInfoServer({ movie }) {
                   {directorName ? (
                     <span className="inline-flex items-center gap-1">
                       <span className="text-subMain">Director:</span>
-                      <span className="text-white">{directorName}</span>
+                      <Link
+                        href={`/actor/${personSlug(directorName)}`}
+                        className="text-white hover:text-customPurple transitions"
+                      >
+                        {directorName}
+                      </Link>
                     </span>
                   ) : null}
+
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">

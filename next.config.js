@@ -206,10 +206,7 @@ const nextConfig = {
         source: '/watch/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
-      {
-        source: '/actor/:path*',
-        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
-      },
+
       {
         source: '/service-worker.js',
         headers: [
