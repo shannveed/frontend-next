@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FEEDBACK_MODAL_OPEN_EVENT } from '../../lib/events';
 
 const DEFAULT_SCRIPT_SRC =
   'https://pl27041508.effectivegatecpm.com/019a973cec8ffe0b4ea36cff849dc6cf/invoke.js';
@@ -67,6 +68,35 @@ const useMediaQuery = (query, enabled = true) => {
   return matches;
 };
 
+// ✅ NEW: tracks whether the public website feedback modal is currently open.
+// While it is open, every inline ad iframe is unmounted (no ad loads) on
+// BOTH mobile and desktop.
+const useFeedbackModalOpen = () => {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // In case the modal is already open when this ad mounts.
+    try {
+      if (document.body.classList.contains('mf-feedback-modal-open')) {
+        setFeedbackOpen(true);
+      }
+    } catch {
+      // ignore
+    }
+
+    const handler = (e) => {
+      setFeedbackOpen(!!e?.detail?.open);
+    };
+
+    window.addEventListener(FEEDBACK_MODAL_OPEN_EVENT, handler);
+    return () => window.removeEventListener(FEEDBACK_MODAL_OPEN_EVENT, handler);
+  }, []);
+
+  return feedbackOpen;
+};
+
 function AdShell({ label, className, aspectRatio, minHeight, children, shellRef }) {
   return (
     <section className={`w-full my-8 ${className}`} aria-label={label || 'Advertisement'}>
@@ -126,6 +156,9 @@ function EffectiveGateIframeAd({
   // Only evaluate media query after mount (prevents SSR/client mismatch)
   const matches = useMediaQuery(query, mounted);
 
+  // ✅ Hide ads while feedback modal is open (mobile + desktop)
+  const feedbackOpen = useFeedbackModalOpen();
+
   const srcDoc = useMemo(() => buildSrcDoc({ containerId, scriptSrc }), [
     containerId,
     scriptSrc,
@@ -136,7 +169,7 @@ function EffectiveGateIframeAd({
   }, [containerId, refreshKey, scriptSrc, query, aspectRatio]);
 
   useEffect(() => {
-    if (!mounted || !matches) {
+    if (!mounted || !matches || feedbackOpen) {
       setShouldLoadFrame(false);
       return;
     }
@@ -171,7 +204,7 @@ function EffectiveGateIframeAd({
     observer.observe(node);
 
     return () => observer.disconnect();
-  }, [mounted, matches, shouldLoadFrame, rootMargin]);
+  }, [mounted, matches, feedbackOpen, shouldLoadFrame, rootMargin]);
 
   // SSR-safe placeholder
   if (!mounted) {
@@ -186,6 +219,9 @@ function EffectiveGateIframeAd({
   }
 
   if (!matches) return null;
+
+  // ✅ While feedback form is open, fully unmount the ad iframe so no ad loads.
+  if (feedbackOpen) return null;
 
   const title = iframeTitle || `effectivegate-ad-${String(refreshKey || 'default')}`;
 

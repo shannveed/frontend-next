@@ -10,6 +10,7 @@ import { FaStar } from 'react-icons/fa';
 import { getUserInfo } from '../../lib/client/auth';
 import { submitWebsiteFeedback } from '../../lib/client/websiteFeedback';
 import { getCountryOptions } from '../../data/countries';
+import { FEEDBACK_MODAL_OPEN_EVENT } from '../../lib/events';
 
 const ACTIVE_TIME_TARGET_MS = 3 * 60 * 1000; // 3 minutes
 const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
@@ -116,6 +117,21 @@ const isDismissedThisSession = () => {
   }
 };
 
+// ✅ NEW: broadcast feedback modal open/close so inline ad iframes can unmount.
+const dispatchFeedbackOpen = (isOpen) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(FEEDBACK_MODAL_OPEN_EVENT, {
+        detail: { open: !!isOpen },
+      })
+    );
+  } catch {
+    // ignore
+  }
+};
+
 function ScaleButtons({
   value,
   onChange,
@@ -141,8 +157,8 @@ function ScaleButtons({
             type="button"
             onClick={() => onChange(n)}
             className={`rounded-lg border px-2 py-3 text-center transitions ${active
-                ? 'bg-customPurple border-customPurple text-white'
-                : 'bg-main border-border text-white hover:border-customPurple'
+              ? 'bg-customPurple border-customPurple text-white'
+              : 'bg-main border-border text-white hover:border-customPurple'
               }`}
           >
             <span className="flex items-center justify-center gap-1 text-sm font-bold">
@@ -174,8 +190,8 @@ function OptionButtons({ value, options = [], onChange }) {
             type="button"
             onClick={() => onChange(option)}
             className={`rounded-lg border px-3 py-3 text-sm font-semibold transitions ${active
-                ? 'bg-customPurple border-customPurple text-white'
-                : 'bg-main border-border text-white hover:border-customPurple'
+              ? 'bg-customPurple border-customPurple text-white'
+              : 'bg-main border-border text-white hover:border-customPurple'
               }`}
           >
             {option}
@@ -223,13 +239,15 @@ export default function WebsiteFeedbackPrompt({
     setMounted(true);
   }, []);
 
-  // Notify parent + lock page scroll while modal is open.
+  // Notify parent + lock page scroll + broadcast to ads while modal is open.
   useEffect(() => {
     onOpenChange?.(!!open);
+    dispatchFeedbackOpen(!!open);
 
     if (!open || typeof document === 'undefined') {
       return () => {
         onOpenChange?.(false);
+        dispatchFeedbackOpen(false);
       };
     }
 
@@ -242,6 +260,7 @@ export default function WebsiteFeedbackPrompt({
       document.body.style.overflow = prevOverflow;
       document.body.classList.remove('mf-feedback-modal-open');
       onOpenChange?.(false);
+      dispatchFeedbackOpen(false);
     };
   }, [open, onOpenChange]);
 
@@ -450,7 +469,7 @@ export default function WebsiteFeedbackPrompt({
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-white">
-                Help us improve MovieFrost
+                Help us improve MovieFrost. Your feedback matters to us.
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-text">
