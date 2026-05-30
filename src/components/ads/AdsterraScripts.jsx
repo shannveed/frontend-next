@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
 const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
@@ -45,6 +46,23 @@ const toSafeDelay = (value, fallback) => {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 };
 
+const isFeedbackModalOpenNow = () => {
+  if (typeof document === 'undefined') return false;
+
+  try {
+    return !!(
+      document.body?.classList?.contains('mf-feedback-modal-open') ||
+      document.documentElement?.classList?.contains(
+        'mf-feedback-modal-open'
+      ) ||
+      document.body?.dataset?.mfFeedbackModalOpen === 'true' ||
+      document.documentElement?.dataset?.mfFeedbackModalOpen === 'true'
+    );
+  } catch {
+    return false;
+  }
+};
+
 const removeInjectedScript = () => {
   if (typeof document === 'undefined') return;
 
@@ -85,8 +103,15 @@ export default function AdsterraScripts() {
   const lastInjectAtRef = useRef(0);
 
   useEffect(() => {
-    if (!ADS_ENABLED || isExcluded) return;
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if (!ADS_ENABLED || isExcluded) {
+      removeInjectedScript();
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
     if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
     if (window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED) return;
@@ -111,7 +136,13 @@ export default function AdsterraScripts() {
     };
 
     const injectIfAllowed = () => {
+      if (isFeedbackModalOpenNow()) {
+        removeInjectedScript();
+        return;
+      }
+
       if (document.visibilityState !== 'visible') return;
+
       if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
         return;
       }
@@ -139,6 +170,11 @@ export default function AdsterraScripts() {
     };
 
     const activate = () => {
+      if (isFeedbackModalOpenNow()) {
+        removeInjectedScript();
+        return;
+      }
+
       activatedRef.current = true;
       initialTimerRef.current = null;
 
@@ -146,7 +182,45 @@ export default function AdsterraScripts() {
       startRepeater();
     };
 
-    initialTimerRef.current = window.setTimeout(activate, initialDelay);
+    const startInitialTimer = () => {
+      clearAll();
+      activatedRef.current = false;
+      lastInjectAtRef.current = 0;
+
+      if (isFeedbackModalOpenNow()) {
+        removeInjectedScript();
+        return;
+      }
+
+      initialTimerRef.current = window.setTimeout(activate, initialDelay);
+    };
+
+    const onFeedbackOpenChange = (event) => {
+      const open =
+        typeof event?.detail?.open === 'boolean'
+          ? event.detail.open
+          : isFeedbackModalOpenNow();
+
+      if (open) {
+        clearAll();
+        activatedRef.current = false;
+        lastInjectAtRef.current = 0;
+        removeInjectedScript();
+
+        // Allow clean remount/restart after the modal closes.
+        window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = false;
+        return;
+      }
+
+      window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = true;
+      startInitialTimer();
+    };
+
+    if (!isFeedbackModalOpenNow()) {
+      startInitialTimer();
+    } else {
+      removeInjectedScript();
+    }
 
     const onVisibilityChange = () => {
       if (!activatedRef.current) return;
@@ -156,11 +230,20 @@ export default function AdsterraScripts() {
     };
 
     window.addEventListener('focus', injectIfAllowed);
+    window.addEventListener(
+      FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
+      onFeedbackOpenChange
+    );
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       clearAll();
+
       window.removeEventListener('focus', injectIfAllowed);
+      window.removeEventListener(
+        FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
+        onFeedbackOpenChange
+      );
       document.removeEventListener('visibilitychange', onVisibilityChange);
 
       activatedRef.current = false;

@@ -10,7 +10,7 @@ import { FaStar } from 'react-icons/fa';
 import { getUserInfo } from '../../lib/client/auth';
 import { submitWebsiteFeedback } from '../../lib/client/websiteFeedback';
 import { getCountryOptions } from '../../data/countries';
-import { FEEDBACK_MODAL_OPEN_EVENT } from '../../lib/events';
+import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
 const ACTIVE_TIME_TARGET_MS = 3 * 60 * 1000; // 3 minutes
 const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
@@ -117,16 +117,42 @@ const isDismissedThisSession = () => {
   }
 };
 
-// ✅ NEW: broadcast feedback modal open/close so inline ad iframes can unmount.
-const dispatchFeedbackOpen = (isOpen) => {
-  if (typeof window === 'undefined') return;
+/**
+ * Global feedback modal state.
+ * EffectiveGate ads + popunder script listen to this event/class and stop while open.
+ */
+const setFeedbackDomState = (isOpen) => {
+  const open = !!isOpen;
 
   try {
-    window.dispatchEvent(
-      new CustomEvent(FEEDBACK_MODAL_OPEN_EVENT, {
-        detail: { open: !!isOpen },
-      })
-    );
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle(
+        'mf-feedback-modal-open',
+        open
+      );
+
+      document.body.classList.toggle('mf-feedback-modal-open', open);
+
+      if (open) {
+        document.documentElement.dataset.mfFeedbackModalOpen = 'true';
+        document.body.dataset.mfFeedbackModalOpen = 'true';
+      } else {
+        delete document.documentElement.dataset.mfFeedbackModalOpen;
+        delete document.body.dataset.mfFeedbackModalOpen;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, {
+          detail: { open },
+        })
+      );
+    }
   } catch {
     // ignore
   }
@@ -157,8 +183,8 @@ function ScaleButtons({
             type="button"
             onClick={() => onChange(n)}
             className={`rounded-lg border px-2 py-3 text-center transitions ${active
-              ? 'bg-customPurple border-customPurple text-white'
-              : 'bg-main border-border text-white hover:border-customPurple'
+                ? 'bg-customPurple border-customPurple text-white'
+                : 'bg-main border-border text-white hover:border-customPurple'
               }`}
           >
             <span className="flex items-center justify-center gap-1 text-sm font-bold">
@@ -190,8 +216,8 @@ function OptionButtons({ value, options = [], onChange }) {
             type="button"
             onClick={() => onChange(option)}
             className={`rounded-lg border px-3 py-3 text-sm font-semibold transitions ${active
-              ? 'bg-customPurple border-customPurple text-white'
-              : 'bg-main border-border text-white hover:border-customPurple'
+                ? 'bg-customPurple border-customPurple text-white'
+                : 'bg-main border-border text-white hover:border-customPurple'
               }`}
           >
             {option}
@@ -215,10 +241,7 @@ function FieldLabel({ children, optional = false }) {
   );
 }
 
-export default function WebsiteFeedbackPrompt({
-  blocked = false,
-  onOpenChange,
-}) {
+export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange }) {
   const pathname = usePathname() || '/';
 
   const [mounted, setMounted] = useState(false);
@@ -237,30 +260,30 @@ export default function WebsiteFeedbackPrompt({
 
   useEffect(() => {
     setMounted(true);
-  }, []);
 
-  // Notify parent + lock page scroll + broadcast to ads while modal is open.
+    return () => {
+      setFeedbackDomState(false);
+      onOpenChange?.(false);
+    };
+  }, [onOpenChange]);
+
+  // Notify parent + lock page scroll while modal is open.
   useEffect(() => {
     onOpenChange?.(!!open);
-    dispatchFeedbackOpen(!!open);
+    setFeedbackDomState(!!open);
 
     if (!open || typeof document === 'undefined') {
-      return () => {
-        onOpenChange?.(false);
-        dispatchFeedbackOpen(false);
-      };
+      return;
     }
 
     const prevOverflow = document.body.style.overflow;
 
     document.body.style.overflow = 'hidden';
-    document.body.classList.add('mf-feedback-modal-open');
 
     return () => {
       document.body.style.overflow = prevOverflow;
-      document.body.classList.remove('mf-feedback-modal-open');
+      setFeedbackDomState(false);
       onOpenChange?.(false);
-      dispatchFeedbackOpen(false);
     };
   }, [open, onOpenChange]);
 
@@ -441,10 +464,25 @@ export default function WebsiteFeedbackPrompt({
         .mf-feedback-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #4aa0ff;
         }
+
+        /*
+          ✅ Safety fallback:
+          Even if an ad component is already mounted, hide all MovieFrost ad slots
+          while the feedback modal is open.
+        */
+        html.mf-feedback-modal-open .mf-ad-slot,
+        body.mf-feedback-modal-open .mf-ad-slot,
+        html.mf-feedback-modal-open [data-mf-ad-slot="true"],
+        body.mf-feedback-modal-open [data-mf-ad-slot="true"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
       `}</style>
 
       <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-3 sm:p-6"
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/85 p-3 sm:p-6"
         onClick={closeForSession}
         role="dialog"
         aria-modal="true"
@@ -469,7 +507,7 @@ export default function WebsiteFeedbackPrompt({
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-white">
-                Help us improve MovieFrost. Your feedback matters to us.
+                Help us improve MovieFrost
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-text">

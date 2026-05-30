@@ -1,7 +1,8 @@
+// frontend-next/src/components/ads/EffectiveGateNativeBanner.jsx
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FEEDBACK_MODAL_OPEN_EVENT } from '../../lib/events';
+import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
 const DEFAULT_SCRIPT_SRC =
   'https://pl27041508.effectivegatecpm.com/019a973cec8ffe0b4ea36cff849dc6cf/invoke.js';
@@ -43,6 +44,80 @@ const buildMediaQuery = ({ minWidthPx, maxWidthPx }) => {
   return parts.length ? parts.join(' and ') : '(min-width: 0px)';
 };
 
+const isFeedbackModalOpenNow = () => {
+  if (typeof document === 'undefined') return false;
+
+  try {
+    return !!(
+      document.body?.classList?.contains('mf-feedback-modal-open') ||
+      document.documentElement?.classList?.contains(
+        'mf-feedback-modal-open'
+      ) ||
+      document.body?.dataset?.mfFeedbackModalOpen === 'true' ||
+      document.documentElement?.dataset?.mfFeedbackModalOpen === 'true'
+    );
+  } catch {
+    return false;
+  }
+};
+
+const useFeedbackModalOpen = () => {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateFromDom = () => {
+      setOpen(isFeedbackModalOpenNow());
+    };
+
+    const onEvent = (event) => {
+      const next = event?.detail?.open;
+
+      if (typeof next === 'boolean') {
+        setOpen(next);
+        return;
+      }
+
+      updateFromDom();
+    };
+
+    updateFromDom();
+
+    window.addEventListener(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, onEvent);
+
+    let bodyObserver = null;
+    let htmlObserver = null;
+
+    if (typeof MutationObserver !== 'undefined') {
+      bodyObserver = new MutationObserver(updateFromDom);
+      htmlObserver = new MutationObserver(updateFromDom);
+
+      if (document.body) {
+        bodyObserver.observe(document.body, {
+          attributes: true,
+          attributeFilter: ['class', 'data-mf-feedback-modal-open'],
+        });
+      }
+
+      if (document.documentElement) {
+        htmlObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['class', 'data-mf-feedback-modal-open'],
+        });
+      }
+    }
+
+    return () => {
+      window.removeEventListener(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, onEvent);
+      bodyObserver?.disconnect?.();
+      htmlObserver?.disconnect?.();
+    };
+  }, []);
+
+  return open;
+};
+
 // ✅ SSR-safe: first render always false
 const useMediaQuery = (query, enabled = true) => {
   const [matches, setMatches] = useState(false);
@@ -68,38 +143,20 @@ const useMediaQuery = (query, enabled = true) => {
   return matches;
 };
 
-// ✅ NEW: tracks whether the public website feedback modal is currently open.
-// While it is open, every inline ad iframe is unmounted (no ad loads) on
-// BOTH mobile and desktop.
-const useFeedbackModalOpen = () => {
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // In case the modal is already open when this ad mounts.
-    try {
-      if (document.body.classList.contains('mf-feedback-modal-open')) {
-        setFeedbackOpen(true);
-      }
-    } catch {
-      // ignore
-    }
-
-    const handler = (e) => {
-      setFeedbackOpen(!!e?.detail?.open);
-    };
-
-    window.addEventListener(FEEDBACK_MODAL_OPEN_EVENT, handler);
-    return () => window.removeEventListener(FEEDBACK_MODAL_OPEN_EVENT, handler);
-  }, []);
-
-  return feedbackOpen;
-};
-
-function AdShell({ label, className, aspectRatio, minHeight, children, shellRef }) {
+function AdShell({
+  label,
+  className,
+  aspectRatio,
+  minHeight,
+  children,
+  shellRef,
+}) {
   return (
-    <section className={`w-full my-8 ${className}`} aria-label={label || 'Advertisement'}>
+    <section
+      data-mf-ad-slot="true"
+      className={`mf-ad-slot w-full my-8 ${className}`}
+      aria-label={label || 'Advertisement'}
+    >
       <div className="border border-border bg-dry rounded-lg p-3 sm:p-4">
         {label ? (
           <div className="flex items-center justify-between mb-2">
@@ -151,25 +208,42 @@ function EffectiveGateIframeAd({
 
   const shellRef = useRef(null);
 
+  const feedbackModalOpen = useFeedbackModalOpen();
+
   useEffect(() => setMounted(true), []);
 
   // Only evaluate media query after mount (prevents SSR/client mismatch)
   const matches = useMediaQuery(query, mounted);
 
-  // ✅ Hide ads while feedback modal is open (mobile + desktop)
-  const feedbackOpen = useFeedbackModalOpen();
-
-  const srcDoc = useMemo(() => buildSrcDoc({ containerId, scriptSrc }), [
-    containerId,
-    scriptSrc,
-  ]);
+  const srcDoc = useMemo(
+    () => buildSrcDoc({ containerId, scriptSrc }),
+    [containerId, scriptSrc]
+  );
 
   const iframeKey = useMemo(() => {
-    return `${containerId}:${String(refreshKey)}:${scriptSrc}:${query}:${aspectRatio}`;
+    return `${containerId}:${String(
+      refreshKey
+    )}:${scriptSrc}:${query}:${aspectRatio}`;
   }, [containerId, refreshKey, scriptSrc, query, aspectRatio]);
 
+  /**
+   * ✅ Main fix:
+   * When the public feedback modal opens, remove the iframe entirely.
+   * This prevents mobile/desktop inline ads from staying loaded behind/on top of the form.
+   */
   useEffect(() => {
-    if (!mounted || !matches || feedbackOpen) {
+    if (feedbackModalOpen) {
+      setShouldLoadFrame(false);
+    }
+  }, [feedbackModalOpen]);
+
+  useEffect(() => {
+    if (feedbackModalOpen) {
+      setShouldLoadFrame(false);
+      return;
+    }
+
+    if (!mounted || !matches) {
       setShouldLoadFrame(false);
       return;
     }
@@ -189,7 +263,7 @@ function EffectiveGateIframeAd({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && !isFeedbackModalOpenNow()) {
           setShouldLoadFrame(true);
           observer.disconnect();
         }
@@ -204,7 +278,10 @@ function EffectiveGateIframeAd({
     observer.observe(node);
 
     return () => observer.disconnect();
-  }, [mounted, matches, feedbackOpen, shouldLoadFrame, rootMargin]);
+  }, [mounted, matches, shouldLoadFrame, rootMargin, feedbackModalOpen]);
+
+  // ✅ Do not render ad slot at all while feedback form is open.
+  if (feedbackModalOpen) return null;
 
   // SSR-safe placeholder
   if (!mounted) {
@@ -220,10 +297,8 @@ function EffectiveGateIframeAd({
 
   if (!matches) return null;
 
-  // ✅ While feedback form is open, fully unmount the ad iframe so no ad loads.
-  if (feedbackOpen) return null;
-
-  const title = iframeTitle || `effectivegate-ad-${String(refreshKey || 'default')}`;
+  const title =
+    iframeTitle || `effectivegate-ad-${String(refreshKey || 'default')}`;
 
   return (
     <AdShell
