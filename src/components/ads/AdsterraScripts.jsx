@@ -1,3 +1,4 @@
+// frontend-next/src/components/ads/AdsterraScripts.jsx
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -20,9 +21,9 @@ const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
 
 const SCRIPT_ID = 'mf-profitable-popunder-script';
 
-// keep ads off account/admin/auth routes
 const EXCLUDED_PREFIXES = [
   '/dashboard',
+  '/viewer-feedback',
   '/movieslist',
   '/addmovie',
   '/edit',
@@ -36,6 +37,7 @@ const EXCLUDED_PREFIXES = [
   '/password',
   '/favorites',
 ];
+
 const EXCLUDED_EXACT = ['/login', '/register'];
 
 const toSafeDelay = (value, fallback) => {
@@ -56,8 +58,6 @@ const injectProfitablePopunderScript = () => {
   if (typeof document === 'undefined') return;
   if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-  // We control injection timing here.
-  // Exact popup behavior is still ultimately controlled by the ad network script.
   removeInjectedScript();
 
   const script = document.createElement('script');
@@ -89,9 +89,8 @@ export default function AdsterraScripts() {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-    // Guard against React StrictMode double-effects
-    if (window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__) return;
-    window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = true;
+    if (window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED) return;
+    window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = true;
 
     const initialDelay = toSafeDelay(
       PROFITABLE_POPUNDER_INITIAL_DELAY_MS,
@@ -113,20 +112,21 @@ export default function AdsterraScripts() {
 
     const injectIfAllowed = () => {
       if (document.visibilityState !== 'visible') return;
-      if (typeof document.hasFocus === 'function' && !document.hasFocus()) return;
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+        return;
+      }
 
       const now = Date.now();
 
-      // Keep at least the requested gap between re-injections
       if (
         lastInjectAtRef.current &&
-        now - lastInjectAtRef.current < repeatDelay - 250
+        now - lastInjectAtRef.current < repeatDelay
       ) {
         return;
       }
 
-      injectProfitablePopunderScript();
       lastInjectAtRef.current = now;
+      injectProfitablePopunderScript();
     };
 
     const startRepeater = () => {
@@ -142,10 +142,7 @@ export default function AdsterraScripts() {
       activatedRef.current = true;
       initialTimerRef.current = null;
 
-      // First load after 1 minute
       injectIfAllowed();
-
-      // Then re-inject every 30 seconds
       startRepeater();
     };
 
@@ -170,7 +167,7 @@ export default function AdsterraScripts() {
       lastInjectAtRef.current = 0;
 
       removeInjectedScript();
-      window.__MF_PROFITABLE_POPUNDER_BOOTSTRAPPED__ = false;
+      window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = false;
     };
   }, [isExcluded]);
 

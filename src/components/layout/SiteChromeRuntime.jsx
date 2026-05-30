@@ -1,3 +1,4 @@
+// frontend-next/src/components/layout/SiteChromeRuntime.jsx
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -40,13 +41,16 @@ const UpdateAvailablePopup = dynamic(
   { ssr: false }
 );
 
+const WebsiteFeedbackPrompt = dynamic(
+  () => import('../modals/WebsiteFeedbackPrompt'),
+  { ssr: false }
+);
+
 const POPUP_COOLDOWN_MS = 20000;
 const POPUP_RETRY_MS = 2000;
 
 const TELEGRAM_URL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL || '';
 
-// Disabled by default.
-// To enable again later, set NEXT_PUBLIC_TELEGRAM_POPUP_ENABLED=true on Vercel.
 const TELEGRAM_POPUP_ENABLED =
   String(process.env.NEXT_PUBLIC_TELEGRAM_POPUP_ENABLED || 'false')
     .trim()
@@ -80,6 +84,9 @@ export default function SiteChromeRuntime() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [telegramOpen, setTelegramOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const feedbackWasOpenRef = useRef(false);
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
@@ -106,8 +113,8 @@ export default function SiteChromeRuntime() {
 
   useEffect(() => {
     isAnyPopupOpenRef.current =
-      requestOpen || telegramOpen || installOpen || updateOpen;
-  }, [requestOpen, telegramOpen, installOpen, updateOpen]);
+      requestOpen || telegramOpen || installOpen || updateOpen || feedbackOpen;
+  }, [requestOpen, telegramOpen, installOpen, updateOpen, feedbackOpen]);
 
   const markPopupClosed = useCallback(() => {
     lastPopupClosedAtRef.current = Date.now();
@@ -118,6 +125,21 @@ export default function SiteChromeRuntime() {
     const gapOk = now - lastPopupClosedAtRef.current >= POPUP_COOLDOWN_MS;
     return !isAnyPopupOpenRef.current && gapOk;
   }, []);
+
+  const handleFeedbackOpenChange = useCallback(
+    (nextOpen) => {
+      const isOpen = !!nextOpen;
+
+      setFeedbackOpen(isOpen);
+
+      if (feedbackWasOpenRef.current && !isOpen) {
+        markPopupClosed();
+      }
+
+      feedbackWasOpenRef.current = isOpen;
+    },
+    [markPopupClosed]
+  );
 
   const schedulePopup = useCallback(
     ({ storageKey, delayMs, open, shouldSkip }) => {
@@ -350,12 +372,27 @@ export default function SiteChromeRuntime() {
     });
   }, [pathname, isAdmin, schedulePopup]);
 
+  const otherPopupBlocked =
+    requestOpen || telegramOpen || installOpen || updateOpen || updating;
+
   return (
     <>
       <AnalyticsBootstrap />
 
-      {enhancementsReady && ADS_ENABLED ? <AdsterraScripts /> : null}
-      {enhancementsReady ? <FloatingShareIcons /> : null}
+      {/* Ads are not mounted while the public feedback form is open. */}
+      {enhancementsReady && ADS_ENABLED && !feedbackOpen ? (
+        <AdsterraScripts />
+      ) : null}
+
+      {/* Avoid floating share icon over the feedback form. */}
+      {enhancementsReady && !feedbackOpen ? <FloatingShareIcons /> : null}
+
+      {enhancementsReady ? (
+        <WebsiteFeedbackPrompt
+          blocked={otherPopupBlocked}
+          onOpenChange={handleFeedbackOpenChange}
+        />
+      ) : null}
 
       {updateOpen ? (
         <UpdateAvailablePopup

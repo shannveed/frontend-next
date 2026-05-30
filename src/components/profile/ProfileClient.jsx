@@ -1,4 +1,4 @@
-// src/components/profile/ProfileClient.jsx
+// frontend-next/src/components/profile/ProfileClient.jsx
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -17,7 +17,7 @@ const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
 
 const isValidEmail = (email) => {
   const e = String(email || '').trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  return /^.+@.+\..+$/.test(e);
 };
 
 export default function ProfileClient() {
@@ -80,7 +80,9 @@ export default function ProfileClient() {
       try {
         localStorage.setItem('userInfo', JSON.stringify(updated));
         window.dispatchEvent(new Event('storage'));
-      } catch {}
+      } catch {
+        // ignore
+      }
 
       setUserInfo(updated);
       setFullName(updated?.fullName || name);
@@ -96,7 +98,9 @@ export default function ProfileClient() {
         try {
           localStorage.removeItem('userInfo');
           window.dispatchEvent(new Event('storage'));
-        } catch {}
+        } catch {
+          // ignore
+        }
         window.location.href = '/login';
       }
     } finally {
@@ -123,7 +127,9 @@ export default function ProfileClient() {
         localStorage.removeItem('userInfo');
         localStorage.removeItem('redirectAfterLogin');
         window.dispatchEvent(new Event('storage'));
-      } catch {}
+      } catch {
+        // ignore
+      }
 
       toast.success('Profile Deleted');
       window.location.href = '/login';
@@ -137,109 +143,99 @@ export default function ProfileClient() {
   return (
     <SideBarShell showSidebarAd sidebarAdKey="profile">
       <div className="flex flex-col gap-6">
-        <div className="flex-btn">
-          <h2 className="text-xl font-bold">Profile</h2>
-        </div>
+        <h2 className="text-xl font-bold">Profile</h2>
 
         {booting ? (
           <Loader />
         ) : (
           <>
-            <form onSubmit={handleUpdate} className="flex flex-col gap-6">
-              {/* Profile Image */}
-              <div className="bg-main border border-border rounded-lg p-5">
-                <p className="text-border font-semibold text-sm mb-3">
-                  Profile Image
-                </p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form
+                onSubmit={handleUpdate}
+                className="lg:col-span-2 bg-dry border border-border rounded-xl p-6"
+              >
+                <div className="flex flex-col sm:flex-row gap-5 items-start">
+                  <div className="shrink-0">
+                    <p className="text-sm text-text mb-2">Profile Image</p>
 
-                <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                  <div className="w-28 h-28 rounded-full overflow-hidden border border-border bg-dry">
                     <img
                       src={avatarSrc}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
+                      alt={fullName || 'Profile'}
+                      className="w-28 h-28 rounded-full object-cover border border-border"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = '/images/placeholder.jpg';
                       }}
                     />
-                  </div>
 
-                  <div className="flex-1 w-full">
-                    <Uploader
-                      setImageUrl={setImage}
-                      compression={{
-                        targetSizeKB: 70,
-                        maxWidth: 1024,
-                        maxHeight: 1024,
-                        mimeType: 'image/webp',
-                      }}
-                      buttonText="Upload"
-                    />
-                    <p className="text-xs text-dryGray mt-2">
+                    <div className="mt-4">
+                      <Uploader
+                        setImageUrl={setImage}
+                        compression={{
+                          targetSizeKB: 70,
+                          maxWidth: 700,
+                          maxHeight: 700,
+                          mimeType: 'image/webp',
+                        }}
+                        buttonText="Upload"
+                      />
+                    </div>
+
+                    <p className="text-xs text-text mt-2">
                       Upload a square image for best results.
                     </p>
                   </div>
-                </div>
-              </div>
 
-              {/* Inputs */}
-              <div className="bg-main border border-border rounded-lg p-5">
-                <div className="grid md:grid-cols-2 gap-5">
-                  <div>
-                    <label className="text-border text-sm font-semibold">
-                      Full Name
+                  <div className="flex-1 w-full space-y-4">
+                    <label className="block">
+                      <span className="text-sm text-text">Full Name</span>
+                      <input
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
+                        placeholder="Your full name"
+                      />
                     </label>
-                    <input
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
-                      placeholder="Your full name"
-                    />
-                  </div>
 
-                  <div>
-                    <label className="text-border text-sm font-semibold">
-                      Email
+                    <label className="block">
+                      <span className="text-sm text-text">Email</span>
+                      <input
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
+                        placeholder="you@example.com"
+                        type="email"
+                      />
                     </label>
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-dry border border-border rounded px-3 py-3 mt-2 text-sm text-white outline-none focus:border-customPurple"
-                      placeholder="you@example.com"
-                      type="email"
-                    />
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="flex-1 bg-red-600 hover:bg-red-700 transition text-white py-3 rounded font-semibold disabled:opacity-60"
+                      >
+                        {deleting ? 'Deleting...' : 'Delete Account'}
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 bg-customPurple hover:bg-opacity-90 transition text-white py-3 rounded font-semibold disabled:opacity-60"
+                      >
+                        {saving ? 'Updating...' : 'Update'}
+                      </button>
+                    </div>
                   </div>
                 </div>
+              </form>
 
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={deleting || saving}
-                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 transition text-white py-3 px-6 rounded font-semibold disabled:opacity-60"
-                  >
-                    {deleting ? 'Deleting...' : 'Delete Account'}
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={saving || deleting}
-                    className="w-full sm:w-auto bg-customPurple hover:bg-opacity-90 transition text-white py-3 px-8 rounded font-semibold disabled:opacity-60"
-                  >
-                    {saving ? 'Updating...' : 'Update'}
-                  </button>
+              {ADS_ENABLED ? (
+                <div className="lg:col-span-1">
+                  <EffectiveGateSquareAd refreshKey="profile-square" />
                 </div>
-              </div>
-            </form>
-
-            {/* ✅ Mobile 1:1 ad BELOW the profile form */}
-            {ADS_ENABLED ? (
-              <EffectiveGateSquareAd
-                refreshKey="profile-mobile-below-form"
-                className="sm:hidden mt-6"
-              />
-            ) : null}
+              ) : null}
+            </div>
           </>
         )}
       </div>

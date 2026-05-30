@@ -9,6 +9,7 @@ export default function robots() {
         allow: '/',
         disallow: [
           '/dashboard',
+          '/viewer-feedback',
           '/movieslist',
           '/addmovie',
           '/edit',
