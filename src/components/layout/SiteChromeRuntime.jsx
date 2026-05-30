@@ -13,7 +13,6 @@ import {
   PUSH_RECEIVED_EVENT,
   SW_RELOAD_ON_CONTROLLERCHANGE_FLAG,
   SW_UPDATE_AVAILABLE_EVENT,
-  FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
 } from '../../lib/events';
 
 const AdsterraScripts = dynamic(() => import('../ads/AdsterraScripts'), {
@@ -76,43 +75,6 @@ const isIOSDevice = () => {
   return isIOS || isIpadOS;
 };
 
-const setFeedbackAdPauseState = (isOpen) => {
-  const open = !!isOpen;
-
-  try {
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.toggle(
-        'mf-feedback-modal-open',
-        open
-      );
-
-      document.body.classList.toggle('mf-feedback-modal-open', open);
-
-      if (open) {
-        document.documentElement.dataset.mfFeedbackModalOpen = 'true';
-        document.body.dataset.mfFeedbackModalOpen = 'true';
-      } else {
-        delete document.documentElement.dataset.mfFeedbackModalOpen;
-        delete document.body.dataset.mfFeedbackModalOpen;
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  try {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, {
-          detail: { open },
-        })
-      );
-    }
-  } catch {
-    // ignore
-  }
-};
-
 export default function SiteChromeRuntime() {
   const pathname = usePathname();
 
@@ -150,12 +112,6 @@ export default function SiteChromeRuntime() {
   }, []);
 
   useEffect(() => {
-    return () => {
-      setFeedbackAdPauseState(false);
-    };
-  }, []);
-
-  useEffect(() => {
     isAnyPopupOpenRef.current =
       requestOpen || telegramOpen || installOpen || updateOpen || feedbackOpen;
   }, [requestOpen, telegramOpen, installOpen, updateOpen, feedbackOpen]);
@@ -175,7 +131,6 @@ export default function SiteChromeRuntime() {
       const isOpen = !!nextOpen;
 
       setFeedbackOpen(isOpen);
-      setFeedbackAdPauseState(isOpen);
 
       if (feedbackWasOpenRef.current && !isOpen) {
         markPopupClosed();
@@ -424,12 +379,12 @@ export default function SiteChromeRuntime() {
     <>
       <AnalyticsBootstrap />
 
-      {/* ✅ Popunder ads are not mounted while public feedback form is open. */}
+      {/* Ads are not mounted while the public feedback form is open. */}
       {enhancementsReady && ADS_ENABLED && !feedbackOpen ? (
         <AdsterraScripts />
       ) : null}
 
-      {/* ✅ Avoid floating share icon over the feedback form. */}
+      {/* Avoid floating share icon over the feedback form. */}
       {enhancementsReady && !feedbackOpen ? <FloatingShareIcons /> : null}
 
       {enhancementsReady ? (
