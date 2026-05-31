@@ -50,6 +50,8 @@ const WebsiteFeedbackPrompt = dynamic(
 const POPUP_COOLDOWN_MS = 20000;
 const POPUP_RETRY_MS = 2000;
 
+const PUBLIC_FEEDBACK_PATH = '/feedback';
+
 const TELEGRAM_URL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL || '';
 
 const TELEGRAM_POPUP_ENABLED =
@@ -114,7 +116,8 @@ const setFeedbackAdPauseState = (isOpen) => {
 };
 
 export default function SiteChromeRuntime() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
+  const isPublicFeedbackPage = pathname === PUBLIC_FEEDBACK_PATH;
 
   const [userInfo, setUserInfoState] = useState(null);
   const isAdmin = !!userInfo?.isAdmin;
@@ -290,7 +293,8 @@ export default function SiteChromeRuntime() {
     };
 
     window.addEventListener(SW_UPDATE_AVAILABLE_EVENT, onUpdate);
-    return () => window.removeEventListener(SW_UPDATE_AVAILABLE_EVENT, onUpdate);
+    return () =>
+      window.removeEventListener(SW_UPDATE_AVAILABLE_EVENT, onUpdate);
   }, []);
 
   const clearCaches = useCallback(async () => {
@@ -377,6 +381,7 @@ export default function SiteChromeRuntime() {
     if (!isIOS && !deferredPrompt) return;
 
     const shouldSkip = () => {
+      if (pathname === PUBLIC_FEEDBACK_PATH) return true;
       if (pathname === '/login' || pathname === '/register') return true;
       if (pathname.startsWith('/watch')) return true;
       if (isStandaloneMode()) return true;
@@ -403,6 +408,7 @@ export default function SiteChromeRuntime() {
     if (!TELEGRAM_POPUP_ENABLED || !TELEGRAM_URL) return;
 
     const shouldSkip = () => {
+      if (pathname === PUBLIC_FEEDBACK_PATH) return true;
       if (isAdmin) return true;
       if (pathname === '/login' || pathname === '/register') return true;
       if (pathname.startsWith('/watch')) return true;
@@ -418,21 +424,32 @@ export default function SiteChromeRuntime() {
   }, [pathname, isAdmin, schedulePopup]);
 
   const otherPopupBlocked =
-    requestOpen || telegramOpen || installOpen || updateOpen || updating;
+    requestOpen ||
+    telegramOpen ||
+    installOpen ||
+    updateOpen ||
+    updating ||
+    isPublicFeedbackPage;
 
   return (
     <>
       <AnalyticsBootstrap />
 
-      {/* ✅ Popunder ads are not mounted while public feedback form is open. */}
-      {enhancementsReady && ADS_ENABLED && !feedbackOpen ? (
+      {/* Do not mount popunder ads on feedback page. */}
+      {enhancementsReady &&
+        ADS_ENABLED &&
+        !feedbackOpen &&
+        !isPublicFeedbackPage ? (
         <AdsterraScripts />
       ) : null}
 
-      {/* ✅ Avoid floating share icon over the feedback form. */}
-      {enhancementsReady && !feedbackOpen ? <FloatingShareIcons /> : null}
+      {/* Do not show floating share icon on feedback page. */}
+      {enhancementsReady && !feedbackOpen && !isPublicFeedbackPage ? (
+        <FloatingShareIcons />
+      ) : null}
 
-      {enhancementsReady ? (
+      {/* Feedback trigger redirects to /feedback after 3 minutes. */}
+      {enhancementsReady && !isPublicFeedbackPage ? (
         <WebsiteFeedbackPrompt
           blocked={otherPopupBlocked}
           onOpenChange={handleFeedbackOpenChange}

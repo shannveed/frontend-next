@@ -39,7 +39,7 @@ const EXCLUDED_PREFIXES = [
   '/favorites',
 ];
 
-const EXCLUDED_EXACT = ['/login', '/register'];
+const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
 
 const toSafeDelay = (value, fallback) => {
   const n = Number(value);
@@ -207,7 +207,6 @@ export default function AdsterraScripts() {
         lastInjectAtRef.current = 0;
         removeInjectedScript();
 
-        // Allow clean remount/restart after the modal closes.
         window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = false;
         return;
       }

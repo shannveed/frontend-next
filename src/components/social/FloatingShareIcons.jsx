@@ -1,3 +1,4 @@
+// frontend-next/src/components/social/FloatingShareIcons.jsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,13 +17,11 @@ const ENABLED =
   String(process.env.NEXT_PUBLIC_FLOATING_SHARE_ICONS ?? 'true').toLowerCase() ===
   'true';
 
-// ✅ Q3 timings
-const INITIAL_DELAY_MS = 30_000; // first icon at 30s
-const VISIBLE_MS = 10_000; // icon stays visible 10s
-const GAP_FIRST_CYCLE_MS = 30_000; // cycle 1: 30s between icons
-const GAP_AFTER_MS = 60_000; // cycle 2+: 60s between icons
+const INITIAL_DELAY_MS = 30_000;
+const VISIBLE_MS = 10_000;
+const GAP_FIRST_CYCLE_MS = 30_000;
+const GAP_AFTER_MS = 60_000;
 
-// Don’t show on admin pages/login/register (adjust as you like)
 const EXCLUDED_PREFIXES = [
   '/dashboard',
   '/movieslist',
@@ -35,7 +34,8 @@ const EXCLUDED_PREFIXES = [
   '/categories',
   '/users',
 ];
-const EXCLUDED_EXACT = ['/login', '/register'];
+
+const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
 
 const buildShareText = () => {
   const title = typeof document !== 'undefined' ? document.title : 'MovieFrost';
@@ -103,7 +103,6 @@ export default function FloatingShareIcons() {
         bg: '#E4405F',
         Icon: FaInstagram,
         onClick: async (url, text) => {
-          // Best: native share sheet (often includes Instagram on mobile)
           if (typeof navigator !== 'undefined' && navigator.share) {
             await navigator.share({
               title: document.title || 'MovieFrost',
@@ -113,7 +112,6 @@ export default function FloatingShareIcons() {
             return;
           }
 
-          // Fallback: copy link (user can paste into Instagram)
           try {
             await navigator.clipboard.writeText(url);
             toast.success('Link copied — paste it into Instagram');
@@ -149,7 +147,6 @@ export default function FloatingShareIcons() {
         const idx = count % items.length;
         const cycle = Math.floor(count / items.length);
 
-        // ✅ first run 30s, second run+ 60s
         const gap = cycle === 0 ? GAP_FIRST_CYCLE_MS : GAP_AFTER_MS;
 
         showCountRef.current = count + 1;
@@ -162,7 +159,6 @@ export default function FloatingShareIcons() {
           setVisible(false);
         }, VISIBLE_MS);
 
-        // schedule next one
         scheduleNextShow(gap);
       }, delayMs);
     },
@@ -177,7 +173,6 @@ export default function FloatingShareIcons() {
     return () => {
       clearTimers();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleNextShow]);
 
   const current = items[currentIndex] || null;

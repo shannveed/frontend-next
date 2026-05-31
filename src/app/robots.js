@@ -25,6 +25,9 @@ export default function robots() {
           '/favorites',
           '/api',
 
+          // Public form / private utility pages
+          '/feedback',
+
           // Crawl-budget cleanup
           '/watch',
           '/search',
