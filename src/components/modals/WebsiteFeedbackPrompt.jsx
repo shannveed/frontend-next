@@ -10,7 +10,7 @@ import { FaStar } from 'react-icons/fa';
 import { getUserInfo } from '../../lib/client/auth';
 import { submitWebsiteFeedback } from '../../lib/client/websiteFeedback';
 import { getCountryOptions } from '../../data/countries';
-import { FEEDBACK_MODAL_OPEN_CHANGE } from '../../lib/events';
+import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
 const ACTIVE_TIME_TARGET_MS = 3 * 60 * 1000; // 3 minutes
 const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
@@ -118,35 +118,41 @@ const isDismissedThisSession = () => {
 };
 
 /**
- * ✅ Central DOM/global state for feedback modal.
- * Ads listen to this event/body class and unmount while feedback is open.
+ * Global feedback modal state.
+ * EffectiveGate ads + popunder script listen to this event/class and stop while open.
  */
-const setFeedbackModalDomState = (open) => {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-  const nextOpen = !!open;
+const setFeedbackDomState = (isOpen) => {
+  const open = !!isOpen;
 
   try {
-    document.documentElement.classList.toggle(
-      'mf-feedback-modal-open',
-      nextOpen
-    );
-    document.body.classList.toggle('mf-feedback-modal-open', nextOpen);
-
-    if (nextOpen) {
-      document.documentElement.setAttribute(
-        'data-mf-feedback-modal-open',
-        'true'
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle(
+        'mf-feedback-modal-open',
+        open
       );
-    } else {
-      document.documentElement.removeAttribute('data-mf-feedback-modal-open');
-    }
 
-    window.dispatchEvent(
-      new CustomEvent(FEEDBACK_MODAL_OPEN_CHANGE, {
-        detail: { open: nextOpen },
-      })
-    );
+      document.body.classList.toggle('mf-feedback-modal-open', open);
+
+      if (open) {
+        document.documentElement.dataset.mfFeedbackModalOpen = 'true';
+        document.body.dataset.mfFeedbackModalOpen = 'true';
+      } else {
+        delete document.documentElement.dataset.mfFeedbackModalOpen;
+        delete document.body.dataset.mfFeedbackModalOpen;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, {
+          detail: { open },
+        })
+      );
+    }
   } catch {
     // ignore
   }
@@ -235,10 +241,7 @@ function FieldLabel({ children, optional = false }) {
   );
 }
 
-export default function WebsiteFeedbackPrompt({
-  blocked = false,
-  onOpenChange,
-}) {
+export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange }) {
   const pathname = usePathname() || '/';
 
   const [mounted, setMounted] = useState(false);
@@ -259,20 +262,18 @@ export default function WebsiteFeedbackPrompt({
     setMounted(true);
 
     return () => {
-      setFeedbackModalDomState(false);
+      setFeedbackDomState(false);
+      onOpenChange?.(false);
     };
-  }, []);
+  }, [onOpenChange]);
 
   // Notify parent + lock page scroll while modal is open.
   useEffect(() => {
     onOpenChange?.(!!open);
-    setFeedbackModalDomState(!!open);
+    setFeedbackDomState(!!open);
 
     if (!open || typeof document === 'undefined') {
-      return () => {
-        onOpenChange?.(false);
-        setFeedbackModalDomState(false);
-      };
+      return;
     }
 
     const prevOverflow = document.body.style.overflow;
@@ -281,8 +282,8 @@ export default function WebsiteFeedbackPrompt({
 
     return () => {
       document.body.style.overflow = prevOverflow;
+      setFeedbackDomState(false);
       onOpenChange?.(false);
-      setFeedbackModalDomState(false);
     };
   }, [open, onOpenChange]);
 
@@ -343,8 +344,6 @@ export default function WebsiteFeedbackPrompt({
     if (isRecentlySubmitted()) return;
     if (isDismissedThisSession()) return;
 
-    // ✅ Set global state immediately before the modal appears.
-    setFeedbackModalDomState(true);
     setOpen(true);
   }, [mounted, eligible, blocked, open, pathname]);
 
@@ -355,7 +354,6 @@ export default function WebsiteFeedbackPrompt({
       // ignore
     }
 
-    setFeedbackModalDomState(false);
     setOpen(false);
   };
 
@@ -427,8 +425,6 @@ export default function WebsiteFeedbackPrompt({
       }
 
       toast.success('Thank you! Your feedback helps us improve MovieFrost.');
-
-      setFeedbackModalDomState(false);
       setOpen(false);
       setForm(makeEmptyForm());
     } catch (err) {
@@ -468,11 +464,25 @@ export default function WebsiteFeedbackPrompt({
         .mf-feedback-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #4aa0ff;
         }
+
+        /*
+          ✅ Safety fallback:
+          Even if an ad component is already mounted, hide all MovieFrost ad slots
+          while the feedback modal is open.
+        */
+        html.mf-feedback-modal-open .mf-ad-slot,
+        body.mf-feedback-modal-open .mf-ad-slot,
+        html.mf-feedback-modal-open [data-mf-ad-slot="true"],
+        body.mf-feedback-modal-open [data-mf-ad-slot="true"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
       `}</style>
 
       <div
-        data-mf-feedback-modal="true"
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-3 sm:p-6"
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/85 p-3 sm:p-6"
         onClick={closeForSession}
         role="dialog"
         aria-modal="true"

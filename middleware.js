@@ -110,7 +110,7 @@ const API_BASE_CANDIDATES = (() => {
     process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
     process.env.NEXT_PUBLIC_API_BASE_URL,
     DEFAULT_API_BASE,
-    'https://moviefrost-backend-three.vercel.app',
+    'https://moviefrost-backend-omega.vercel.app',
     'https://moviefrost-backend-peach.vercel.app',
   ];
 
