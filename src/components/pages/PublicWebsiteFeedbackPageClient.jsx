@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { FaStar } from 'react-icons/fa';
+import { IoClose } from 'react-icons/io5';
 
 import { submitWebsiteFeedback } from '../../lib/client/websiteFeedback';
 import { getCountryOptions } from '../../data/countries';
@@ -14,6 +15,7 @@ import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 const ACTIVE_MS_KEY = 'mf_feedback_active_ms_v1';
 const LAST_SUBMITTED_AT_KEY = 'mf_feedback_last_submitted_at_v1';
 const DISMISSED_SESSION_KEY = 'mf_feedback_dismissed_this_session_v1';
+const RETURN_PATH_SESSION_KEY = 'mf_feedback_return_path_v1';
 
 const QUALITY_OPTIONS = ['Excellent', 'Good', 'Average', 'Poor'];
 
@@ -47,6 +49,62 @@ const makeEmptyForm = () => ({
 });
 
 const clean = (value = '') => String(value ?? '').trim();
+
+const normalizeInternalReturnPath = (value = '') => {
+  const path = clean(value);
+
+  if (!path) return '';
+  if (!path.startsWith('/')) return '';
+  if (path.startsWith('//')) return '';
+
+  if (
+    path === '/feedback' ||
+    path.startsWith('/feedback?') ||
+    path.startsWith('/feedback#') ||
+    path.startsWith('/feedback/')
+  ) {
+    return '';
+  }
+
+  return path;
+};
+
+const getStoredFeedbackReturnPath = () => {
+  try {
+    return normalizeInternalReturnPath(
+      sessionStorage.getItem(RETURN_PATH_SESSION_KEY) || ''
+    );
+  } catch {
+    return '';
+  }
+};
+
+const clearStoredFeedbackReturnPath = () => {
+  try {
+    sessionStorage.removeItem(RETURN_PATH_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+const getSameOriginReferrerPath = () => {
+  try {
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      return '';
+    }
+
+    const ref = clean(document.referrer);
+    if (!ref) return '';
+
+    const u = new URL(ref);
+
+    if (u.origin !== window.location.origin) return '';
+
+    return normalizeInternalReturnPath(`${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    return '';
+  }
+};
 
 /**
  * Keep same global class/event used by ad components.
@@ -173,6 +231,20 @@ function FieldLabel({ children, optional = false }) {
   );
 }
 
+function CloseFeedbackButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Close feedback form"
+      title="Close"
+      className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-main/80 text-white transition hover:border-customPurple hover:bg-customPurple"
+    >
+      <IoClose className="text-xl" />
+    </button>
+  );
+}
+
 export default function PublicWebsiteFeedbackPageClient() {
   const router = useRouter();
   const pathname = usePathname() || '/feedback';
@@ -202,6 +274,17 @@ export default function PublicWebsiteFeedbackPageClient() {
       sessionStorage.setItem(DISMISSED_SESSION_KEY, '1');
     } catch {
       // ignore
+    }
+
+    const storedReturnPath = getStoredFeedbackReturnPath();
+    const referrerPath = getSameOriginReferrerPath();
+    const returnPath = storedReturnPath || referrerPath;
+
+    clearStoredFeedbackReturnPath();
+
+    if (returnPath) {
+      router.replace(returnPath);
+      return;
     }
 
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -275,6 +358,7 @@ export default function PublicWebsiteFeedbackPageClient() {
         localStorage.setItem(LAST_SUBMITTED_AT_KEY, String(Date.now()));
         localStorage.removeItem(ACTIVE_MS_KEY);
         sessionStorage.removeItem(DISMISSED_SESSION_KEY);
+        sessionStorage.removeItem(RETURN_PATH_SESSION_KEY);
       } catch {
         // ignore
       }
@@ -313,8 +397,10 @@ export default function PublicWebsiteFeedbackPageClient() {
         `}</style>
 
         <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-          <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-customPurple/70 bg-dry shadow-2xl">
-            <div className="border-b border-border bg-dry px-4 py-4 sm:px-6">
+          <div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-customPurple/70 bg-dry shadow-2xl">
+            <CloseFeedbackButton onClick={closeForSession} />
+
+            <div className="border-b border-border bg-dry px-4 py-4 pr-14 sm:px-6 sm:pr-16">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-customPurple">
                 MovieFrost Feedback
               </p>
@@ -331,12 +417,13 @@ export default function PublicWebsiteFeedbackPageClient() {
             </div>
 
             <div className="px-4 py-6 sm:px-6">
-              <Link
-                href="/"
+              <button
+                type="button"
+                onClick={closeForSession}
                 className="block w-full rounded-lg bg-customPurple px-4 py-3 text-center font-semibold text-white hover:bg-blue-600"
               >
                 Back to MovieFrost
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -382,8 +469,10 @@ export default function PublicWebsiteFeedbackPageClient() {
       `}</style>
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
-        <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-customPurple/70 bg-dry shadow-2xl md:max-w-2xl">
-          <div className="border-b border-border bg-dry px-4 py-4 sm:px-6">
+        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-customPurple/70 bg-dry shadow-2xl md:max-w-2xl">
+          <CloseFeedbackButton onClick={closeForSession} />
+
+          <div className="border-b border-border bg-dry px-4 py-4 pr-14 sm:px-6 sm:pr-16">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-customPurple">
                 MovieFrost Feedback

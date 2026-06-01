@@ -14,6 +14,7 @@ const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
 const ACTIVE_MS_KEY = 'mf_feedback_active_ms_v1';
 const LAST_SUBMITTED_AT_KEY = 'mf_feedback_last_submitted_at_v1';
 const DISMISSED_SESSION_KEY = 'mf_feedback_dismissed_this_session_v1';
+const RETURN_PATH_SESSION_KEY = 'mf_feedback_return_path_v1';
 
 const EXCLUDED_EXACT = ['/login', '/register', '/signup', FEEDBACK_PAGE_PATH];
 
@@ -88,10 +89,47 @@ const markDismissedThisSession = () => {
   }
 };
 
+const normalizeReturnPath = (value = '') => {
+  const path = String(value || '').trim();
+
+  if (!path) return '';
+  if (!path.startsWith('/')) return '';
+  if (path.startsWith('//')) return '';
+
+  if (
+    path === FEEDBACK_PAGE_PATH ||
+    path.startsWith(`${FEEDBACK_PAGE_PATH}?`) ||
+    path.startsWith(`${FEEDBACK_PAGE_PATH}#`) ||
+    path.startsWith(`${FEEDBACK_PAGE_PATH}/`)
+  ) {
+    return '';
+  }
+
+  return path;
+};
+
+const storeCurrentPathForFeedbackReturn = () => {
+  try {
+    if (typeof window === 'undefined') return;
+
+    const currentPath = normalizeReturnPath(
+      `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''
+      }`
+    );
+
+    if (!currentPath) return;
+
+    sessionStorage.setItem(RETURN_PATH_SESSION_KEY, currentPath);
+  } catch {
+    // ignore
+  }
+};
+
 /**
  * This component is now a silent route trigger:
  * - tracks active browsing time
  * - after 3 minutes redirects to /feedback
+ * - stores the current page path, so feedback close button can return user back
  * - does not render a modal anymore
  */
 export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange }) {
@@ -166,7 +204,10 @@ export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange })
     if (isRecentlySubmitted()) return;
     if (isDismissedThisSession()) return;
 
-    // Prevent instant redirect loops if user goes back without submitting.
+    // Store the page user was on before automatic redirect to /feedback.
+    storeCurrentPathForFeedbackReturn();
+
+    // Prevent instant redirect loops if user closes/back without submitting.
     markDismissedThisSession();
 
     router.push(FEEDBACK_PAGE_PATH);
