@@ -89,58 +89,6 @@ function ExternalLinks({ actor }) {
   );
 }
 
-function KnownForTmdb({ items = [] }) {
-  const list = Array.isArray(items) ? items.filter(Boolean).slice(0, 10) : [];
-  if (!list.length) return null;
-
-  return (
-    <section className="bg-dry border border-border rounded-lg p-5 mt-6">
-      <h2 className="text-white text-lg font-semibold">Known For on TMDb</h2>
-      <p className="text-dryGray text-sm mt-1">
-        Popular credits from TMDb for additional context.
-      </p>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
-        {list.map((item) => (
-          <div
-            key={`${item.mediaType}-${item.tmdbId}`}
-            className="bg-main border border-border rounded-lg overflow-hidden"
-          >
-            <div className="relative w-full aspect-[2/3] bg-black">
-              <SafeImage
-                src={item.posterImage}
-                fallbackCandidates={['/images/MOVIEFROST.png']}
-                alt={item.title}
-                fill
-                sizes="(max-width: 768px) 50vw, 220px"
-                className="object-cover"
-              />
-            </div>
-
-            <div className="p-3">
-              <p className="text-white text-sm font-semibold line-clamp-2">
-                {item.title}
-              </p>
-
-              <p className="text-xs text-dryGray mt-1">
-                {[item.year, item.mediaType === 'tv' ? 'TV' : 'Movie']
-                  .filter(Boolean)
-                  .join(' • ')}
-              </p>
-
-              {item.role ? (
-                <p className="text-[11px] text-customPurple mt-1 line-clamp-1">
-                  {item.role}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function SortTabs({ sort, onChange, disabled }) {
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -394,7 +342,7 @@ export default function ActorPageClient({
 
               {tmdbCount ? (
                 <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
-                  TMDb discovery enabled
+                  Expanded credits available
                 </span>
               ) : null}
             </div>
@@ -408,7 +356,7 @@ export default function ActorPageClient({
               <InfoRow label="Gender" value={actor?.gender} />
               <InfoRow label="Also known as" value={alsoKnownAs} />
               <InfoRow
-                label="TMDb popularity"
+                label="Popularity"
                 value={
                   Number(actor?.popularity || 0)
                     ? Number(actor.popularity).toFixed(1)
@@ -441,13 +389,11 @@ export default function ActorPageClient({
             </h2>
 
             <p className="text-text text-sm leading-7">
-              Biography information is currently unavailable from TMDb. You can still browse related titles below.
+              Biography information is currently unavailable. You can still browse related titles below.
             </p>
           </div>
         )}
       </section>
-
-      <KnownForTmdb items={actor?.knownFor} />
 
       <section className="mt-8">
         <div className="bg-dry border border-border rounded-lg p-5">
@@ -459,7 +405,7 @@ export default function ActorPageClient({
                 </h2>
 
                 <p className="text-dryGray text-sm mt-1">
-                  Local MovieFrost titles are merged with TMDb virtual titles. Local versions always win duplicates.
+                  MovieFrost local titles are merged with extended external credits. Local versions always replace duplicates.
                 </p>
               </div>
 
@@ -501,15 +447,11 @@ export default function ActorPageClient({
         ) : hasVisibleMovies ? (
           <div className="mt-6 grid grid-cols-2 md:grid-cols-3 above-1000:grid-cols-5 gap-4">
             {filtered.map((movie) => (
-              <div key={movieDedupKey(movie)} className="relative">
-                {movie?.isTmdbVirtual ? (
-                  <div className="absolute bottom-14 left-2 z-30 px-2 py-1 rounded bg-black/80 border border-customPurple text-[10px] text-white">
-                    TMDb
-                  </div>
-                ) : null}
-
-                <MovieCard movie={movie} showLike />
-              </div>
+              <MovieCard
+                key={movieDedupKey(movie)}
+                movie={movie}
+                showLike
+              />
             ))}
           </div>
         ) : (

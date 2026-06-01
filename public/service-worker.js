@@ -2,7 +2,7 @@
 const CACHE_PREFIX = 'moviefrost-cache-';
 
 // ✅ Injected at build time by scripts/inject-sw-build-id.js
-const CACHE_VERSION = 'dev-1780275564930';
+const CACHE_VERSION = 'dev-1780329362525';
 
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 

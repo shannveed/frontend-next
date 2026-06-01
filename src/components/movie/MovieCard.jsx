@@ -328,7 +328,7 @@ function MovieCard({
         </div>
       ) : null}
 
-      {movie?.thumbnailInfo ? (
+      {movie?.thumbnailInfo && !isTmdbVirtual ? (
         <div
           className={`absolute ${showAdminControls && adminDraggable ? 'top-12 left-2' : 'top-2 left-2'
             } bg-customPurple text-white text-[10px] px-2 py-0.5 rounded-sm font-semibold z-20 max-w-[90%] truncate whitespace-nowrap overflow-hidden`}
