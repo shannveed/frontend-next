@@ -57,7 +57,9 @@ function MovieCard({
   const dropdownRef = useRef(null);
 
   const seg = movie?.slug || movie?._id;
-  const href = seg ? `/movie/${seg}` : '/movies';
+  const href = movie?.href || (seg ? `/movie/${seg}` : '/movies');
+  const isTmdbVirtual = !!movie?.isTmdbVirtual;
+
 
   const didPrefetchRef = useRef(false);
   const prefetchThis = useCallback(() => {
@@ -370,7 +372,7 @@ function MovieCard({
             {movie?.name}
           </h3>
 
-          {showLike && !showAdminControls ? (
+          {showLike && !showAdminControls && !isTmdbVirtual ? (
             <button
               onClick={handleLike}
               disabled={liked || liking}

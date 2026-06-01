@@ -8,7 +8,7 @@ import { getUserInfo } from '../../lib/client/auth';
 
 const FEEDBACK_PAGE_PATH = '/feedback';
 
-const ACTIVE_TIME_TARGET_MS = 1 * 60 * 1000; // 3 minutes
+const ACTIVE_TIME_TARGET_MS = 3 * 60 * 1000; // 3 minutes
 const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
 
 const ACTIVE_MS_KEY = 'mf_feedback_active_ms_v1';
