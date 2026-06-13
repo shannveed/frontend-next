@@ -15,7 +15,7 @@ import {
   buildMovieTitle,
   movieCanonical,
 } from '../../../lib/seo';
-
+import MovieViewTracker from '../../../components/movie/MovieViewTracker';
 import WatchClient from '../../../components/watch/WatchClient';
 
 const RELATED_MOVIES_LIMIT = 10;
@@ -90,10 +90,21 @@ export default async function WatchPage({ params }) {
   }
 
   return (
-    <WatchClient
-      slug={params.slug}
-      initialMovie={movie}
-      initialRelated={Array.isArray(related) ? related : []}
-    />
+    <>
+      {source === 'public' && movie?.isPublished !== false ? (
+        <MovieViewTracker
+          movieIdOrSlug={movie.slug || movie._id}
+          source="watch-page"
+          minActiveMs={15000}
+        />
+      ) : null}
+
+      <WatchClient
+        slug={params.slug}
+        initialMovie={movie}
+        initialRelated={Array.isArray(related) ? related : []}
+      />
+    </>
   );
+
 }

@@ -103,6 +103,81 @@ const FETCH_TIMEOUT_MS = Math.min(
   9000
 );
 
+// --- QUERY CLEANUP CONSTANTS & HELPERS ---
+
+const CAMPAIGN_QUERY_KEYS = new Set([
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
+  'gclid',
+  'fbclid',
+]);
+
+const MOVIES_ALLOWED_QUERY_KEYS = new Set([
+  'type',
+  'category',
+  'browseBy',
+  'language',
+  'year',
+  'time',
+  'rate',
+  'search',
+  'query',
+  'q',
+  'pageNumber',
+  'page',
+]);
+
+function isCampaignParam(key = '') {
+  const k = String(key || '').trim();
+  return CAMPAIGN_QUERY_KEYS.has(k) || k.toLowerCase().startsWith('utm_');
+}
+
+function shouldKeepQueryParamForPath(pathname = '', key = '') {
+  const path = String(pathname || '');
+
+  if (isCampaignParam(key)) return true;
+
+  if (path === '/movies' || path.startsWith('/movies/')) {
+    return MOVIES_ALLOWED_QUERY_KEYS.has(key);
+  }
+
+  // Movie/watch detail pages should not keep random cache-busting query params.
+  if (path.startsWith('/movie/') || path.startsWith('/watch/')) {
+    return false;
+  }
+
+  return true;
+}
+
+function stripUnknownQueryParams(req) {
+  const { nextUrl } = req;
+
+  if (!nextUrl.search) return null;
+
+  const before = nextUrl.searchParams.toString();
+  const cleaned = new URLSearchParams();
+
+  for (const [key, value] of nextUrl.searchParams.entries()) {
+    if (shouldKeepQueryParamForPath(nextUrl.pathname, key)) {
+      cleaned.append(key, value);
+    }
+  }
+
+  const after = cleaned.toString();
+
+  if (before === after) return null;
+
+  const target = nextUrl.clone();
+  target.search = after ? `?${after}` : '';
+
+  return NextResponse.redirect(target, { status: 307 });
+}
+
+// -----------------------------------------
+
 const API_BASE_CANDIDATES = (() => {
   const rawList = [
     RAW_API_BASE,
@@ -111,7 +186,7 @@ const API_BASE_CANDIDATES = (() => {
     process.env.NEXT_PUBLIC_API_BASE_URL,
     DEFAULT_API_BASE,
     'https://moviefrost-backend-iota.vercel.app',
-    'https://moviefrost-backend-iota.vercel.app',
+    'https://moviefrost-backend-peach.vercel.app',
   ];
 
   const out = [];
@@ -357,6 +432,10 @@ function nextWithDebug(reason = '', extra = {}) {
 }
 
 export async function middleware(req) {
+  // Execute query cleanup first
+  const queryCleanup = stripUnknownQueryParams(req);
+  if (queryCleanup) return queryCleanup;
+
   if (!ENABLE_REDIRECT) {
     return nextWithDebug('disabled');
   }
@@ -425,5 +504,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/movie/:path*'],
+  matcher: ['/movie/:path*', '/watch/:path*', '/movies', '/movies/:path*'],
 };

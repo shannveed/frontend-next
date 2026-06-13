@@ -1,3 +1,4 @@
+// frontend-next/src/components/analytics/AnalyticsBootstrap.jsx
 'use client';
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -6,12 +7,13 @@ import { usePathname, useSearchParams } from 'next/navigation';
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 const SCRIPT_ID = 'mf-ga4-script';
-const IDLE_BOOT_TIMEOUT_MS = 3500;
-const FALLBACK_BOOT_TIMEOUT_MS = 7000;
+const REAL_USER_ACTIVE_MS = Number(
+  process.env.NEXT_PUBLIC_REAL_USER_ACTIVE_MS || 15000
+);
 
-// Skip GA on private / admin / noindex-style pages
 const EXCLUDED_PREFIXES = [
   '/dashboard',
+  '/viewer-feedback',
   '/movieslist',
   '/addmovie',
   '/edit',
@@ -35,12 +37,42 @@ const EXCLUDED_EXACT = [
   '/profile',
   '/password',
   '/favorites',
+  '/feedback',
 ];
 
-const buildPagePath = (pathname, searchParams) => {
-  const qs = searchParams?.toString?.() || '';
-  const path = pathname || '/';
-  return qs ? `${path}?${qs}` : path;
+const clean = (value = '') => String(value ?? '').trim();
+
+const hostnameFromUrl = (value = '') => {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+const ALLOWED_HOSTS = new Set(
+  [
+    hostnameFromUrl(process.env.NEXT_PUBLIC_SITE_URL || ''),
+    hostnameFromUrl(process.env.NEXT_PUBLIC_ENGLISH_SITE_URL || ''),
+    hostnameFromUrl(process.env.NEXT_PUBLIC_HINDI_SITE_URL || ''),
+    'www.moviefrost.com',
+    'moviefrost.com',
+    'hi.moviefrost.com',
+  ]
+    .map(clean)
+    .filter(Boolean)
+);
+
+const isAllowedProductionHost = () => {
+  if (process.env.NODE_ENV !== 'production') return true;
+  if (typeof window === 'undefined') return false;
+
+  const host = window.location.hostname.toLowerCase();
+
+  // Do not send GA from Vercel preview deployments.
+  if (host.endsWith('.vercel.app')) return false;
+
+  return ALLOWED_HOSTS.has(host);
 };
 
 const shouldSkipAnalyticsForPath = (pathname = '') => {
@@ -49,6 +81,12 @@ const shouldSkipAnalyticsForPath = (pathname = '') => {
 
   if (EXCLUDED_EXACT.includes(path)) return true;
   return EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+};
+
+const buildPagePath = (pathname, searchParams) => {
+  const qs = searchParams?.toString?.() || '';
+  const path = pathname || '/';
+  return qs ? `${path}?${qs}` : path;
 };
 
 const ensureGtagStub = () => {
@@ -100,9 +138,7 @@ const ensureGaScriptLoaded = (gaId) => {
       resolve();
     };
 
-    const handleError = () => {
-      reject(new Error('Failed to load Google Analytics'));
-    };
+    const handleError = () => reject(new Error('Failed to load Google Analytics'));
 
     const existing = document.getElementById(SCRIPT_ID);
 
@@ -136,6 +172,18 @@ const ensureGaScriptLoaded = (gaId) => {
   return promise;
 };
 
+const isVisibleAndFocused = () => {
+  if (typeof document === 'undefined') return false;
+  if (document.visibilityState !== 'visible') return false;
+  if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+  return true;
+};
+
+const isAutomationLikely = () => {
+  if (typeof navigator === 'undefined') return false;
+  return navigator.webdriver === true;
+};
+
 function AnalyticsBootstrapInner() {
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
@@ -152,8 +200,16 @@ function AnalyticsBootstrapInner() {
 
   const latestPagePathRef = useRef(pagePath);
   const lastSentPagePathRef = useRef('');
+
   const bootStartedRef = useRef(false);
   const readyRef = useRef(false);
+
+  const humanSignalRef = useRef(false);
+  const activeMsRef = useRef(0);
+  const lastTickRef = useRef(Date.now());
+
+  const realUserEventSentRef = useRef(false);
+  const pendingRealUserEventRef = useRef(false);
 
   useEffect(() => {
     latestPagePathRef.current = pagePath;
@@ -171,14 +227,35 @@ function AnalyticsBootstrapInner() {
       page_path: page,
       page_location: window.location.href,
       page_title: document.title,
+      traffic_quality: humanSignalRef.current ? 'human_intent' : 'unknown',
     });
 
     lastSentPagePathRef.current = page;
   }, []);
 
+  const sendRealUserEngaged = useCallback(() => {
+    if (!GA_ID || typeof window === 'undefined') return;
+    if (!readyRef.current || typeof window.gtag !== 'function') return;
+    if (realUserEventSentRef.current) return;
+
+    realUserEventSentRef.current = true;
+    pendingRealUserEventRef.current = false;
+
+    window.gtag('event', 'real_user_engaged', {
+      traffic_quality: 'human',
+      engagement_gate_ms: REAL_USER_ACTIVE_MS,
+      page_path: latestPagePathRef.current || '/',
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, []);
+
   const bootAnalytics = useCallback(async () => {
     if (!GA_ID || typeof window === 'undefined') return;
-    if (skipAnalytics || readyRef.current || bootStartedRef.current) return;
+    if (skipAnalytics) return;
+    if (!isAllowedProductionHost()) return;
+    if (isAutomationLikely()) return;
+    if (readyRef.current || bootStartedRef.current) return;
 
     bootStartedRef.current = true;
 
@@ -187,74 +264,89 @@ function AnalyticsBootstrapInner() {
       await ensureGaScriptLoaded(GA_ID);
 
       readyRef.current = true;
+
       sendPageView(latestPagePathRef.current);
+
+      if (pendingRealUserEventRef.current) {
+        sendRealUserEngaged();
+      }
     } catch {
       bootStartedRef.current = false;
     }
-  }, [skipAnalytics, sendPageView]);
+  }, [skipAnalytics, sendPageView, sendRealUserEngaged]);
 
+  // Human-intent gate: no idle timer, no 7s fallback.
   useEffect(() => {
     if (!GA_ID || typeof window === 'undefined') return;
-    if (skipAnalytics || readyRef.current || bootStartedRef.current) return;
+    if (skipAnalytics) return;
+    if (!isAllowedProductionHost()) return;
 
-    let cancelled = false;
-    let fallbackTimer = null;
-    let idleId = null;
+    const markHumanIntent = () => {
+      if (isAutomationLikely()) return;
 
-    const start = () => {
-      if (cancelled) return;
+      humanSignalRef.current = true;
       bootAnalytics().catch(() => { });
     };
 
-    const onUserIntent = () => start();
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') start();
-    };
-
-    window.addEventListener('pointerdown', onUserIntent, {
+    window.addEventListener('pointerdown', markHumanIntent, {
       once: true,
       passive: true,
     });
-    window.addEventListener('touchstart', onUserIntent, {
+    window.addEventListener('touchstart', markHumanIntent, {
       once: true,
       passive: true,
     });
-    window.addEventListener('scroll', onUserIntent, {
+    window.addEventListener('scroll', markHumanIntent, {
       once: true,
       passive: true,
     });
-    window.addEventListener('keydown', onUserIntent, { once: true });
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    if (typeof window.requestIdleCallback === 'function') {
-      idleId = window.requestIdleCallback(start, {
-        timeout: IDLE_BOOT_TIMEOUT_MS,
-      });
-    }
-
-    fallbackTimer = window.setTimeout(start, FALLBACK_BOOT_TIMEOUT_MS);
+    window.addEventListener('keydown', markHumanIntent, { once: true });
 
     return () => {
-      cancelled = true;
-
-      window.removeEventListener('pointerdown', onUserIntent);
-      window.removeEventListener('touchstart', onUserIntent);
-      window.removeEventListener('scroll', onUserIntent);
-      window.removeEventListener('keydown', onUserIntent);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-
-      if (fallbackTimer) window.clearTimeout(fallbackTimer);
-
-      if (
-        idleId !== null &&
-        typeof window.cancelIdleCallback === 'function'
-      ) {
-        window.cancelIdleCallback(idleId);
-      }
+      window.removeEventListener('pointerdown', markHumanIntent);
+      window.removeEventListener('touchstart', markHumanIntent);
+      window.removeEventListener('scroll', markHumanIntent);
+      window.removeEventListener('keydown', markHumanIntent);
     };
   }, [skipAnalytics, bootAnalytics]);
 
+  // Active-time gate for cleaner real-user reporting.
+  useEffect(() => {
+    if (!GA_ID || typeof window === 'undefined') return;
+    if (skipAnalytics) return;
+    if (!isAllowedProductionHost()) return;
+
+    lastTickRef.current = Date.now();
+
+    const intervalId = window.setInterval(() => {
+      const now = Date.now();
+      const delta = Math.max(0, now - lastTickRef.current);
+      lastTickRef.current = now;
+
+      if (!humanSignalRef.current) return;
+      if (!isVisibleAndFocused()) return;
+
+      activeMsRef.current += delta;
+
+      if (
+        activeMsRef.current >= REAL_USER_ACTIVE_MS &&
+        !realUserEventSentRef.current
+      ) {
+        pendingRealUserEventRef.current = true;
+
+        if (!readyRef.current) {
+          bootAnalytics().catch(() => { });
+          return;
+        }
+
+        sendRealUserEngaged();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [skipAnalytics, bootAnalytics, sendRealUserEngaged]);
+
+  // Route-change page_view only after GA has already been human-booted.
   useEffect(() => {
     if (!GA_ID || skipAnalytics) return;
     if (!readyRef.current) return;

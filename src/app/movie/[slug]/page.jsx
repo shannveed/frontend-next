@@ -21,6 +21,7 @@ import {
   buildMovieGraphJsonLd,
   buildMovieNameWithYear,
 } from '../../../lib/seo';
+import MovieViewTracker from '../../../components/movie/MovieViewTracker';
 
 import { buildHreflangAlternatesForPath } from '../../../lib/hreflang';
 
@@ -235,6 +236,10 @@ export default async function MoviePage({ params }) {
   return (
     <>
       <JsonLd data={graphLd} />
+      {source === 'public' && movie?.isPublished !== false ? (
+        <MovieViewTracker movieIdOrSlug={seg} source="movie-page" />
+      ) : null}
+
 
       <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
         <VisibleBreadcrumbs items={breadcrumbItems} className="mb-4" />
