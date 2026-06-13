@@ -1,3 +1,4 @@
+// frontend-next/src/lib/client/moviesAdmin.js
 import { apiFetch } from './apiFetch';
 
 const buildQuery = (q = {}) => {
@@ -47,6 +48,14 @@ export const getMovieByIdAdmin = (token, idOrSlug) => {
   return apiFetch(`/api/movies/admin/${safe}`, { token });
 };
 
+// ✅ NEW: Import selected virtual TMDb title into MongoDB
+export const importTmdbTitleAdmin = (token, payload = {}) =>
+  apiFetch('/api/movies/admin/tmdb/import', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+
 // ADMIN: Latest New list
 export const getLatestNewMoviesAdmin = (token, limit = 100) =>
   apiFetch(`/api/movies/admin/latest-new?limit=${encodeURIComponent(limit)}`, {
@@ -81,7 +90,7 @@ export const setBannerMovies = (token, movieIds = [], value = true) =>
   });
 
 /* ============================================================
-   ✅ NEW: Popular tab APIs
+   Popular tab APIs
    ============================================================ */
 
 // PUBLIC popular list
@@ -109,7 +118,12 @@ export const reorderPopularMovies = (token, orderedIds = [], type = '') =>
   });
 
 // ADMIN: reorder within page
-export const reorderMoviesInPage = (token, pageNumber, orderedIds = [], query = {}) =>
+export const reorderMoviesInPage = (
+  token,
+  pageNumber,
+  orderedIds = [],
+  query = {}
+) =>
   apiFetch(`/api/movies/admin/reorder-page`, {
     method: 'POST',
     token,

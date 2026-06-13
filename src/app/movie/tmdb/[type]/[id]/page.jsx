@@ -2,6 +2,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import VirtualMovieDetails from '@/components/movie/VirtualMovieDetails';
+import ImportTmdbTitleButton from '@/components/movie/ImportTmdbTitleButton';
 import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '@/components/ads/EffectiveGateNativeBanner';
@@ -34,8 +35,10 @@ const API_BASE = normalizeApiBase(
 
 const normalizeType = (value = '') => {
   const raw = String(value || '').trim().toLowerCase();
+
   if (raw === 'movie') return 'movie';
   if (raw === 'tv') return 'tv';
+
   return '';
 };
 
@@ -46,7 +49,9 @@ async function getVirtualMovie(type, id) {
   if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
 
   const res = await fetch(
-    `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(tmdbType)}/${encodeURIComponent(tmdbId)}`,
+    `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(
+      tmdbType
+    )}/${encodeURIComponent(tmdbId)}`,
     {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
@@ -65,7 +70,9 @@ async function getVirtualMovie(type, id) {
 }
 
 export async function generateMetadata({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id).catch(() => null);
+  const movie = await getVirtualMovie(params?.type, params?.id).catch(
+    () => null
+  );
 
   if (!movie) {
     return {
@@ -81,7 +88,9 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const canonical = `${SITE_URL}/movie/tmdb/${normalizeType(params?.type)}/${params?.id}`;
+  const canonical = `${SITE_URL}/movie/tmdb/${normalizeType(
+    params?.type
+  )}/${params?.id}`;
 
   const title = `${clean(movie?.name || 'Movie')}${movie?.year ? ` (${movie.year})` : ''
     } | MovieFrost`;
@@ -93,7 +102,9 @@ export async function generateMetadata({ params }) {
     160
   );
 
-  const image = absoluteUrl(movie?.titleImage || movie?.image || '/images/MOVIEFROST.png');
+  const image = absoluteUrl(
+    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+  );
 
   return {
     title: { absolute: title },
@@ -125,7 +136,9 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function TmdbMoviePage({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id).catch(() => null);
+  const movie = await getVirtualMovie(params?.type, params?.id).catch(
+    () => null
+  );
 
   if (!movie) notFound();
 
@@ -144,12 +157,19 @@ export default async function TmdbMoviePage({ params }) {
         className="mb-4"
       />
 
+      <ImportTmdbTitleButton
+        tmdbType={movie?.tmdbType || params?.type}
+        tmdbId={movie?.tmdbId || params?.id}
+        movieName={movie?.name || ''}
+      />
+
       <VirtualMovieDetails movie={movie} />
 
       <div className="mt-8">
         <EffectiveGateNativeBanner
           refreshKey={`tmdb-movie-desktop-${movie?.tmdbType}-${movie?.tmdbId}`}
         />
+
         <div className="sm:hidden mt-4">
           <EffectiveGateSquareAd
             refreshKey={`tmdb-movie-mobile-${movie?.tmdbType}-${movie?.tmdbId}`}
