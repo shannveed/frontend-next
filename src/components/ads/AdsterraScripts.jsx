@@ -12,16 +12,8 @@ const PROFITABLE_POPUNDER_SCRIPT_SRC = String(
   'https://pl27010453.profitablecpmratenetwork.com/62/c8/f3/62c8f34a5a4d1afbb8ec9a7b28896caa.js'
 ).trim();
 
-/**
- * ✅ Changed:
- * Default is now 0ms, so the pop-under script loads immediately
- * when the user enters an allowed page.
- *
- * If you set this env variable on Vercel, set it to 0:
- * NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS=0
- */
 const PROFITABLE_POPUNDER_INITIAL_DELAY_MS = Number(
-  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS ?? 0
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS || 60_000
 );
 
 const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
@@ -45,17 +37,9 @@ const EXCLUDED_PREFIXES = [
   '/profile',
   '/password',
   '/favorites',
-
-  // ✅ Added admin blog/dashboard exclusions so instant popunder
-  // does not disturb admin tools.
-  '/blog-posts',
-  '/blog-preview',
-  '/get-blog-posts',
-  '/bulk-create-blog-posts',
-  '/update-blog-posts',
 ];
 
-const EXCLUDED_EXACT = ['/login', '/register', '/signup', '/feedback'];
+const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
 
 const toSafeDelay = (value, fallback) => {
   const n = Number(value);
@@ -130,15 +114,12 @@ export default function AdsterraScripts() {
 
     if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
 
-    /**
-     * Prevent duplicate bootstrapping if this component is accidentally mounted twice.
-     */
     if (window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED) return;
     window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = true;
 
     const initialDelay = toSafeDelay(
       PROFITABLE_POPUNDER_INITIAL_DELAY_MS,
-      0
+      60_000
     );
 
     const repeatDelay = Math.max(
@@ -197,10 +178,7 @@ export default function AdsterraScripts() {
       activatedRef.current = true;
       initialTimerRef.current = null;
 
-      // ✅ This is now immediate by default.
       injectIfAllowed();
-
-      // Keep previous repeat behavior.
       startRepeater();
     };
 
@@ -211,15 +189,6 @@ export default function AdsterraScripts() {
 
       if (isFeedbackModalOpenNow()) {
         removeInjectedScript();
-        return;
-      }
-
-      /**
-       * ✅ Main change:
-       * If initial delay is 0, activate immediately instead of waiting.
-       */
-      if (initialDelay <= 0) {
-        activate();
         return;
       }
 
