@@ -7,6 +7,8 @@ import { usePathname } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
 
 import AnalyticsBootstrap from '../analytics/AnalyticsBootstrap';
+import AdsterraScripts from '../ads/AdsterraScripts';
+
 import { getUserInfo } from '../../lib/client/auth';
 import {
   OPEN_WATCH_REQUEST_POPUP,
@@ -15,10 +17,6 @@ import {
   SW_UPDATE_AVAILABLE_EVENT,
   FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
 } from '../../lib/events';
-
-const AdsterraScripts = dynamic(() => import('../ads/AdsterraScripts'), {
-  ssr: false,
-});
 
 const FloatingShareIcons = dynamic(
   () => import('../social/FloatingShareIcons'),
@@ -136,6 +134,10 @@ export default function SiteChromeRuntime() {
   const [updating, setUpdating] = useState(false);
   const swRegRef = useRef(null);
 
+  /**
+   * Still used for low-priority UI enhancements only.
+   * ✅ Popunder ads no longer wait for this.
+   */
   const [enhancementsReady, setEnhancementsReady] = useState(false);
 
   const isAnyPopupOpenRef = useRef(false);
@@ -435,20 +437,21 @@ export default function SiteChromeRuntime() {
     <>
       <AnalyticsBootstrap />
 
-      {/* Do not mount popunder ads on feedback page. */}
-      {enhancementsReady &&
-        ADS_ENABLED &&
-        !feedbackOpen &&
-        !isPublicFeedbackPage ? (
+      {/*
+        ✅ Main change:
+        Popunder script is mounted immediately after hydration.
+        It no longer waits for enhancementsReady / idle callback.
+      */}
+      {ADS_ENABLED && !feedbackOpen && !isPublicFeedbackPage ? (
         <AdsterraScripts />
       ) : null}
 
-      {/* Do not show floating share icon on feedback page. */}
+      {/* Keep lower-priority enhancements lazy/idle-loaded. */}
       {enhancementsReady && !feedbackOpen && !isPublicFeedbackPage ? (
         <FloatingShareIcons />
       ) : null}
 
-      {/* Feedback trigger redirects to /feedback after 3 minutes. */}
+      {/* Feedback trigger redirects to /feedback after active browsing time. */}
       {enhancementsReady && !isPublicFeedbackPage ? (
         <WebsiteFeedbackPrompt
           blocked={otherPopupBlocked}
