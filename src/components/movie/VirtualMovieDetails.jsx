@@ -84,14 +84,24 @@ function ExternalLinks({ movie }) {
   return (
     <div className="flex flex-wrap gap-2 mt-3">
       {imdbUrl ? (
-        <a href={imdbUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+        <a
+          href={imdbUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={badge}
+        >
           <SiImdb className="text-[#f5c518]" />
           IMDb
         </a>
       ) : null}
 
       {rtUrl ? (
-        <a href={rtUrl} target="_blank" rel="noopener noreferrer" className={badge}>
+        <a
+          href={rtUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={badge}
+        >
           <SiRottentomatoes className="text-[#fa320a]" />
           Rotten Tomatoes
         </a>
@@ -103,6 +113,7 @@ function ExternalLinks({ movie }) {
 export default function VirtualMovieDetails({ movie }) {
   const watchHref = movie?.watchHref || '#';
   const description = clean(movie?.desc);
+  const isSeries = movie?.type === 'WebSeries';
 
   return (
     <div className="w-full text-white">
@@ -111,7 +122,7 @@ export default function VirtualMovieDetails({ movie }) {
           <SafeImage
             src={movie?.image}
             fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
-            alt={movie?.name || 'TMDb title'}
+            alt={movie?.name || 'Movie background'}
             fill
             priority
             fetchPriority="high"
@@ -127,7 +138,7 @@ export default function VirtualMovieDetails({ movie }) {
                 <SafeImage
                   src={movie?.titleImage}
                   fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
-                  alt={movie?.name || 'TMDb poster'}
+                  alt={movie?.name || 'Movie poster'}
                   fill
                   sizes="320px"
                   className="object-cover"
@@ -136,13 +147,15 @@ export default function VirtualMovieDetails({ movie }) {
 
               <div className="min-w-0">
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="px-3 py-1 rounded bg-customPurple/15 border border-customPurple text-xs text-white">
-                    TMDb Virtual Title
+                  <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
+                    {isSeries ? 'Web Series' : 'Movie'}
                   </span>
 
-                  <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
-                    {movie?.type === 'WebSeries' ? 'Web Series' : 'Movie'}
-                  </span>
+                  {movie?.year ? (
+                    <span className="px-3 py-1 rounded bg-main border border-border text-xs text-white">
+                      {movie.year}
+                    </span>
+                  ) : null}
                 </div>
 
                 <h1 className="text-2xl sm:text-4xl font-bold leading-tight">
@@ -169,14 +182,14 @@ export default function VirtualMovieDetails({ movie }) {
 
                   {Number(movie?.tmdbVoteAverage || 0) ? (
                     <span className="text-white">
-                      TMDb {Number(movie.tmdbVoteAverage).toFixed(1)}/10
+                      Rating {Number(movie.tmdbVoteAverage).toFixed(1)}/10
                     </span>
                   ) : null}
                 </div>
 
                 {movie?.director ? (
                   <p className="text-sm text-dryGray mt-3">
-                    Director / Creator:{' '}
+                    {isSeries ? 'Creator' : 'Director'}:{' '}
                     <span className="text-white">{movie.director}</span>
                   </p>
                 ) : null}

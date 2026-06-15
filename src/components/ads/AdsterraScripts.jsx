@@ -20,6 +20,17 @@ const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
   process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_REPEAT_DELAY_MS || 30_000
 );
 
+/**
+ * TMDb virtual pages should load the popunder script too.
+ * Shorter delay helps because these dynamic virtual pages are often entered directly.
+ *
+ * Optional env override:
+ * NEXT_PUBLIC_TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS=3000
+ */
+const TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS = Number(
+  process.env.NEXT_PUBLIC_TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS || 3_000
+);
+
 const SCRIPT_ID = 'mf-profitable-popunder-script';
 
 const EXCLUDED_PREFIXES = [
@@ -44,6 +55,42 @@ const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
 const toSafeDelay = (value, fallback) => {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
+};
+
+const normalizePathname = (pathname = '') => {
+  const raw = String(pathname || '/')
+    .split('?')[0]
+    .split('#')[0]
+    .trim();
+
+  if (!raw || raw === '/') return '/';
+
+  const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
+
+  return withSlash.length > 1 ? withSlash.replace(/\/+$/, '') : withSlash;
+};
+
+const isTmdbVirtualPopunderPath = (pathname = '') => {
+  const path = normalizePathname(pathname);
+
+  return /^\/(?:movie|watch)\/tmdb\/(?:movie|tv)\/[^/]+$/i.test(path);
+};
+
+const shouldExcludePath = (pathname = '') => {
+  const path = normalizePathname(pathname);
+
+  /**
+   * Important:
+   * TMDb virtual movie/watch pages must be eligible even if future exclusions
+   * become broader.
+   */
+  if (isTmdbVirtualPopunderPath(path)) return false;
+
+  if (EXCLUDED_EXACT.includes(path)) return true;
+
+  return EXCLUDED_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  );
 };
 
 const isFeedbackModalOpenNow = () => {
@@ -91,11 +138,12 @@ const injectProfitablePopunderScript = () => {
 export default function AdsterraScripts() {
   const pathname = usePathname() || '/';
 
-  const isExcluded = useMemo(() => {
-    if (!pathname) return false;
-    if (EXCLUDED_EXACT.includes(pathname)) return true;
-    return EXCLUDED_PREFIXES.some((p) => pathname.startsWith(p));
-  }, [pathname]);
+  const isTmdbVirtualPage = useMemo(
+    () => isTmdbVirtualPopunderPath(pathname),
+    [pathname]
+  );
+
+  const isExcluded = useMemo(() => shouldExcludePath(pathname), [pathname]);
 
   const activatedRef = useRef(false);
   const initialTimerRef = useRef(null);
@@ -103,24 +151,36 @@ export default function AdsterraScripts() {
   const lastInjectAtRef = useRef(0);
 
   useEffect(() => {
+    const clearAllTimers = () => {
+      if (initialTimerRef.current) {
+        window.clearTimeout(initialTimerRef.current);
+      }
+
+      if (repeatTimerRef.current) {
+        window.clearInterval(repeatTimerRef.current);
+      }
+
+      initialTimerRef.current = null;
+      repeatTimerRef.current = null;
+    };
+
     if (!ADS_ENABLED || isExcluded) {
+      clearAllTimers();
+      activatedRef.current = false;
+      lastInjectAtRef.current = 0;
       removeInjectedScript();
-      return;
+      return () => { };
     }
 
     if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return;
+      return () => { };
     }
 
-    if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
+    if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return () => { };
 
-    if (window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED) return;
-    window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = true;
-
-    const initialDelay = toSafeDelay(
-      PROFITABLE_POPUNDER_INITIAL_DELAY_MS,
-      60_000
-    );
+    const initialDelay = isTmdbVirtualPage
+      ? toSafeDelay(TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS, 3_000)
+      : toSafeDelay(PROFITABLE_POPUNDER_INITIAL_DELAY_MS, 60_000);
 
     const repeatDelay = Math.max(
       1_000,
@@ -128,11 +188,7 @@ export default function AdsterraScripts() {
     );
 
     const clearAll = () => {
-      if (initialTimerRef.current) clearTimeout(initialTimerRef.current);
-      if (repeatTimerRef.current) clearInterval(repeatTimerRef.current);
-
-      initialTimerRef.current = null;
-      repeatTimerRef.current = null;
+      clearAllTimers();
     };
 
     const injectIfAllowed = () => {
@@ -184,6 +240,7 @@ export default function AdsterraScripts() {
 
     const startInitialTimer = () => {
       clearAll();
+
       activatedRef.current = false;
       lastInjectAtRef.current = 0;
 
@@ -206,29 +263,28 @@ export default function AdsterraScripts() {
         activatedRef.current = false;
         lastInjectAtRef.current = 0;
         removeInjectedScript();
-
-        window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = false;
         return;
       }
 
-      window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = true;
       startInitialTimer();
     };
 
-    if (!isFeedbackModalOpenNow()) {
-      startInitialTimer();
-    } else {
-      removeInjectedScript();
-    }
-
     const onVisibilityChange = () => {
       if (!activatedRef.current) return;
+
       if (document.visibilityState === 'visible') {
         injectIfAllowed();
       }
     };
 
-    window.addEventListener('focus', injectIfAllowed);
+    const onFocus = () => {
+      if (!activatedRef.current) return;
+      injectIfAllowed();
+    };
+
+    startInitialTimer();
+
+    window.addEventListener('focus', onFocus);
     window.addEventListener(
       FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
       onFeedbackOpenChange
@@ -238,7 +294,7 @@ export default function AdsterraScripts() {
     return () => {
       clearAll();
 
-      window.removeEventListener('focus', injectIfAllowed);
+      window.removeEventListener('focus', onFocus);
       window.removeEventListener(
         FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
         onFeedbackOpenChange
@@ -249,9 +305,8 @@ export default function AdsterraScripts() {
       lastInjectAtRef.current = 0;
 
       removeInjectedScript();
-      window.MF_PROFITABLE_POPUNDER_BOOTSTRAPPED = false;
     };
-  }, [isExcluded]);
+  }, [isExcluded, isTmdbVirtualPage, pathname]);
 
   return null;
 }

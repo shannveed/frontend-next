@@ -14,6 +14,8 @@ import EffectiveGateNativeBanner, {
   EffectiveGateSquareAd,
 } from '../ads/EffectiveGateNativeBanner';
 
+const clean = (value = '') => String(value ?? '').trim();
+
 const normalizeSeasonNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
@@ -34,7 +36,10 @@ const groupEpisodesBySeason = (episodes = []) => {
       seasonNumber,
       episodes: eps
         .slice()
-        .sort((a, b) => Number(a?.episodeNumber || 0) - Number(b?.episodeNumber || 0)),
+        .sort(
+          (a, b) =>
+            Number(a?.episodeNumber || 0) - Number(b?.episodeNumber || 0)
+        ),
     }));
 };
 
@@ -47,12 +52,14 @@ export default function VirtualWatchClient({ movie }) {
   const [play, setPlay] = useState(false);
   const [serverIndex, setServerIndex] = useState(0);
 
+  const isSeries = movie?.type === 'WebSeries';
+
   const seasons = useMemo(
     () =>
-      movie?.type === 'WebSeries'
+      isSeries
         ? groupEpisodesBySeason(Array.isArray(movie?.episodes) ? movie.episodes : [])
         : [],
-    [movie]
+    [isSeries, movie]
   );
 
   const [activeSeason, setActiveSeason] = useState(
@@ -76,7 +83,7 @@ export default function VirtualWatchClient({ movie }) {
     null;
 
   const servers = useMemo(() => {
-    if (movie?.type === 'WebSeries') {
+    if (isSeries) {
       return [
         { label: 'Server 1', url: currentEpisode?.video || '' },
         { label: 'Server 2', url: currentEpisode?.videoUrl2 || '' },
@@ -89,7 +96,7 @@ export default function VirtualWatchClient({ movie }) {
       { label: 'Server 2', url: movie?.videoUrl2 || '' },
       { label: 'Server 3', url: movie?.videoUrl3 || '' },
     ];
-  }, [movie, currentEpisode]);
+  }, [isSeries, movie, currentEpisode]);
 
   const activeVideoUrl =
     servers?.[serverIndex]?.url ||
@@ -116,6 +123,8 @@ export default function VirtualWatchClient({ movie }) {
     if (!activeVideoUrl) return;
     setPlay(true);
   };
+
+  const description = clean(movie?.desc);
 
   return (
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
@@ -173,6 +182,7 @@ export default function VirtualWatchClient({ movie }) {
             onClick={() => router.back()}
             className="sm:w-16 sm:h-16 w-10 h-10 flex-colo transitions hover:bg-customPurple rounded-md bg-main text-white flex-shrink-0"
             type="button"
+            aria-label="Go back"
           >
             <BiArrowBack className="sm:text-2xl text-lg" />
           </button>
@@ -184,7 +194,9 @@ export default function VirtualWatchClient({ movie }) {
             </h1>
 
             <p className="text-xs text-dryGray mt-1">
-              TMDb Virtual {movie?.type === 'WebSeries' ? 'Web Series' : 'Movie'}
+              {isSeries ? 'Web Series' : 'Movie'}
+              {movie?.language ? ` • ${movie.language}` : ''}
+              {movie?.category ? ` • ${movie.category}` : ''}
             </p>
           </div>
 
@@ -196,7 +208,7 @@ export default function VirtualWatchClient({ movie }) {
           </Link>
         </div>
 
-        {movie?.type === 'WebSeries' ? (
+        {isSeries ? (
           <div className="mb-4 space-y-3">
             <div className="flex gap-2">
               <select
@@ -260,8 +272,9 @@ export default function VirtualWatchClient({ movie }) {
         >
           {play ? (
             <iframe
-              key={`${movie?._id}:${serverIndex}:${activeVideoUrl}:${currentEpisode?._id || ''}`}
-              title="TMDb virtual player"
+              key={`${movie?._id}:${serverIndex}:${activeVideoUrl}:${currentEpisode?._id || ''
+                }`}
+              title={`${movie?.name || 'Movie'} player`}
               src={activeVideoUrl}
               frameBorder="0"
               allowFullScreen
@@ -274,7 +287,7 @@ export default function VirtualWatchClient({ movie }) {
                 <SafeImage
                   src={movie?.image}
                   fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
-                  alt={movie?.name || 'TMDb virtual title'}
+                  alt={movie?.name || 'Movie'}
                   fill
                   priority
                   quality={75}
@@ -288,6 +301,7 @@ export default function VirtualWatchClient({ movie }) {
                     disabled={!activeVideoUrl}
                     className="bg-white text-customPurple flex-colo border border-customPurple rounded-full w-20 h-20 font-medium text-xl hover:bg-customPurple hover:text-white transitions disabled:opacity-50"
                     type="button"
+                    aria-label="Play"
                   >
                     <FaPlay />
                   </button>
@@ -297,15 +311,17 @@ export default function VirtualWatchClient({ movie }) {
           )}
         </div>
 
-        <div className="mt-6 bg-main border border-border rounded-lg p-4">
-          <h2 className="text-white font-semibold text-sm mb-2">
-            About this virtual title
-          </h2>
+        {description ? (
+          <div className="mt-6 bg-main border border-border rounded-lg p-4">
+            <h2 className="text-white font-semibold text-sm mb-2">
+              About {movie?.name || 'this title'}
+            </h2>
 
-          <p className="text-text text-sm leading-7">
-            This page is generated dynamically from TMDb metadata and does not create a MongoDB movie document.
-          </p>
-        </div>
+            <p className="text-text text-sm leading-7 whitespace-pre-line">
+              {description}
+            </p>
+          </div>
+        ) : null}
 
         <EffectiveGateNativeBanner
           refreshKey={`watch-tmdb-desktop-${movie?.tmdbType}-${movie?.tmdbId}`}
