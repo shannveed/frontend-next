@@ -98,6 +98,29 @@ const DEBUG_REDIRECT =
     .trim()
     .toLowerCase() === 'true';
 
+/**
+ * Actor page temporary switch.
+ *
+ * Default: disabled.
+ *
+ * Later, when you want actor pages visible again:
+ * Vercel frontend env:
+ * NEXT_PUBLIC_ACTOR_PAGES_ENABLED=true
+ *
+ * They will still remain noindex because next.config.js + actor page metadata
+ * default to noindex unless you explicitly set:
+ * NEXT_PUBLIC_ACTOR_PAGES_NOINDEX=false
+ */
+const ACTOR_PAGES_ENABLED =
+  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_ENABLED || '')
+    .trim()
+    .toLowerCase() === 'true';
+
+const ACTOR_PAGES_DISABLED_STATUS = (() => {
+  const n = Number(process.env.NEXT_PUBLIC_ACTOR_PAGES_DISABLED_STATUS || 410);
+  return [404, 410, 451, 503].includes(n) ? n : 410;
+})();
+
 const FETCH_TIMEOUT_MS = Math.min(
   Math.max(Number(process.env.HINDI_REDIRECT_FETCH_TIMEOUT_MS || 4500), 700),
   9000
@@ -431,17 +454,136 @@ function nextWithDebug(reason = '', extra = {}) {
   return res;
 }
 
+/* ============================================================
+   Actor pages disabled response
+   ============================================================ */
+
+const escapeHtml = (value = '') =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+function isActorPagePath(pathname = '') {
+  const path = String(pathname || '').trim();
+  return path === '/actor' || path === '/actor/' || path.startsWith('/actor/');
+}
+
+function actorPagesDisabledResponse(req) {
+  const homeUrl = new URL('/', req.url).toString();
+  const moviesUrl = new URL('/movies', req.url).toString();
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="googlebot" content="noindex,nofollow" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Actor pages temporarily unavailable | MovieFrost</title>
+    <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #080A1A;
+        color: #fff;
+        font-family: Arial, sans-serif;
+      }
+      .wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      .card {
+        width: 100%;
+        max-width: 620px;
+        background: #0B0F29;
+        border: 1px solid #4b5563;
+        border-radius: 16px;
+        padding: 28px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.3;
+      }
+      p {
+        color: #C0C0C0;
+        line-height: 1.7;
+        margin: 14px 0 0;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+      a {
+        color: #fff;
+        background: #1B82FF;
+        text-decoration: none;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+      a.secondary {
+        background: transparent;
+        border: 1px solid #4b5563;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="card">
+        <h1>Actor pages are temporarily unavailable</h1>
+        <p>
+          MovieFrost actor profile pages are currently disabled while we improve this feature.
+          You can continue browsing movies and web series.
+        </p>
+        <div class="actions">
+          <a href="${escapeHtml(moviesUrl)}">Browse Movies</a>
+          <a class="secondary" href="${escapeHtml(homeUrl)}">Go Home</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>`;
+
+  return new NextResponse(html, {
+    status: ACTOR_PAGES_DISABLED_STATUS,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=60, s-maxage=60',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
+}
+
 export async function middleware(req) {
-  // Execute query cleanup first
+  const { nextUrl } = req;
+  const pathname = nextUrl.pathname || '';
+
+  // ✅ Temporarily disable public actor pages with 410 + noindex.
+  // This runs before any API calls or page rendering.
+  if (isActorPagePath(pathname) && !ACTOR_PAGES_ENABLED) {
+    return actorPagesDisabledResponse(req);
+  }
+
+  // Execute query cleanup
   const queryCleanup = stripUnknownQueryParams(req);
   if (queryCleanup) return queryCleanup;
 
   if (!ENABLE_REDIRECT) {
     return nextWithDebug('disabled');
   }
-
-  const { nextUrl } = req;
-  const pathname = nextUrl.pathname || '';
 
   if (!pathname.startsWith('/movie/')) {
     return nextWithDebug('not-movie-path');
@@ -504,5 +646,11 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/movie/:path*', '/watch/:path*', '/movies', '/movies/:path*'],
+  matcher: [
+    '/actor/:path*',
+    '/movie/:path*',
+    '/watch/:path*',
+    '/movies',
+    '/movies/:path*',
+  ],
 };

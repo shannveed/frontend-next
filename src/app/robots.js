@@ -38,10 +38,6 @@ export default function robots() {
       },
     ],
 
-    sitemap: [
-      `${SITE_URL}/sitemap-index.xml`,
-      `${SITE_URL}/sitemap.xml`,
-      `${SITE_URL}/sitemap-actors.xml`,
-    ],
+    sitemap: [`${SITE_URL}/sitemap-index.xml`, `${SITE_URL}/sitemap.xml`],
   };
 }

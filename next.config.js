@@ -18,8 +18,7 @@ const ensureUrl = (value, fallback) => {
 };
 
 const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://api-hi.moviefrost.com';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api-hi.moviefrost.com';
 
 const API_BASE = ensureUrl(RAW_API_BASE, 'https://api-hi.moviefrost.com')
   .replace(/\/+$/, '')
@@ -38,6 +37,11 @@ const IMAGE_CACHE =
 
 const FAVICON_CACHE =
   'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';
+
+const ACTOR_PAGES_NOINDEX =
+  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_NOINDEX ?? 'true')
+    .trim()
+    .toLowerCase() !== 'false';
 
 const remotePatternFromUrl = (url) => {
   try {
@@ -140,11 +144,6 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'moviefrost-backend-iota.vercel.app',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: 'moviefrost-backend.vercel.app',
         pathname: '/**',
       },
@@ -206,6 +205,19 @@ const nextConfig = {
         source: '/watch/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
       },
+
+      ...(ACTOR_PAGES_NOINDEX
+        ? [
+          {
+            source: '/actor/:path*',
+            headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+          },
+          {
+            source: '/sitemap-actors.xml',
+            headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+          },
+        ]
+        : []),
 
       {
         source: '/service-worker.js',
