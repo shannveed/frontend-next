@@ -1,7 +1,7 @@
 // frontend-next/middleware.js
 import { NextResponse } from 'next/server';
 
-const DEFAULT_API_BASE = 'https://moviefrost-backend-iota.vercel.app';
+const DEFAULT_API_BASE = 'https://moviefrost-backend-xi.vercel.app';
 const DEFAULT_ENGLISH_ORIGIN = 'https://www.moviefrost.com';
 const DEFAULT_HINDI_ORIGIN = 'https://hi.moviefrost.com';
 
@@ -208,7 +208,7 @@ const API_BASE_CANDIDATES = (() => {
     process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
     process.env.NEXT_PUBLIC_API_BASE_URL,
     DEFAULT_API_BASE,
-    'https://moviefrost-backend-iota.vercel.app',
+    'https://moviefrost-backend-xi.vercel.app',
     'https://moviefrost-backend-peach.vercel.app',
   ];
 

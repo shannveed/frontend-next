@@ -139,7 +139,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'api-hi.moviefrost.com', pathname: '/**' },
       {
         protocol: 'https',
-        hostname: 'moviefrost-backend-iota.vercel.app',
+        hostname: 'moviefrost-backend-xi.vercel.app',
         pathname: '/**',
       },
       {
