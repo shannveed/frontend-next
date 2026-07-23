@@ -33,7 +33,7 @@ export const metadata = {
 };
 
 const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://moviefrost-backend-three.vercel.app';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.flixmovo.online';
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
 const API = `${API_BASE}/api`;
 
@@ -243,7 +243,7 @@ export default async function BlogPreviewPage({ params }) {
           <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden border border-border bg-main mt-6">
             <SafeImage
               src={post?.coverImage}
-              fallbackCandidates={['/images/MOVIEFROST.png']}
+              fallbackCandidates={['/images/FLIXMOVO.png']}
               alt={post?.coverImageAlt || post?.title || 'Blog post'}
               fill
               sizes="(max-width: 1280px) 100vw, 900px"

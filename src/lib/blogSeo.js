@@ -29,7 +29,7 @@ const normalizeFaqs = (faqs = []) =>
 export const buildBlogHomeMetadata = () => ({
   title: 'Blog',
   description: truncate(
-    'Read trending movie articles, reviews, ending explained guides, recommendation lists, and upcoming movie updates on MovieFrost.',
+    'Read trending movie articles, reviews, ending explained guides, recommendation lists, and upcoming movie updates on Flixmovo.',
     160
   ),
   canonical: buildBlogHomeCanonical(),
@@ -38,7 +38,7 @@ export const buildBlogHomeMetadata = () => ({
 export const buildBlogTrendingMetadata = () => ({
   title: 'Trending Articles',
   description: truncate(
-    'Browse trending movie articles, reviews, explainers, and recommendation guides on MovieFrost Blog.',
+    'Browse trending movie articles, reviews, explainers, and recommendation guides on Flixmovo Blog.',
     160
   ),
   canonical: buildBlogTrendingCanonical(),
@@ -46,11 +46,11 @@ export const buildBlogTrendingMetadata = () => ({
 
 export const buildBlogCategoryMetadata = (category) => {
   const title = clean(category?.title || 'Blog Category');
-  const description = clean(category?.description || 'MovieFrost blog category.');
+  const description = clean(category?.description || 'Flixmovo blog category.');
 
   return {
     title,
-    description: truncate(`${description} Read the latest articles on MovieFrost Blog.`, 160),
+    description: truncate(`${description} Read the latest articles on Flixmovo Blog.`, 160),
     canonical: buildBlogCategoryCanonical(category?.slug || ''),
   };
 };
@@ -58,10 +58,10 @@ export const buildBlogCategoryMetadata = (category) => {
 export const buildBlogPostMetadata = (post) => {
   const canonical = buildBlogPostCanonical(post?.categorySlug, post?.slug);
 
-  const image = absoluteUrl(post?.coverImage || '/images/MOVIEFROST.png');
+  const image = absoluteUrl(post?.coverImage || '/images/FLIXMOVO.png');
 
   const title = truncate(
-    clean(post?.seoTitle || `${post?.title || 'Blog Post'} | MovieFrost Blog`),
+    clean(post?.seoTitle || `${post?.title || 'Blog Post'} | Flixmovo Blog`),
     100
   );
 
@@ -155,7 +155,7 @@ export const buildBlogArticleGraphJsonLd = (post, categoryInput = null) => {
   const orgId = `${SITE_URL}#organization`;
   const websiteId = `${SITE_URL}#website`;
 
-  const image = absoluteUrl(post?.coverImage || '/images/MOVIEFROST.png');
+  const image = absoluteUrl(post?.coverImage || '/images/FLIXMOVO.png');
   const datePublished = toIso(post?.publishedAt || post?.createdAt);
   const dateModified = toIso(post?.updatedAt || post?.publishedAt || post?.createdAt);
 
@@ -178,17 +178,17 @@ export const buildBlogArticleGraphJsonLd = (post, categoryInput = null) => {
       {
         '@type': 'Organization',
         '@id': orgId,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         url: SITE_URL,
         logo: {
           '@type': 'ImageObject',
-          url: absoluteUrl('/images/MOVIEFROST.png'),
+          url: absoluteUrl('/images/FLIXMOVO.png'),
         },
       },
       {
         '@type': 'WebSite',
         '@id': websiteId,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         url: SITE_URL,
         publisher: { '@id': orgId },
       },
@@ -214,7 +214,7 @@ export const buildBlogArticleGraphJsonLd = (post, categoryInput = null) => {
         mainEntityOfPage: { '@id': pageId },
         author: {
           '@type': 'Person',
-          name: clean(post?.authorName || 'MovieFrost Editorial Team'),
+          name: clean(post?.authorName || 'Flixmovo Editorial Team'),
         },
         publisher: { '@id': orgId },
         datePublished,

@@ -32,12 +32,12 @@ const normalizePath = (path = '/') => {
 
 export const ENGLISH_SITE_URL = normalizeOrigin(
   process.env.NEXT_PUBLIC_ENGLISH_SITE_URL,
-  'https://www.moviefrost.com'
+  'https://www.flixmovo.online'
 );
 
 export const HINDI_SITE_URL = normalizeOrigin(
   process.env.NEXT_PUBLIC_HINDI_SITE_URL,
-  'https://hi.moviefrost.com'
+  'https://hi.flixmovo.online'
 );
 
 // You asked for en-IN.
@@ -49,9 +49,9 @@ export const INDIA_HREFLANG =
  * Returns Next.js metadata alternates:
  *
  * <link rel="canonical" href="current-site-url/path" />
- * <link rel="alternate" hreflang="en" href="https://www.moviefrost.com/path" />
- * <link rel="alternate" hreflang="en-IN" href="https://hi.moviefrost.com/path" />
- * <link rel="alternate" hreflang="x-default" href="https://www.moviefrost.com/path" />
+ * <link rel="alternate" hreflang="en" href="https://www.flixmovo.online/path" />
+ * <link rel="alternate" hreflang="en-IN" href="https://hi.flixmovo.online/path" />
+ * <link rel="alternate" hreflang="x-default" href="https://www.flixmovo.online/path" />
  */
 export const buildHreflangAlternatesForPath = (
   path = '/',

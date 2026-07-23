@@ -2,7 +2,7 @@
 import React from 'react';
 
 export default function SeoLandingHero({
-  eyebrow = 'MovieFrost Collection',
+  eyebrow = 'Flixmovo Collection',
   title,
   description,
   chips = [],

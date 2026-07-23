@@ -82,7 +82,7 @@ const makeEmptyForm = () => ({
   relatedMovieIdsText: '',
   relatedPostIdsText: '',
 
-  authorName: 'MovieFrost Editorial Team',
+  authorName: 'Flixmovo Editorial Team',
 
   seoTitle: '',
   seoDescription: '',
@@ -431,7 +431,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
             ? post.relatedPostIds.map(String).join(', ')
             : '',
 
-          authorName: post.authorName || 'MovieFrost Editorial Team',
+          authorName: post.authorName || 'Flixmovo Editorial Team',
 
           seoTitle: post.seoTitle || '',
           seoDescription: post.seoDescription || '',
@@ -685,7 +685,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
   const draftPreviewHref = currentPost?._id ? `/blog-preview/${currentPost._id}` : '';
 
   const seoPreviewTitle = useMemo(() => {
-    const fallback = `${clean(form.title || 'Untitled')} | MovieFrost Blog`;
+    const fallback = `${clean(form.title || 'Untitled')} | Flixmovo Blog`;
     return trimText(clean(form.seoTitle) || fallback, 120);
   }, [form.title, form.seoTitle]);
 
@@ -696,7 +696,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
       clean(form.quickAnswer) ||
       clean(form.intro) ||
       clean(templateGuide.excerpt) ||
-      'MovieFrost blog article preview.';
+      'Flixmovo blog article preview.';
     return trimText(fallback, 160);
   }, [
     form.seoDescription,
@@ -990,7 +990,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
         (id) => id !== String(currentPost?._id || '')
       ),
 
-      authorName: clean(form.authorName) || 'MovieFrost Editorial Team',
+      authorName: clean(form.authorName) || 'Flixmovo Editorial Team',
 
       seoTitle: clean(form.seoTitle),
       seoDescription: clean(form.seoDescription),
@@ -1296,7 +1296,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
               <input
                 value={form.authorName}
                 onChange={(e) => setField('authorName', e.target.value)}
-                placeholder="MovieFrost Editorial Team"
+                placeholder="Flixmovo Editorial Team"
                 className={`${inputClass} mt-2`}
               />
             </div>
@@ -1306,7 +1306,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
               <input
                 value={form.coverImage}
                 onChange={(e) => setField('coverImage', e.target.value)}
-                placeholder="https://cdn.moviefrost.com/uploads/..."
+                placeholder="https://cdn.flixmovo.online/uploads/..."
                 className={`${inputClass} mt-2`}
               />
             </div>
@@ -1345,7 +1345,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
                 className="w-full max-w-xl rounded border border-border object-cover"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = '/images/MOVIEFROST.png';
+                  e.currentTarget.src = '/images/FLIXMOVO.png';
                 }}
               />
             </div>
@@ -1569,7 +1569,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
                         onChange={(e) =>
                           updateSection(index, 'image', e.target.value)
                         }
-                        placeholder="https://cdn.moviefrost.com/uploads/..."
+                        placeholder="https://cdn.flixmovo.online/uploads/..."
                         className={`${inputClass} mt-2`}
                       />
                     </div>
@@ -1609,7 +1609,7 @@ function BlogPostEditorInner({ mode, postId, token }) {
                       className="mt-1 w-full max-w-xl rounded border border-border object-cover"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = '/images/MOVIEFROST.png';
+                        e.currentTarget.src = '/images/FLIXMOVO.png';
                       }}
                     />
                   ) : null}

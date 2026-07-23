@@ -13,7 +13,7 @@ export default function MovieTrailerSection({ movie }) {
   const posterCandidates = [
     safeTrim(movie?.image),
     safeTrim(movie?.titleImage),
-    '/images/MOVIEFROST.png',
+    '/images/FLIXMOVO.png',
   ].filter(Boolean);
 
   return (

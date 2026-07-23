@@ -126,8 +126,8 @@ export default function NavBarMobile() {
 
           <Link href="/" aria-label="Go to home" className="flex-rows min-h-[36px]">
             <Image
-              src="/images/MOVIEFROST.png"
-              alt="MovieFrost"
+              src="/images/FLIXMOVO.png"
+              alt="Flixmovo"
               width={160}
               height={36}
               priority

@@ -21,7 +21,7 @@ export default function ShareModalClient({ open, onClose, movie }) {
 
   const shareMessage = useMemo(() => {
     const name = movie?.name || 'this movie';
-    return `Watch "${name}" Full HD on MovieFrost!`;
+    return `Watch "${name}" Full HD on Flixmovo!`;
   }, [movie?.name]);
 
   const shareLinks = useMemo(() => {

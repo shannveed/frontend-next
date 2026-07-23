@@ -11,19 +11,19 @@ const HOME_TRENDING_LIMIT = 50;
 
 const FAQS = [
   {
-    question: 'What is MovieFrost?',
+    question: 'What is Flixmovo?',
     answer:
-      'MovieFrost is a movie and web series discovery platform built for users who want a fast way to browse trending movies, TV series, new releases, genres, languages and film industries in one place.',
+      'Flixmovo is a movie and web series discovery platform built for users who want a fast way to browse trending movies, TV series, new releases, genres, languages and film industries in one place.',
   },
   {
-    question: 'Can I watch movies online free in HD on MovieFrost?',
+    question: 'Can I watch movies online free in HD on Flixmovo?',
     answer:
-      'MovieFrost helps users discover movie and web series pages with HD-focused viewing options, multiple servers, trailers, cast details, ratings and related recommendations.',
+      'Flixmovo helps users discover movie and web series pages with HD-focused viewing options, multiple servers, trailers, cast details, ratings and related recommendations.',
   },
   {
-    question: 'Does MovieFrost include TV series and web series?',
+    question: 'Does Flixmovo include TV series and web series?',
     answer:
-      'Yes. MovieFrost includes movies, web series and TV shows across many categories including Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed titles and more.',
+      'Yes. Flixmovo includes movies, web series and TV shows across many categories including Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed titles and more.',
   },
   {
     question: 'How do I find trending movies and TV series?',
@@ -31,7 +31,7 @@ const FAQS = [
       'The homepage highlights trending movies and TV series first. You can also browse dedicated listing pages by type, genre, language, year, rating and film industry to find what fits your mood.',
   },
   {
-    question: 'Why is the MovieFrost homepage useful?',
+    question: 'Why is the Flixmovo homepage useful?',
     answer:
       'The homepage combines trending titles, new releases, popular recommendations, film-industry browsing and helpful discovery content so viewers can quickly decide what to watch next.',
   },
@@ -52,7 +52,7 @@ function TrendingHeading({ total }) {
   return (
     <section className="mb-5">
       <p className="text-customPurple text-xs font-semibold uppercase tracking-wide">
-        MovieFrost Trending
+        Flixmovo Trending
       </p>
 
       <h1 className="text-2xl sm:text-3xl font-bold text-white mt-2">
@@ -70,18 +70,18 @@ function HomepageSeoDescription() {
       </p>
 
       <h2 className="text-xl sm:text-2xl font-bold text-white mt-2">
-        Moviefrost for Movies, TV Series and Web Series Discovery
+        Flixmovo for Movies, TV Series and Web Series Discovery
       </h2>
 
       <div className="mt-4 space-y-4 text-text text-sm sm:text-base leading-8">
         <p>
-          MovieFrost is designed for viewers who want a simple, fast and organized
+          Flixmovo is designed for viewers who want a simple, fast and organized
           way to discover movies and TV series online. Instead of jumping between
           confusing pages, the homepage brings together trending movies, new
           releases, popular web series, genre collections and industry-based
           browsing in one clean experience. Whether you are searching for action
           movies, drama, comedy, thriller, romance, horror, sci-fi, animation,
-          crime stories or family-friendly entertainment, MovieFrost helps you
+          crime stories or family-friendly entertainment, Flixmovo helps you
           start from the right place.
         </p>
 
@@ -97,11 +97,11 @@ function HomepageSeoDescription() {
         </p>
 
         <p>
-          Every movie page on MovieFrost focuses on useful details such as title,
+          Every movie page on Flixmovo focuses on useful details such as title,
           poster, story description, year, runtime, language, category, cast,
           director, trailer, ratings and related titles. For web series, episode
           and season information helps viewers move through content easily. The
-          goal is to make MovieFrost a helpful starting point when you want to
+          goal is to make Flixmovo a helpful starting point when you want to
           decide what to watch next, compare similar titles or explore a specific
           language, genre or film industry.
         </p>
@@ -109,7 +109,7 @@ function HomepageSeoDescription() {
         <p>
           If you are looking to watch movies online free in HD, browse web series,
           discover trending TV shows or explore movies by language and industry,
-          MovieFrost gives you a direct path from the homepage to the right
+          Flixmovo gives you a direct path from the homepage to the right
           collection. Start with the trending section, explore new releases, or
           open the Browse By Film Industry page to find entertainment that matches
           your taste.
@@ -118,7 +118,7 @@ function HomepageSeoDescription() {
 
       <div className="mt-8">
         <h2 className="text-xl sm:text-2xl font-bold text-white">
-          MovieFrost Homepage FAQs
+          Flixmovo Homepage FAQs
         </h2>
 
         <div className="mt-4 space-y-3">

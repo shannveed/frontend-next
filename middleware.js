@@ -1,9 +1,9 @@
 // frontend-next/middleware.js
 import { NextResponse } from 'next/server';
 
-const DEFAULT_API_BASE = 'https://moviefrost-backend-xi.vercel.app';
-const DEFAULT_ENGLISH_ORIGIN = 'https://www.moviefrost.com';
-const DEFAULT_HINDI_ORIGIN = 'https://hi.moviefrost.com';
+const DEFAULT_API_BASE = 'https://api.flixmovo.online';
+const DEFAULT_ENGLISH_ORIGIN = 'https://www.flixmovo.online';
+const DEFAULT_HINDI_ORIGIN = 'https://hi.flixmovo.online';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -33,8 +33,8 @@ function normalizeHindiOrigin(value = '', fallback = DEFAULT_HINDI_ORIGIN) {
     const u = new URL(origin);
     const host = u.hostname.toLowerCase();
 
-    if (host === 'wwwhi.moviefrost.com' || host === 'www.hi.moviefrost.com') {
-      u.hostname = 'hi.moviefrost.com';
+    if (host === 'wwwhi.flixmovo.online' || host === 'hi.flixmovo.online') {
+      u.hostname = 'hi.flixmovo.online';
     }
 
     return u.toString().replace(/\/+$/, '');
@@ -101,7 +101,7 @@ const DEBUG_REDIRECT =
 /**
  * Actor page temporary switch.
  *
- * Default: disabled.
+ * Default: enabled.
  *
  * Later, when you want actor pages visible again:
  * Vercel frontend env:
@@ -112,9 +112,9 @@ const DEBUG_REDIRECT =
  * NEXT_PUBLIC_ACTOR_PAGES_NOINDEX=false
  */
 const ACTOR_PAGES_ENABLED =
-  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_ENABLED || '')
+  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_ENABLED ?? 'true')
     .trim()
-    .toLowerCase() === 'true';
+    .toLowerCase() !== 'false';
 
 const ACTOR_PAGES_DISABLED_STATUS = (() => {
   const n = Number(process.env.NEXT_PUBLIC_ACTOR_PAGES_DISABLED_STATUS || 410);
@@ -208,8 +208,8 @@ const API_BASE_CANDIDATES = (() => {
     process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL,
     process.env.NEXT_PUBLIC_API_BASE_URL,
     DEFAULT_API_BASE,
-    'https://moviefrost-backend-xi.vercel.app',
-    'https://moviefrost-backend-peach.vercel.app',
+    'https://api.flixmovo.online',
+    'https://api.flixmovo.online',
   ];
 
   const out = [];
@@ -314,9 +314,9 @@ function shouldRedirectFromHost(currentHostname = '') {
 
   if (
     current === hindiHost ||
-    current === 'hi.moviefrost.com' ||
-    current === 'www.hi.moviefrost.com' ||
-    current === 'wwwhi.moviefrost.com'
+    current === 'hi.flixmovo.online' ||
+    current === 'hi.flixmovo.online' ||
+    current === 'wwwhi.flixmovo.online'
   ) {
     return false;
   }
@@ -327,8 +327,8 @@ function shouldRedirectFromHost(currentHostname = '') {
 
   return (
     current === englishHost ||
-    current === 'www.moviefrost.com' ||
-    current === 'moviefrost.com'
+    current === 'www.flixmovo.online' ||
+    current === 'flixmovo.online'
   );
 }
 
@@ -386,7 +386,7 @@ async function fetchJsonWithTimeout(url) {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        'X-MovieFrost-Middleware': 'hindi-language-redirect',
+        'X-Flixmovo-Middleware': 'hindi-language-redirect',
       },
     });
 
@@ -482,7 +482,7 @@ function actorPagesDisabledResponse(req) {
     <meta name="robots" content="noindex,nofollow" />
     <meta name="googlebot" content="noindex,nofollow" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Actor pages temporarily unavailable | MovieFrost</title>
+    <title>Actor pages temporarily unavailable | Flixmovo</title>
     <style>
       html, body {
         margin: 0;
@@ -545,7 +545,7 @@ function actorPagesDisabledResponse(req) {
       <section class="card">
         <h1>Actor pages are temporarily unavailable</h1>
         <p>
-          MovieFrost actor profile pages are currently disabled while we improve this feature.
+          Flixmovo actor profile pages are currently disabled while we improve this feature.
           You can continue browsing movies and web series.
         </p>
         <div class="actions">

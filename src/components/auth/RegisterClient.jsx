@@ -102,6 +102,7 @@ export default function RegisterClient() {
       });
 
       setUserInfo(data);
+      window.flixmovoTrack?.('sign_up', { method: 'email' });
       toast.success(`Welcome ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);
@@ -119,7 +120,7 @@ export default function RegisterClient() {
         className="w-full 2xl:w-2/5 md:w-3/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-2 pt-3 pb-4 px-3 sm:pt-5 sm:pb-6 sm:px-6 above-1000:pt-5 above-1000:pb-8 above-1000:px-8 bg-dry rounded-lg border border-border shadow-xl"
       >
         <img
-          src="/images/MOVIEFROST.png"
+          src="/images/FLIXMOVO.png"
           alt="logo"
           className="w-full h-12 above-1000:h-10 object-contain mb-1 above-1000:mb-1"
         />

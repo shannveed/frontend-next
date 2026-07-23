@@ -18,7 +18,7 @@ export async function apiFetch(
     const origin =
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://www.moviefrost.com";
+        : "https://www.flixmovo.online";
     const u = new URL(url, origin);
     u.searchParams.set("_t", String(Date.now()));
     url = u.pathname + u.search;

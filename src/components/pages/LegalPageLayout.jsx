@@ -73,7 +73,7 @@ export default function LegalPageLayout({
           >
             <p className="text-white font-semibold">Terms of Service</p>
             <p className="text-dryGray text-sm mt-1">
-              Rules and conditions for using MovieFrost.
+              Rules and conditions for using Flixmovo.
             </p>
           </Link>
         </div>

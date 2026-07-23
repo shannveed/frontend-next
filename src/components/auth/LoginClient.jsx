@@ -155,6 +155,7 @@ export default function LoginClient({
       });
 
       setUserInfo(data);
+      window.flixmovoTrack?.('login', { method: 'password' });
       toast.success(`Welcome back ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);
@@ -175,6 +176,7 @@ export default function LoginClient({
       });
 
       setUserInfo(data);
+      window.flixmovoTrack?.('login', { method: 'google' });
       toast.success(`Welcome back ${data?.fullName || ''}`.trim());
 
       redirectAfterAuth(router, data);
@@ -206,7 +208,7 @@ export default function LoginClient({
           className="w-full md:w-3/5 2xl:w-2/5 above-1000:w-[450px] above-1000:max-w-[450px] flex flex-col gap-2 above-1000:gap-1 p-3 sm:p-8 above-1000:p-10 bg-dry rounded-lg border border-border shadow-xl"
         >
           <img
-            src="/images/MOVIEFROST.png"
+            src="/images/FLIXMOVO.png"
             alt="logo"
             className="w-full h-10 above-1000:h-10 object-contain mb-1"
           />

@@ -2,7 +2,7 @@
 export const runtime = 'edge';
 
 /**
- * MovieFrost /ads.txt
+ * Flixmovo /ads.txt
  * - Proxies Ezoic AdstxtManager so /ads.txt is 200 OK on your domain.
  * - Tries both www + non-www variants to avoid "wrong domain" 404s.
  * - On failure, returns 200 with helpful debug comments (not blank).
@@ -101,7 +101,7 @@ const buildCandidateUrls = (req) => {
     }
   }
 
-  resolvedDomain = resolvedDomain || 'www.moviefrost.com';
+  resolvedDomain = resolvedDomain || 'www.flixmovo.online';
 
   const domains = domainVariants(resolvedDomain);
 
@@ -154,7 +154,7 @@ export async function GET(req) {
   if (!candidates.length) {
     return new Response(
       [
-        '# MovieFrost ads.txt',
+        '# Flixmovo ads.txt',
         '# ERROR: ads.txt proxy is not configured.',
         '# Set EZOIC_ADSTXT_URL OR (EZOIC_ADSTXT_ID + EZOIC_ADSTXT_DOMAIN) on Vercel.',
         '',
@@ -213,7 +213,7 @@ export async function GET(req) {
 
   // Failure: return 200 with debug (so it's not blank and you can see what’s wrong)
   const debug = [
-    '# MovieFrost ads.txt (proxy FAILED)',
+    '# Flixmovo ads.txt (proxy FAILED)',
     `# time: ${new Date().toISOString()}`,
     '# Tried:',
     ...attempts.map((a) => {

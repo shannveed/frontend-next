@@ -1,6 +1,6 @@
 // frontend-next/src/lib/api.js
 const RAW_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api-hi.moviefrost.com';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.flixmovo.online';
 
 // ✅ normalize: remove trailing slashes + accidental "/api"
 const API_BASE = RAW_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
@@ -8,7 +8,7 @@ const API = `${API_BASE}/api`;
 
 /**
  * ✅ Cache tags used for On‑Demand Revalidation
- * Backend will call: POST https://www.moviefrost.com/revalidate
+ * Backend will call: POST https://www.flixmovo.online/revalidate
  */
 export const CACHE_TAGS = {
   MOVIES: 'movies',

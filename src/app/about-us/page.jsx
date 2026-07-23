@@ -5,7 +5,7 @@ import { SITE_URL } from '../../lib/seo';
 export const metadata = {
   title: 'About Us',
   description:
-    'Learn about MovieFrost — a free platform to discover and watch movies and web series online in HD.',
+    'Learn about Flixmovo — a free platform to discover and watch movies and web series online in HD.',
   alternates: { canonical: `${SITE_URL}/about-us` },
 };
 
@@ -23,17 +23,17 @@ export default function AboutPage() {
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       <div className="bg-dry border border-border rounded-lg p-6 sm:p-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">
-          About MovieFrost
+          About Flixmovo
         </h1>
 
         <p className="text-text mt-3 leading-7">
-          MovieFrost helps users discover and enjoy movies and web series online.
+          Flixmovo helps users discover and enjoy movies and web series online.
           We focus on fast loading, mobile-friendly UI, and clean SEO so content
           is easy to find.
         </p>
 
         <div className="grid lg:grid-cols-2 gap-6 mt-8">
-          <Card title="What you can do on MovieFrost">
+          <Card title="What you can do on Flixmovo">
             <ul className="list-disc ml-5 space-y-1">
               <li>Browse movies by category, language, year, and “Browse By”.</li>
               <li>Watch with multiple servers (Server 1 / 2 / 3).</li>
@@ -49,7 +49,7 @@ export default function AboutPage() {
               modern design, powerful admin tools, and SEO-ready pages.
             </p>
             <p className="mt-3">
-              MovieFrost is built using the MERN stack with a Next.js SEO layer
+              Flixmovo is built using the MERN stack with a Next.js SEO layer
               to improve indexing and performance.
             </p>
           </Card>

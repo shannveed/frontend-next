@@ -10,10 +10,10 @@ export const revalidate = 300;
 
 export const metadata = {
   title: {
-    absolute: 'Browse By Film Industry - Movies & Web Series | MovieFrost',
+    absolute: 'Browse By Film Industry - Movies & Web Series | Flixmovo',
   },
   description:
-    'Browse movies and web series by film industry on MovieFrost. Explore Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed movies, Punjabi movies and more.',
+    'Browse movies and web series by film industry on Flixmovo. Explore Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed movies, Punjabi movies and more.',
   alternates: { canonical: `${SITE_URL}/browse-by-film-industry` },
   robots: {
     index: true,
@@ -23,17 +23,17 @@ export const metadata = {
   openGraph: {
     type: 'website',
     url: `${SITE_URL}/browse-by-film-industry`,
-    title: 'Browse By Film Industry - Movies & Web Series | MovieFrost',
+    title: 'Browse By Film Industry - Movies & Web Series | Flixmovo',
     description:
-      'Browse Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed movies, Punjabi movies and more on MovieFrost.',
-    images: [`${SITE_URL}/images/MOVIEFROST.png`],
+      'Browse Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed movies, Punjabi movies and more on Flixmovo.',
+    images: [`${SITE_URL}/images/FLIXMOVO.png`],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Browse By Film Industry - Movies & Web Series | MovieFrost',
+    title: 'Browse By Film Industry - Movies & Web Series | Flixmovo',
     description:
-      'Browse movies and web series by film industry on MovieFrost.',
-    images: [`${SITE_URL}/images/MOVIEFROST.png`],
+      'Browse movies and web series by film industry on Flixmovo.',
+    images: [`${SITE_URL}/images/FLIXMOVO.png`],
   },
 };
 
@@ -55,7 +55,7 @@ export default async function BrowseByFilmIndustryPage() {
         contained={false}
         eyebrow="Browse By Film Industry"
         title="Browse Movies and TV Series by Film Industry"
-        description="Explore MovieFrost collections by film industry and content style. Browse Hollywood English movies, Hollywood Hindi dubbed movies, Bollywood movies, Bollywood web series, Korean drama, Korean Hindi dubbed titles, Chinese drama, Japanese anime, Japanese movies, South Indian Hindi dubbed movies, Punjabi movies and more."
+        description="Explore Flixmovo collections by film industry and content style. Browse Hollywood English movies, Hollywood Hindi dubbed movies, Bollywood movies, Bollywood web series, Korean drama, Korean Hindi dubbed titles, Chinese drama, Japanese anime, Japanese movies, South Indian Hindi dubbed movies, Punjabi movies and more."
         chips={[
           'Hollywood',
           'Bollywood',

@@ -286,7 +286,7 @@ export default function VirtualWatchClient({ movie }) {
               <div className="w-full h-full rounded-lg overflow-hidden relative bg-main">
                 <SafeImage
                   src={movie?.image}
-                  fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
+                  fallbackCandidates={[movie?.titleImage, '/images/FLIXMOVO.png']}
                   alt={movie?.name || 'Movie'}
                   fill
                   priority

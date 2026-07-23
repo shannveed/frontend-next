@@ -79,7 +79,7 @@ export default function BlogSectionBlock({
         <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-border bg-main mt-4">
           <SafeImage
             src={image}
-            fallbackCandidates={['/images/MOVIEFROST.png']}
+            fallbackCandidates={['/images/FLIXMOVO.png']}
             alt={imageAlt}
             fill
             sizes="(max-width: 1280px) 100vw, 900px"

@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { OPEN_NOTIFICATIONS_PANEL } from '../../lib/events';
 
-const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
+const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.flixmovo.online'
   }`.replace(/\/+$/, '') + '/';
 
 export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
@@ -71,7 +71,7 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
       onClick: () => goTo('/blog'),
     },
     {
-      name: 'MovieFrost Hindi',
+      name: 'Flixmovo Hindi',
       href: HINDI_SITE_URL,
       icon: HiOutlineUserGroup,
       onClick: () => goExternal(HINDI_SITE_URL),
@@ -160,8 +160,8 @@ export default function MenuDrawer({ drawerOpen = false, toggleDrawer }) {
         <div className="flex items-center justify-between h-16 px-6 bg-dry border-b border-border">
           <Link href="/" onClick={close} className="inline-flex items-center min-h-[48px]">
             <Image
-              src="/images/MOVIEFROST.png"
-              alt="MovieFrost"
+              src="/images/FLIXMOVO.png"
+              alt="Flixmovo"
               width={112}
               height={48}
               sizes="112px"

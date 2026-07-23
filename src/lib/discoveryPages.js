@@ -73,14 +73,14 @@ export const TYPE_PAGES = [
     type: 'Movie',
     label: 'Movies',
     description:
-      'Watch movies online free in HD on MovieFrost. Browse action, drama, comedy, thriller, romance, and new releases.',
+      'Watch movies online free in HD on Flixmovo. Browse action, drama, comedy, thriller, romance, and new releases.',
   },
   {
     slug: 'web-series',
     type: 'WebSeries',
     label: 'Web Series',
     description:
-      'Watch web series online free in HD on MovieFrost. Explore trending series, seasons, episodes, and fresh releases.',
+      'Watch web series online free in HD on Flixmovo. Explore trending series, seasons, episodes, and fresh releases.',
   },
 ];
 
@@ -171,7 +171,7 @@ const withPaginatedMeta = (base, canonicalPath, pageNumber = 1) => {
     canonical,
     heading: `${clean(base.heading)} - ${pageLabel}`,
     body: truncate(
-      `${clean(base.body)} Continue browsing ${pageLabel.toLowerCase()} on MovieFrost.`,
+      `${clean(base.body)} Continue browsing ${pageLabel.toLowerCase()} on Flixmovo.`,
       240
     ),
   };
@@ -186,21 +186,21 @@ export const INDUSTRY_PAGES = [
     slug: 'hollywood-english',
     label: 'Hollywood English Movies',
     description:
-      'Watch Hollywood English movies online free in HD on MovieFrost. Browse blockbuster action, thriller, comedy, drama, and more.',
+      'Watch Hollywood English movies online free in HD on Flixmovo. Browse blockbuster action, thriller, comedy, drama, and more.',
     browseByValues: ['Hollywood (English)', 'British (English)'],
   },
   {
     slug: 'hollywood-hindi-dubbed',
     label: 'Hollywood Hindi Dubbed Movies',
     description:
-      'Watch Hollywood movies in Hindi dubbed online free on MovieFrost. Stream action, thriller, sci-fi, and adventure titles in HD.',
+      'Watch Hollywood movies in Hindi dubbed online free on Flixmovo. Stream action, thriller, sci-fi, and adventure titles in HD.',
     browseByValues: ['Hollywood (Hindi Dubbed)', 'Hollywood( Hindi Dubbed)'],
   },
   {
     slug: 'hollywood-web-series',
     label: 'Hollywood Web Series',
     description:
-      'Watch Hollywood web series online free on MovieFrost. Discover English and Hindi dubbed web series in HD.',
+      'Watch Hollywood web series online free on Flixmovo. Discover English and Hindi dubbed web series in HD.',
     browseByValues: [
       'Hollywood Web Series (English)',
       'Hollywood Web Series (Hindi Dubbed)',
@@ -210,77 +210,77 @@ export const INDUSTRY_PAGES = [
     slug: 'bollywood',
     label: 'Bollywood Movies',
     description:
-      'Watch Bollywood movies online free in HD on MovieFrost. Browse romance, action, comedy, drama, and new Hindi releases.',
+      'Watch Bollywood movies online free in HD on Flixmovo. Browse romance, action, comedy, drama, and new Hindi releases.',
     browseByValues: ['Bollywood', 'Bollywood (Hindi)'],
   },
   {
     slug: 'bollywood-web-series',
     label: 'Bollywood Web Series',
     description:
-      'Best Bollywood web series free to watch on MovieFrost. Stream trending Hindi web series and new episodes online.',
+      'Best Bollywood web series free to watch on Flixmovo. Stream trending Hindi web series and new episodes online.',
     browseByValues: ['Bollywood Web Series', 'Bollywood Web Series (Hindi)'],
   },
   {
     slug: 'korean-drama',
     label: 'Korean Drama',
     description:
-      'Watch Korean drama online on MovieFrost. Explore romance, thriller, fantasy, and drama series in HD.',
+      'Watch Korean drama online on Flixmovo. Explore romance, thriller, fantasy, and drama series in HD.',
     browseByValues: ['Korean Drama (Korean)'],
   },
   {
     slug: 'korean-drama-hindi',
     label: 'Korean Drama Hindi Dubbed',
     description:
-      'Watch Korean drama Hindi dubbed online free on MovieFrost. Stream Korean titles in Hindi with a smooth HD experience.',
+      'Watch Korean drama Hindi dubbed online free on Flixmovo. Stream Korean titles in Hindi with a smooth HD experience.',
     browseByValues: ['Korean (Hindi Dubbed)'],
   },
   {
     slug: 'korean-english',
     label: 'Korean Movies in English',
     description:
-      'Watch Korean movies and series in English online free on MovieFrost. Browse popular Korean titles in HD.',
+      'Watch Korean movies and series in English online free on Flixmovo. Browse popular Korean titles in HD.',
     browseByValues: ['Korean (English)'],
   },
   {
     slug: 'chinese-drama',
     label: 'Chinese Drama',
     description:
-      'Watch Chinese drama online free on MovieFrost. Stream popular Chinese series and trending drama titles in HD.',
+      'Watch Chinese drama online free on Flixmovo. Stream popular Chinese series and trending drama titles in HD.',
     browseByValues: ['Chinease Drama'],
   },
   {
     slug: 'japanese-anime',
     label: 'Japanese Anime',
     description:
-      'Watch Japanese Anime online free on MovieFrost. Discover popular anime series, action anime, fantasy anime, and more.',
+      'Watch Japanese Anime online free on Flixmovo. Discover popular anime series, action anime, fantasy anime, and more.',
     browseByValues: ['Japanese Anime'],
   },
   {
     slug: 'japanese-web-series',
     label: 'Japanese Web Series',
     description:
-      'Watch Japanese web series online free on MovieFrost. Browse Japanese shows in original and Hindi-dubbed formats.',
+      'Watch Japanese web series online free on Flixmovo. Browse Japanese shows in original and Hindi-dubbed formats.',
     browseByValues: ['Japanese Web Series', 'Japanese Web Series (Hindi)'],
   },
   {
     slug: 'japanese-movies',
     label: 'Japanese Movies',
     description:
-      'Watch Japanese movies online free on MovieFrost. Stream action, anime, thriller, and drama movies in HD.',
+      'Watch Japanese movies online free on Flixmovo. Stream action, anime, thriller, and drama movies in HD.',
     browseByValues: ['Japanese (Movies)'],
   },
   {
     slug: 'south-indian-hindi-dubbed',
     label: 'South Indian Hindi Dubbed Movies',
     description:
-      'Watch South Indian Hindi dubbed movies online free on MovieFrost. Browse action-packed and trending South titles in HD.',
+      'Watch South Indian Hindi dubbed movies online free on Flixmovo. Browse action-packed and trending South titles in HD.',
     browseByValues: ['South Indian (Hindi Dubbed)'],
   },
   {
     slug: 'punjabi-movies',
     label: 'Punjabi Movies',
     description:
-      'Watch Punjabi movies online free on MovieFrost. Stream the latest Punjabi comedy, drama, romance, and action titles.',
+      'Watch Punjabi movies online free on Flixmovo. Stream the latest Punjabi comedy, drama, romance, and action titles.',
     browseByValues: ['Indian Punjabi Movies'],
   },
 ];
@@ -355,10 +355,10 @@ export const buildAllMoviesPageMeta = (pageNumber = 1) => {
   const base = {
     title: 'Movies',
     description:
-      'Browse movies and web series by category, language, year, and more on MovieFrost.',
+      'Browse movies and web series by category, language, year, and more on Flixmovo.',
     canonical: `${SITE_URL}/movies`,
     heading: 'Movies',
-    body: 'Browse movies and web series by category, language, year, and more on MovieFrost.',
+    body: 'Browse movies and web series by category, language, year, and more on Flixmovo.',
   };
 
   return withPaginatedMeta(base, buildAllMoviesPagePath(pageNumber), pageNumber);
@@ -391,12 +391,12 @@ export const buildGenrePageMeta = (category, pageNumber = 1) => {
   const base = {
     title: truncate(`Watch ${name} Movies Online Free`, 60),
     description: truncate(
-      `Stream ${name} movies and web series online free in HD on MovieFrost. Browse the latest ${name} releases, classics, and fan favorites.`,
+      `Stream ${name} movies and web series online free in HD on Flixmovo. Browse the latest ${name} releases, classics, and fan favorites.`,
       160
     ),
     canonical: buildGenreCanonical(name),
     heading: `${name} Movies`,
-    body: `Explore ${name} movies and web series available on MovieFrost. Browse fresh releases, classic favorites, and trending titles in the ${name} category.`,
+    body: `Explore ${name} movies and web series available on Flixmovo. Browse fresh releases, classic favorites, and trending titles in the ${name} category.`,
   };
 
   return withPaginatedMeta(base, buildGenrePagePath(name, pageNumber), pageNumber);
@@ -406,7 +406,7 @@ export const buildIndustryPageMeta = (page, pageNumber = 1) => {
   const label = clean(page?.label || 'Industry Collection');
   const description =
     clean(page?.description) ||
-    `Stream ${label} online free in HD on MovieFrost.`;
+    `Stream ${label} online free in HD on Flixmovo.`;
 
   const base = {
     title: truncate(`Watch ${label} Online Free`, 60),
@@ -429,12 +429,12 @@ export const buildLanguagePageMeta = (language, pageNumber = 1) => {
   const base = {
     title: truncate(`Watch ${name} Movies Online Free`, 60),
     description: truncate(
-      `Watch ${name} movies and web series online free in HD on MovieFrost. Browse titles available in ${name}.`,
+      `Watch ${name} movies and web series online free in HD on Flixmovo. Browse titles available in ${name}.`,
       160
     ),
     canonical: buildLanguageCanonical(name),
     heading: `${name} Movies & Web Series`,
-    body: `Browse movies and web series available in ${name} on MovieFrost. Discover trending titles, new releases, and more in HD.`,
+    body: `Browse movies and web series available in ${name} on Flixmovo. Discover trending titles, new releases, and more in HD.`,
   };
 
   return withPaginatedMeta(
@@ -450,12 +450,12 @@ export const buildYearPageMeta = (year, pageNumber = 1) => {
   const base = {
     title: truncate(`Watch ${y} Movies Online Free`, 60),
     description: truncate(
-      `Watch ${y} movies and web series online free in HD on MovieFrost. Explore releases from ${y}, trending titles, and new favorites.`,
+      `Watch ${y} movies and web series online free in HD on Flixmovo. Explore releases from ${y}, trending titles, and new favorites.`,
       160
     ),
     canonical: buildYearCanonical(y),
     heading: `${y} Movies & Web Series`,
-    body: `Discover movies and web series released in ${y} on MovieFrost. Browse popular titles, new arrivals, and fan favorites in HD.`,
+    body: `Discover movies and web series released in ${y} on Flixmovo. Browse popular titles, new arrivals, and fan favorites in HD.`,
   };
 
   return withPaginatedMeta(base, buildYearPagePath(y, pageNumber), pageNumber);
@@ -570,7 +570,7 @@ export const buildMoviesQuerySeo = (query = {}) => {
     return {
       title: 'Movies',
       description:
-        'Browse movies and web series by category, language, year, and more on MovieFrost.',
+        'Browse movies and web series by category, language, year, and more on Flixmovo.',
       canonical: `${SITE_URL}/movies`,
       robots: { index: true, follow: true },
     };
@@ -642,7 +642,7 @@ export const buildMoviesQuerySeo = (query = {}) => {
   return {
     title: truncate(label.startsWith('Search:') ? label : `${label} Movies`, 60),
     description: truncate(
-      'Filtered movie and web series listing on MovieFrost.',
+      'Filtered movie and web series listing on Flixmovo.',
       160
     ),
     canonical: buildMoviesFilterCanonical(query),

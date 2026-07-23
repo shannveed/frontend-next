@@ -108,7 +108,7 @@ const getSameOriginReferrerPath = () => {
 
 /**
  * Keep same global class/event used by ad components.
- * On this feedback page, all MovieFrost ad slots are force-hidden and popunder
+ * On this feedback page, all Flixmovo ad slots are force-hidden and popunder
  * scripts are not mounted by SiteChromeRuntime.
  */
 const setFeedbackDomState = (isOpen) => {
@@ -370,7 +370,7 @@ export default function PublicWebsiteFeedbackPageClient() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
-      toast.success('Thank you! Your feedback helps us improve MovieFrost.');
+      toast.success('Thank you! Your feedback helps us improve Flixmovo.');
     } catch (err) {
       toast.error(err?.message || 'Failed to submit feedback');
     } finally {
@@ -402,7 +402,7 @@ export default function PublicWebsiteFeedbackPageClient() {
 
             <div className="border-b border-border bg-dry px-4 py-4 pr-14 sm:px-6 sm:pr-16">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-customPurple">
-                MovieFrost Feedback
+                Flixmovo Feedback
               </p>
 
               <h1 className="mt-2 text-2xl font-bold text-white">
@@ -411,7 +411,7 @@ export default function PublicWebsiteFeedbackPageClient() {
 
               <p className="mt-2 text-sm leading-6 text-text">
                 Your response has been submitted successfully. We will use it to
-                improve MovieFrost speed, streaming quality, content discovery,
+                improve Flixmovo speed, streaming quality, content discovery,
                 and overall experience.
               </p>
             </div>
@@ -422,7 +422,7 @@ export default function PublicWebsiteFeedbackPageClient() {
                 onClick={closeForSession}
                 className="block w-full rounded-lg bg-customPurple px-4 py-3 text-center font-semibold text-white hover:bg-blue-600"
               >
-                Back to MovieFrost
+                Back to Flixmovo
               </button>
             </div>
           </div>
@@ -475,16 +475,16 @@ export default function PublicWebsiteFeedbackPageClient() {
           <div className="border-b border-border bg-dry px-4 py-4 pr-14 sm:px-6 sm:pr-16">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-customPurple">
-                MovieFrost Feedback
+                Flixmovo Feedback
               </p>
 
               <h1 className="mt-2 text-2xl font-bold text-white">
-                Help us improve MovieFrost
+                Help us improve Flixmovo
               </h1>
 
               <p className="mt-2 text-sm leading-6 text-text">
                 Please fill this short form to improve the website. Your
-                feedback directly helps us make MovieFrost faster, easier, and
+                feedback directly helps us make Flixmovo faster, easier, and
                 better for everyone.
               </p>
             </div>
@@ -611,7 +611,7 @@ export default function PublicWebsiteFeedbackPageClient() {
 
               <div>
                 <FieldLabel>
-                  How likely are you to recommend MovieFrost to a friend?
+                  How likely are you to recommend Flixmovo to a friend?
                 </FieldLabel>
 
                 <p className="mb-2 text-xs text-text">

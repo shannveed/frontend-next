@@ -117,7 +117,7 @@ function PushInner({ token }) {
             value={link}
             onChange={(e) => setLink(e.target.value)}
             className="w-full bg-main border border-border rounded px-3 py-3 mt-2"
-            placeholder="https://www.moviefrost.com/movie/slug"
+            placeholder="https://www.flixmovo.online/movie/slug"
           />
         </div>
 

@@ -186,7 +186,7 @@ export default function MovieInfoServer({ movie }) {
           {/* ✅ Mobile LCP image */}
           <SafeImage
             src={movie?.titleImage}
-            fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
+            fallbackCandidates={[movie?.image, '/images/FLIXMOVO.png']}
             alt={movie?.name || 'Movie'}
             fill
             priority
@@ -292,7 +292,7 @@ export default function MovieInfoServer({ movie }) {
           {/* ✅ Desktop / tablet LCP image */}
           <SafeImage
             src={movie?.image}
-            fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
+            fallbackCandidates={[movie?.titleImage, '/images/FLIXMOVO.png']}
             alt={movie?.name || 'Movie background'}
             fill
             priority
@@ -309,7 +309,7 @@ export default function MovieInfoServer({ movie }) {
                   {/* ✅ Visible but not the primary LCP on desktop */}
                   <SafeImage
                     src={movie?.titleImage}
-                    fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
+                    fallbackCandidates={[movie?.image, '/images/FLIXMOVO.png']}
                     alt={movie?.name || 'Movie'}
                     width={520}
                     height={780}

@@ -38,8 +38,8 @@ const EXCLUDED_PREFIXES = [
 const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
 
 const buildShareText = () => {
-  const title = typeof document !== 'undefined' ? document.title : 'MovieFrost';
-  return `Check this out on MovieFrost: ${title}`;
+  const title = typeof document !== 'undefined' ? document.title : 'Flixmovo';
+  return `Check this out on Flixmovo: ${title}`;
 };
 
 const safeOpen = (href) => {
@@ -105,7 +105,7 @@ export default function FloatingShareIcons() {
         onClick: async (url, text) => {
           if (typeof navigator !== 'undefined' && navigator.share) {
             await navigator.share({
-              title: document.title || 'MovieFrost',
+              title: document.title || 'Flixmovo',
               text,
               url,
             });

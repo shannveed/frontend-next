@@ -1,8 +1,8 @@
 // frontend-next/public/service-worker.js
-const CACHE_PREFIX = 'moviefrost-cache-';
+const CACHE_PREFIX = 'flixmovo-cache-';
 
 // ✅ Injected at build time by scripts/inject-sw-build-id.js
-const CACHE_VERSION = 'dev-1780329362525';
+const CACHE_VERSION = 'dev-1784837684915';
 
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
@@ -10,7 +10,7 @@ const STATIC_ASSETS = [
   '/',
   '/images/favicon1.png',
   '/manifest.json',
-  '/images/MOVIEFROST.png',
+  '/images/FLIXMOVO.png',
   '/images/placeholder.jpg',
   '/images/desktop-icon-192.png',
   '/images/desktop-icon-512.png',
@@ -135,12 +135,12 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' };
   }
 
-  const title = data.title || 'MovieFrost';
+  const title = data.title || 'Flixmovo';
 
   const options = {
     body: data.body || '',
-    icon: data.icon || '/images/MOVIEFROST.png',
-    badge: data.badge || '/images/MOVIEFROST.png',
+    icon: data.icon || '/images/FLIXMOVO.png',
+    badge: data.badge || '/images/FLIXMOVO.png',
     image: data.image,
     tag: data.tag,
     renotify: !!data.renotify,

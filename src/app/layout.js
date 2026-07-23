@@ -16,15 +16,15 @@ const poppins = Poppins({
 const SITE_LANG = process.env.NEXT_PUBLIC_SITE_LANG || 'en';
 const SITE_DIR = process.env.NEXT_PUBLIC_SITE_DIR || 'ltr';
 
-const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || 'MovieFrost';
+const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || 'Flixmovo';
 
 const SITE_TITLE =
   process.env.NEXT_PUBLIC_SITE_TITLE ||
-  'MovieFrost — Watch Free Movies & Web Series Online';
+  'Flixmovo — Watch Free Movies & Web Series Online';
 
 const SITE_DESCRIPTION =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION ||
-  'Watch free movies and web series online in HD on MovieFrost.';
+  'Watch free movies and web series online in HD on Flixmovo.';
 
 const buildVerification = () => {
   const v = {};
@@ -58,7 +58,7 @@ export const metadata = {
   icons: {
     icon: [{ url: '/images/favicon1.png', type: 'image/png' }],
     shortcut: ['/images/favicon1.png'],
-    apple: [{ url: '/images/MOVIEFROST.png', type: 'image/png' }],
+    apple: [{ url: '/images/FLIXMOVO.png', type: 'image/png' }],
   },
 
   appleWebApp: {

@@ -1,17 +1,35 @@
 // frontend-next/src/components/analytics/AnalyticsBootstrap.jsx
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GA_ID = String(process.env.NEXT_PUBLIC_GA_ID || '').trim();
 
-const SCRIPT_ID = 'mf-ga4-script';
-const REAL_USER_ACTIVE_MS = Number(
-  process.env.NEXT_PUBLIC_REAL_USER_ACTIVE_MS || 15000
+const SCRIPT_ID = 'flixmovo-ga4-script';
+
+const REAL_USER_ACTIVE_MS = Math.max(
+  5000,
+  Number(process.env.NEXT_PUBLIC_REAL_USER_ACTIVE_MS || 15000)
 );
 
-const EXCLUDED_PREFIXES = [
+const GA_DEBUG_MODE =
+  String(process.env.NEXT_PUBLIC_GA_DEBUG_MODE || '')
+    .trim()
+    .toLowerCase() === 'true';
+
+const ALLOW_VERCEL_PREVIEW =
+  String(process.env.NEXT_PUBLIC_GA_ALLOW_PREVIEW || '')
+    .trim()
+    .toLowerCase() === 'true';
+
+const PRIVATE_PREFIXES = [
   '/dashboard',
   '/viewer-feedback',
   '/movieslist',
@@ -30,10 +48,7 @@ const EXCLUDED_PREFIXES = [
   '/update-blog-posts',
 ];
 
-const EXCLUDED_EXACT = [
-  '/login',
-  '/register',
-  '/signup',
+const PRIVATE_EXACT = [
   '/profile',
   '/password',
   '/favorites',
@@ -41,6 +56,14 @@ const EXCLUDED_EXACT = [
 ];
 
 const clean = (value = '') => String(value ?? '').trim();
+
+const safeDecode = (value = '') => {
+  try {
+    return decodeURIComponent(String(value || ''));
+  } catch {
+    return String(value || '');
+  }
+};
 
 const hostnameFromUrl = (value = '') => {
   try {
@@ -52,42 +75,131 @@ const hostnameFromUrl = (value = '') => {
 
 const ALLOWED_HOSTS = new Set(
   [
-    hostnameFromUrl(process.env.NEXT_PUBLIC_SITE_URL || ''),
-    hostnameFromUrl(process.env.NEXT_PUBLIC_ENGLISH_SITE_URL || ''),
-    hostnameFromUrl(process.env.NEXT_PUBLIC_HINDI_SITE_URL || ''),
-    'www.moviefrost.com',
-    'moviefrost.com',
-    'hi.moviefrost.com',
-  ]
-    .map(clean)
-    .filter(Boolean)
+    hostnameFromUrl(process.env.NEXT_PUBLIC_SITE_URL),
+    hostnameFromUrl(process.env.NEXT_PUBLIC_ENGLISH_SITE_URL),
+    hostnameFromUrl(process.env.NEXT_PUBLIC_HINDI_SITE_URL),
+    'www.flixmovo.online',
+    'flixmovo.online',
+    'hi.flixmovo.online',
+  ].filter(Boolean)
 );
 
-const isAllowedProductionHost = () => {
-  if (process.env.NODE_ENV !== 'production') return true;
+const shouldSkipPath = (pathname = '') => {
+  const path = clean(pathname) || '/';
+
+  if (PRIVATE_EXACT.includes(path)) return true;
+
+  return PRIVATE_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  );
+};
+
+const isAllowedHost = () => {
   if (typeof window === 'undefined') return false;
 
   const host = window.location.hostname.toLowerCase();
 
-  // Do not send GA from Vercel preview deployments.
-  if (host.endsWith('.vercel.app')) return false;
+  if (host.endsWith('.vercel.app') && !ALLOW_VERCEL_PREVIEW) {
+    return false;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return true;
+  }
 
   return ALLOWED_HOSTS.has(host);
 };
 
-const shouldSkipAnalyticsForPath = (pathname = '') => {
-  const path = String(pathname || '').trim();
-  if (!path) return false;
-
-  if (EXCLUDED_EXACT.includes(path)) return true;
-  return EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+const isAutomationLikely = () => {
+  if (typeof navigator === 'undefined') return false;
+  return navigator.webdriver === true;
 };
+
+const getStoredUserRole = () => {
+  if (typeof window === 'undefined') return 'guest';
+
+  try {
+    const raw = localStorage.getItem('userInfo');
+    const user = raw ? JSON.parse(raw) : null;
+
+    if (user?.isAdmin) return 'admin';
+    if (user?.token) return 'user';
+
+    return 'guest';
+  } catch {
+    return 'guest';
+  }
+};
+
+const isAdminUser = () => getStoredUserRole() === 'admin';
 
 const buildPagePath = (pathname, searchParams) => {
-  const qs = searchParams?.toString?.() || '';
   const path = pathname || '/';
-  return qs ? `${path}?${qs}` : path;
+  const query = searchParams?.toString?.() || '';
+
+  return query ? `${path}?${query}` : path;
 };
+
+const classifyPage = (pathname = '/') => {
+  const path = clean(pathname) || '/';
+
+  if (path === '/') {
+    return { pageType: 'home', contentGroup: 'Home' };
+  }
+
+  if (path.startsWith('/movie/tmdb/')) {
+    return { pageType: 'virtual_movie', contentGroup: 'Movies' };
+  }
+
+  if (path.startsWith('/movie/')) {
+    return { pageType: 'movie_detail', contentGroup: 'Movies' };
+  }
+
+  if (path.startsWith('/watch/tmdb/')) {
+    return { pageType: 'virtual_watch', contentGroup: 'Watch' };
+  }
+
+  if (path.startsWith('/watch/')) {
+    return { pageType: 'watch', contentGroup: 'Watch' };
+  }
+
+  if (path.startsWith('/actor/')) {
+    return { pageType: 'actor_profile', contentGroup: 'Actors' };
+  }
+
+  if (path === '/movies' || path.startsWith('/movies/')) {
+    return { pageType: 'movie_listing', contentGroup: 'Movies' };
+  }
+
+  if (path === '/blog') {
+    return { pageType: 'blog_home', contentGroup: 'Blog' };
+  }
+
+  if (path.startsWith('/blog/')) {
+    const parts = path.split('/').filter(Boolean);
+
+    return {
+      pageType: parts.length >= 3 ? 'blog_article' : 'blog_category',
+      contentGroup: 'Blog',
+    };
+  }
+
+  if (path === '/login' || path === '/register' || path === '/signup') {
+    return { pageType: 'authentication', contentGroup: 'Account' };
+  }
+
+  return { pageType: 'other', contentGroup: 'Other' };
+};
+
+const normalizeEventParams = (params = {}) =>
+  Object.fromEntries(
+    Object.entries(params || {}).filter(
+      ([, value]) =>
+        value !== undefined &&
+        value !== null &&
+        value !== ''
+    )
+  );
 
 const ensureGtagStub = () => {
   if (typeof window === 'undefined') return;
@@ -101,44 +213,55 @@ const ensureGtagStub = () => {
   }
 };
 
-const ensureGtagConfig = (gaId) => {
-  if (typeof window === 'undefined' || !gaId) return;
+const ensureGtagConfigured = () => {
+  if (typeof window === 'undefined' || !GA_ID) return;
 
   ensureGtagStub();
 
-  if (window.__MF_GA4_CONFIGURED__ === gaId) return;
+  if (window.__FLIXMOVO_GA_CONFIGURED__ === GA_ID) {
+    return;
+  }
 
   window.gtag('js', new Date());
-  window.gtag('config', gaId, {
+
+  window.gtag('config', GA_ID, {
     send_page_view: false,
-    anonymize_ip: true,
+    cookie_domain: 'auto',
+    cookie_flags: 'SameSite=Lax;Secure',
     transport_type: 'beacon',
+    ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
   });
 
-  window.__MF_GA4_CONFIGURED__ = gaId;
+  window.__FLIXMOVO_GA_CONFIGURED__ = GA_ID;
 };
 
-const ensureGaScriptLoaded = (gaId) => {
+const ensureGaScriptLoaded = () => {
   if (typeof window === 'undefined') {
-    return Promise.reject(new Error('window unavailable'));
+    return Promise.reject(new Error('Window is unavailable'));
   }
 
-  if (!gaId) {
-    return Promise.reject(new Error('GA id missing'));
+  if (!GA_ID) {
+    return Promise.reject(new Error('GA4 measurement ID is missing'));
   }
 
-  if (window.__MF_GA4_SCRIPT_PROMISE__) {
-    return window.__MF_GA4_SCRIPT_PROMISE__;
+  if (window.__FLIXMOVO_GA_SCRIPT_PROMISE__) {
+    return window.__FLIXMOVO_GA_SCRIPT_PROMISE__;
   }
 
   const promise = new Promise((resolve, reject) => {
-    const handleLoad = () => {
-      const node = document.getElementById(SCRIPT_ID);
-      if (node) node.dataset.loaded = 'true';
+    const onLoad = () => {
+      const script = document.getElementById(SCRIPT_ID);
+
+      if (script) {
+        script.dataset.loaded = 'true';
+      }
+
       resolve();
     };
 
-    const handleError = () => reject(new Error('Failed to load Google Analytics'));
+    const onError = () => {
+      reject(new Error('Failed to load Google Analytics'));
+    };
 
     const existing = document.getElementById(SCRIPT_ID);
 
@@ -148,40 +271,45 @@ const ensureGaScriptLoaded = (gaId) => {
         return;
       }
 
-      existing.addEventListener('load', handleLoad, { once: true });
-      existing.addEventListener('error', handleError, { once: true });
+      existing.addEventListener('load', onLoad, { once: true });
+      existing.addEventListener('error', onError, { once: true });
       return;
     }
 
     const script = document.createElement('script');
+
     script.id = SCRIPT_ID;
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(
-      gaId
+      GA_ID
     )}`;
-    script.onload = handleLoad;
-    script.onerror = handleError;
+
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', onError, { once: true });
 
     document.head.appendChild(script);
   }).catch((error) => {
-    window.__MF_GA4_SCRIPT_PROMISE__ = null;
+    window.__FLIXMOVO_GA_SCRIPT_PROMISE__ = null;
     throw error;
   });
 
-  window.__MF_GA4_SCRIPT_PROMISE__ = promise;
+  window.__FLIXMOVO_GA_SCRIPT_PROMISE__ = promise;
+
   return promise;
 };
 
 const isVisibleAndFocused = () => {
   if (typeof document === 'undefined') return false;
   if (document.visibilityState !== 'visible') return false;
-  if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
-  return true;
-};
 
-const isAutomationLikely = () => {
-  if (typeof navigator === 'undefined') return false;
-  return navigator.webdriver === true;
+  if (
+    typeof document.hasFocus === 'function' &&
+    !document.hasFocus()
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 function AnalyticsBootstrapInner() {
@@ -194,12 +322,13 @@ function AnalyticsBootstrapInner() {
   );
 
   const skipAnalytics = useMemo(
-    () => shouldSkipAnalyticsForPath(pathname),
+    () => shouldSkipPath(pathname),
     [pathname]
   );
 
   const latestPagePathRef = useRef(pagePath);
-  const lastSentPagePathRef = useRef('');
+  const lastPageViewRef = useRef('');
+  const lastContextEventRef = useRef('');
 
   const bootStartedRef = useRef(false);
   const readyRef = useRef(false);
@@ -207,79 +336,236 @@ function AnalyticsBootstrapInner() {
   const humanSignalRef = useRef(false);
   const activeMsRef = useRef(0);
   const lastTickRef = useRef(Date.now());
+  const engagedEventSentRef = useRef(false);
 
-  const realUserEventSentRef = useRef(false);
-  const pendingRealUserEventRef = useRef(false);
+  const pendingEventsRef = useRef([]);
 
   useEffect(() => {
     latestPagePathRef.current = pagePath;
   }, [pagePath]);
 
-  const sendPageView = useCallback((nextPath) => {
-    if (!GA_ID || typeof window === 'undefined') return;
-    if (!readyRef.current || typeof window.gtag !== 'function') return;
+  const canTrack = useCallback(() => {
+    if (!GA_ID) return false;
+    if (skipAnalytics) return false;
+    if (!isAllowedHost()) return false;
+    if (isAutomationLikely()) return false;
+    if (isAdminUser()) return false;
 
-    const page = String(nextPath || latestPagePathRef.current || '').trim();
-    if (!page) return;
-    if (lastSentPagePathRef.current === page) return;
+    return true;
+  }, [skipAnalytics]);
 
-    window.gtag('event', 'page_view', {
-      page_path: page,
-      page_location: window.location.href,
-      page_title: document.title,
-      traffic_quality: humanSignalRef.current ? 'human_intent' : 'unknown',
-    });
+  const sendRawEvent = useCallback((eventName, params = {}) => {
+    if (!readyRef.current) return;
+    if (typeof window.gtag !== 'function') return;
 
-    lastSentPagePathRef.current = page;
+    window.gtag(
+      'event',
+      eventName,
+      normalizeEventParams({
+        ...params,
+        ...(GA_DEBUG_MODE ? { debug_mode: true } : {}),
+      })
+    );
   }, []);
 
-  const sendRealUserEngaged = useCallback(() => {
-    if (!GA_ID || typeof window === 'undefined') return;
-    if (!readyRef.current || typeof window.gtag !== 'function') return;
-    if (realUserEventSentRef.current) return;
+  const trackEvent = useCallback(
+    (eventName, params = {}) => {
+      const name = clean(eventName).slice(0, 40);
 
-    realUserEventSentRef.current = true;
-    pendingRealUserEventRef.current = false;
+      if (!name || !canTrack()) return;
 
-    window.gtag('event', 'real_user_engaged', {
-      traffic_quality: 'human',
-      engagement_gate_ms: REAL_USER_ACTIVE_MS,
-      page_path: latestPagePathRef.current || '/',
-      page_location: window.location.href,
-      page_title: document.title,
+      const payload = normalizeEventParams({
+        page_path: latestPagePathRef.current || '/',
+        ...params,
+      });
+
+      if (!readyRef.current) {
+        pendingEventsRef.current = [
+          ...pendingEventsRef.current.slice(-99),
+          { eventName: name, params: payload },
+        ];
+
+        return;
+      }
+
+      sendRawEvent(name, payload);
+    },
+    [canTrack, sendRawEvent]
+  );
+
+  const flushPendingEvents = useCallback(() => {
+    if (!readyRef.current) return;
+
+    const pending = pendingEventsRef.current;
+    pendingEventsRef.current = [];
+
+    for (const item of pending) {
+      sendRawEvent(item.eventName, item.params);
+    }
+  }, [sendRawEvent]);
+
+  const applyUserProperties = useCallback(() => {
+    if (!readyRef.current) return;
+    if (typeof window.gtag !== 'function') return;
+
+    const role = getStoredUserRole();
+
+    window.gtag('set', 'user_properties', {
+      user_role: role,
+      logged_in: role === 'user' ? 'true' : 'false',
     });
   }, []);
+
+  const sendPageView = useCallback((requestedPath = '') => {
+    if (!readyRef.current) return;
+
+    const nextPath =
+      clean(requestedPath) ||
+      latestPagePathRef.current ||
+      '/';
+
+    if (lastPageViewRef.current === nextPath) {
+      return;
+    }
+
+    const url = new URL(nextPath, window.location.origin);
+    const classification = classifyPage(url.pathname);
+
+    sendRawEvent('page_view', {
+      page_path: nextPath,
+      page_location: window.location.href,
+      page_title: document.title,
+      page_type: classification.pageType,
+      content_group: classification.contentGroup,
+      traffic_quality: humanSignalRef.current
+        ? 'human_intent'
+        : 'unknown',
+    });
+
+    lastPageViewRef.current = nextPath;
+  }, [sendRawEvent]);
+
+  const sendRouteContextEvents = useCallback(
+    (requestedPath = '') => {
+      if (!readyRef.current) return;
+
+      const nextPath =
+        clean(requestedPath) ||
+        latestPagePathRef.current ||
+        '/';
+
+      if (lastContextEventRef.current === nextPath) {
+        return;
+      }
+
+      lastContextEventRef.current = nextPath;
+
+      const url = new URL(nextPath, window.location.origin);
+      const path = url.pathname;
+      const parts = path.split('/').filter(Boolean).map(safeDecode);
+
+      const searchTerm =
+        clean(url.searchParams.get('search')) ||
+        clean(url.searchParams.get('query')) ||
+        clean(url.searchParams.get('q'));
+
+      if (searchTerm) {
+        trackEvent('view_search_results', {
+          search_term: searchTerm.slice(0, 100),
+        });
+      }
+
+      if (path.startsWith('/movie/tmdb/')) {
+        trackEvent('view_movie_detail', {
+          movie_slug: parts.slice(1).join('/').slice(0, 150),
+          content_source: 'tmdb_virtual',
+        });
+
+        return;
+      }
+
+      if (path.startsWith('/movie/') && parts[1]) {
+        trackEvent('view_movie_detail', {
+          movie_slug: parts[1].slice(0, 150),
+          content_source: 'local',
+        });
+
+        return;
+      }
+
+      if (path.startsWith('/watch/') && parts[1]) {
+        trackEvent('view_watch_page', {
+          movie_slug: parts.slice(1).join('/').slice(0, 150),
+          content_source: path.startsWith('/watch/tmdb/')
+            ? 'tmdb_virtual'
+            : 'local',
+        });
+
+        return;
+      }
+
+      if (path.startsWith('/actor/') && parts[1]) {
+        trackEvent('view_actor_profile', {
+          actor_slug: parts[1].slice(0, 150),
+        });
+
+        return;
+      }
+
+      if (path.startsWith('/blog/')) {
+        if (parts.length >= 3) {
+          trackEvent('view_blog_article', {
+            blog_category: parts[1].slice(0, 100),
+            article_slug: parts[2].slice(0, 150),
+          });
+        } else if (parts.length === 2) {
+          trackEvent('view_blog_category', {
+            blog_category: parts[1].slice(0, 100),
+          });
+        }
+      }
+    },
+    [trackEvent]
+  );
 
   const bootAnalytics = useCallback(async () => {
-    if (!GA_ID || typeof window === 'undefined') return;
-    if (skipAnalytics) return;
-    if (!isAllowedProductionHost()) return;
-    if (isAutomationLikely()) return;
+    if (!canTrack()) return;
     if (readyRef.current || bootStartedRef.current) return;
 
     bootStartedRef.current = true;
 
     try {
-      ensureGtagConfig(GA_ID);
-      await ensureGaScriptLoaded(GA_ID);
+      ensureGtagConfigured();
+      await ensureGaScriptLoaded();
 
       readyRef.current = true;
+      window.__FLIXMOVO_GA_READY__ = true;
 
+      applyUserProperties();
       sendPageView(latestPagePathRef.current);
+      sendRouteContextEvents(latestPagePathRef.current);
+      flushPendingEvents();
 
-      if (pendingRealUserEventRef.current) {
-        sendRealUserEngaged();
+      try {
+        window.dispatchEvent(
+          new CustomEvent('flixmovo-analytics-ready')
+        );
+      } catch {
+        // Ignore old-browser event issues.
       }
     } catch {
       bootStartedRef.current = false;
     }
-  }, [skipAnalytics, sendPageView, sendRealUserEngaged]);
+  }, [
+    canTrack,
+    applyUserProperties,
+    sendPageView,
+    sendRouteContextEvents,
+    flushPendingEvents,
+  ]);
 
-  // Human-intent gate: no idle timer, no 7s fallback.
   useEffect(() => {
-    if (!GA_ID || typeof window === 'undefined') return;
-    if (skipAnalytics) return;
-    if (!isAllowedProductionHost()) return;
+    if (!canTrack()) return;
 
     const markHumanIntent = () => {
       if (isAutomationLikely()) return;
@@ -292,15 +578,20 @@ function AnalyticsBootstrapInner() {
       once: true,
       passive: true,
     });
+
     window.addEventListener('touchstart', markHumanIntent, {
       once: true,
       passive: true,
     });
+
     window.addEventListener('scroll', markHumanIntent, {
       once: true,
       passive: true,
     });
-    window.addEventListener('keydown', markHumanIntent, { once: true });
+
+    window.addEventListener('keydown', markHumanIntent, {
+      once: true,
+    });
 
     return () => {
       window.removeEventListener('pointerdown', markHumanIntent);
@@ -308,51 +599,206 @@ function AnalyticsBootstrapInner() {
       window.removeEventListener('scroll', markHumanIntent);
       window.removeEventListener('keydown', markHumanIntent);
     };
-  }, [skipAnalytics, bootAnalytics]);
+  }, [canTrack, bootAnalytics]);
 
-  // Active-time gate for cleaner real-user reporting.
+  /**
+   * Delegated click analytics. No user names, emails or other PII are sent.
+   */
   useEffect(() => {
-    if (!GA_ID || typeof window === 'undefined') return;
-    if (skipAnalytics) return;
-    if (!isAllowedProductionHost()) return;
+    if (!canTrack()) return;
+
+    const onClick = (event) => {
+      const target =
+        event.target instanceof Element
+          ? event.target.closest('a,button')
+          : null;
+
+      if (!target) return;
+
+      humanSignalRef.current = true;
+      bootAnalytics().catch(() => { });
+
+      if (target.tagName === 'A') {
+        const href = target.getAttribute('href') || '';
+
+        if (!href) return;
+
+        let destination;
+
+        try {
+          destination = new URL(href, window.location.origin);
+        } catch {
+          return;
+        }
+
+        if (target.hasAttribute('download')) {
+          trackEvent('download_intent', {
+            link_url: destination.toString().slice(0, 500),
+          });
+
+          return;
+        }
+
+        if (destination.origin !== window.location.origin) {
+          return;
+        }
+
+        if (destination.pathname.startsWith('/watch/')) {
+          trackEvent('watch_intent', {
+            destination_path:
+              destination.pathname.slice(0, 250),
+          });
+
+          return;
+        }
+
+        if (destination.pathname.startsWith('/movie/')) {
+          trackEvent('select_movie', {
+            destination_path:
+              destination.pathname.slice(0, 250),
+          });
+
+          return;
+        }
+
+        if (destination.pathname.startsWith('/actor/')) {
+          trackEvent('select_actor', {
+            destination_path:
+              destination.pathname.slice(0, 250),
+          });
+
+          return;
+        }
+
+        if (destination.pathname.startsWith('/blog/')) {
+          trackEvent('select_article', {
+            destination_path:
+              destination.pathname.slice(0, 250),
+          });
+        }
+
+        return;
+      }
+
+      const label = clean(
+        target.getAttribute('aria-label') ||
+        target.getAttribute('title') ||
+        target.textContent
+      )
+        .replace(/\s+/g, ' ')
+        .slice(0, 100);
+
+      const normalizedLabel = label.toLowerCase();
+
+      if (
+        normalizedLabel === 'play' ||
+        normalizedLabel.startsWith('play ') ||
+        normalizedLabel === 'watch'
+      ) {
+        trackEvent('watch_start', {
+          control_label: label,
+        });
+
+        return;
+      }
+
+      if (/^server\s+\d+/i.test(label)) {
+        trackEvent('server_select', {
+          server_label: label,
+        });
+
+        return;
+      }
+
+      if (
+        normalizedLabel.startsWith('episode ') ||
+        normalizedLabel.startsWith('ep ')
+      ) {
+        trackEvent('episode_select', {
+          episode_label: label,
+        });
+      }
+    };
+
+    document.addEventListener('click', onClick, true);
+
+    return () => {
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [canTrack, bootAnalytics, trackEvent]);
+
+  /**
+   * Public API for explicit successful events:
+   *
+   * window.flixmovoTrack('login', { method: 'google' });
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const tracker = (eventName, params = {}) => {
+      humanSignalRef.current = true;
+      bootAnalytics().catch(() => { });
+      trackEvent(eventName, params);
+    };
+
+    window.flixmovoTrack = tracker;
+
+    return () => {
+      if (window.flixmovoTrack === tracker) {
+        delete window.flixmovoTrack;
+      }
+    };
+  }, [bootAnalytics, trackEvent]);
+
+  useEffect(() => {
+    if (!canTrack()) return;
 
     lastTickRef.current = Date.now();
 
     const intervalId = window.setInterval(() => {
       const now = Date.now();
-      const delta = Math.max(0, now - lastTickRef.current);
+      const elapsed = Math.max(0, now - lastTickRef.current);
+
       lastTickRef.current = now;
 
       if (!humanSignalRef.current) return;
       if (!isVisibleAndFocused()) return;
 
-      activeMsRef.current += delta;
+      activeMsRef.current += elapsed;
 
       if (
         activeMsRef.current >= REAL_USER_ACTIVE_MS &&
-        !realUserEventSentRef.current
+        !engagedEventSentRef.current
       ) {
-        pendingRealUserEventRef.current = true;
+        engagedEventSentRef.current = true;
 
-        if (!readyRef.current) {
-          bootAnalytics().catch(() => { });
-          return;
-        }
-
-        sendRealUserEngaged();
+        bootAnalytics()
+          .then(() => {
+            trackEvent('real_user_engaged', {
+              engagement_gate_ms: REAL_USER_ACTIVE_MS,
+              traffic_quality: 'human',
+            });
+          })
+          .catch(() => { });
       }
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [skipAnalytics, bootAnalytics, sendRealUserEngaged]);
+  }, [canTrack, bootAnalytics, trackEvent]);
 
-  // Route-change page_view only after GA has already been human-booted.
   useEffect(() => {
-    if (!GA_ID || skipAnalytics) return;
-    if (!readyRef.current) return;
+    latestPagePathRef.current = pagePath;
+
+    if (!readyRef.current || !canTrack()) return;
 
     sendPageView(pagePath);
-  }, [pagePath, skipAnalytics, sendPageView]);
+    sendRouteContextEvents(pagePath);
+  }, [
+    pagePath,
+    canTrack,
+    sendPageView,
+    sendRouteContextEvents,
+  ]);
 
   return null;
 }

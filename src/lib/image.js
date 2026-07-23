@@ -1,8 +1,8 @@
 // frontend-next/src/lib/image.js
 
-const DEFAULT_SITE_ORIGIN = 'https://hi.moviefrost.com';
-const DEFAULT_API_ORIGIN = 'https://api-hi.moviefrost.com';
-const DEFAULT_CDN_ORIGIN = 'https://cdn.moviefrost.com';
+const DEFAULT_SITE_ORIGIN = 'https://www.flixmovo.online';
+const DEFAULT_API_ORIGIN = 'https://api.flixmovo.online';
+const DEFAULT_CDN_ORIGIN = 'https://cdn.flixmovo.online';
 
 const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_ORIGIN;
 const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_ORIGIN;
@@ -39,15 +39,15 @@ export const CDN_ORIGIN = normalizeOrigin(RAW_CDN_BASE, DEFAULT_CDN_ORIGIN);
 export const DEFAULT_PLACEHOLDER_IMAGE = '/images/placeholder.jpg';
 
 const NEXT_IMAGE_SAFE_HOSTS = new Set([
-  'cdn.moviefrost.com',
+  'cdn.flixmovo.online',
   'image.tmdb.org',
-  'www.moviefrost.com',
-  'moviefrost.com',
-  'hi.moviefrost.com',
-  'www.hi.moviefrost.com',
-  'api-hi.moviefrost.com',
-  'moviefrost-backend-iota.vercel.app',
-  'moviefrost-backend.vercel.app',
+  'www.flixmovo.online',
+  'flixmovo.online',
+  'hi.flixmovo.online',
+  'hi.flixmovo.online',
+  'api.flixmovo.online',
+  'api.flixmovo.online',
+  'api.flixmovo.online',
   'fra.cloud.appwrite.io',
   'cloud.appwrite.io',
 ]);
@@ -162,8 +162,8 @@ export const normalizeImageUrl = (
     return DEFAULT_PLACEHOLDER_IMAGE;
   }
 
-  if (/^moviefrost\.png$/i.test(raw)) {
-    return '/images/MOVIEFROST.png';
+  if (/^flixmovo\.png$/i.test(raw)) {
+    return '/images/FLIXMOVO.png';
   }
 
   // Bare filename from old seed/local records -> /public/images/movies/<file>

@@ -3,9 +3,9 @@ import PublicWebsiteFeedbackPageClient from '../../components/pages/PublicWebsit
 import { SITE_URL } from '../../lib/seo';
 
 export const metadata = {
-  title: 'Help Improve MovieFrost',
+  title: 'Help Improve Flixmovo',
   description:
-    'Share your feedback to help us improve MovieFrost speed, streaming quality, content discovery, and overall user experience.',
+    'Share your feedback to help us improve Flixmovo speed, streaming quality, content discovery, and overall user experience.',
   alternates: { canonical: `${SITE_URL}/feedback` },
   robots: {
     index: false,

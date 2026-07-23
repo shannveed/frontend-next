@@ -22,11 +22,11 @@ export default function InstallPwaPopup({
           <div className="w-10 h-10 rounded-full bg-main border border-border flex items-center justify-center">
             <MdInstallMobile className="text-customPurple text-xl" />
           </div>
-          <h3 className="text-lg font-semibold">Install MovieFrost</h3>
+          <h3 className="text-lg font-semibold">Install Flixmovo</h3>
         </div>
 
         <p className="text-sm text-dryGray mb-4">
-          Pin MovieFrost to your home screen / desktop and open it like a real app.
+          Pin Flixmovo to your home screen / desktop and open it like a real app.
         </p>
 
         {canInstall ? (

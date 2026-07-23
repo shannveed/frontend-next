@@ -7,7 +7,7 @@ import { SITE_URL } from '../../lib/seo';
 export const metadata = {
   title: 'Contact Us',
   description:
-    'Contact MovieFrost support. We are here to help you with streaming and website issues.',
+    'Contact Flixmovo support. We are here to help you with streaming and website issues.',
   alternates: { canonical: `${SITE_URL}/contact-us` },
 };
 
@@ -53,10 +53,10 @@ export default function ContactPage() {
           <div className="space-y-4">
             <InfoCard icon={FaEnvelope} title="Email">
               <a
-                href="mailto:support@moviefrost.com"
+                href="mailto:support@flixmovo.online"
                 className="text-customPurple hover:underline"
               >
-                support@moviefrost.com
+                support@flixmovo.online
               </a>
             </InfoCard>
 
@@ -102,7 +102,7 @@ export default function ContactPage() {
             </QuickLinkCard>
 
             <QuickLinkCard href="/terms-of-service" title="Terms of Service">
-              Rules and conditions for using MovieFrost.
+              Rules and conditions for using Flixmovo.
             </QuickLinkCard>
           </div>
         </div>

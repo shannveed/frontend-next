@@ -20,10 +20,10 @@ export const revalidate = 60;
 
 export const metadata = {
   title: {
-    absolute: 'Watch Movies Online Free in HD | MovieFrost',
+    absolute: 'Watch Movies Online Free in HD | Flixmovo',
   },
   description:
-    'Watch movies online free in HD on MovieFrost. Browse latest movies, web series, action, drama, comedy, thriller, romance, Hindi dubbed titles and more.',
+    'Watch movies online free in HD on Flixmovo. Browse latest movies, web series, action, drama, comedy, thriller, romance, Hindi dubbed titles and more.',
   alternates: { canonical: `${SITE_URL}/` },
   robots: {
     index: true,
@@ -33,17 +33,17 @@ export const metadata = {
   openGraph: {
     type: 'website',
     url: `${SITE_URL}/`,
-    title: 'Watch Movies Online Free in HD | MovieFrost',
+    title: 'Watch Movies Online Free in HD | Flixmovo',
     description:
-      'Watch movies online free in HD on MovieFrost. Discover trending movies, TV series, web series, Hollywood, Bollywood, Korean drama, anime and more.',
-    images: [`${SITE_URL}/images/MOVIEFROST.png`],
+      'Watch movies online free in HD on Flixmovo. Discover trending movies, TV series, web series, Hollywood, Bollywood, Korean drama, anime and more.',
+    images: [`${SITE_URL}/images/FLIXMOVO.png`],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Watch Movies Online Free in HD | MovieFrost',
+    title: 'Watch Movies Online Free in HD | Flixmovo',
     description:
-      'Watch movies online free in HD on MovieFrost. Browse trending movies, TV series, web series and more.',
-    images: [`${SITE_URL}/images/MOVIEFROST.png`],
+      'Watch movies online free in HD on Flixmovo. Browse trending movies, TV series, web series and more.',
+    images: [`${SITE_URL}/images/FLIXMOVO.png`],
   },
 };
 
@@ -55,17 +55,17 @@ const homeJsonLd = {
     {
       '@type': 'Organization',
       '@id': `${SITE_URL}#organization`,
-      name: 'MovieFrost',
+      name: 'Flixmovo',
       url: SITE_URL,
       logo: {
         '@type': 'ImageObject',
-        url: `${SITE_URL}/images/MOVIEFROST.png`,
+        url: `${SITE_URL}/images/FLIXMOVO.png`,
       },
     },
     {
       '@type': 'WebSite',
       '@id': `${SITE_URL}#website`,
-      name: 'MovieFrost',
+      name: 'Flixmovo',
       url: SITE_URL,
       publisher: { '@id': `${SITE_URL}#organization` },
       potentialAction: {
@@ -81,9 +81,9 @@ const homeJsonLd = {
       '@type': 'WebPage',
       '@id': `${SITE_URL}/#webpage`,
       url: `${SITE_URL}/`,
-      name: 'Watch Movies Online Free in HD | MovieFrost',
+      name: 'Watch Movies Online Free in HD | Flixmovo',
       description:
-        'Watch movies online free in HD on MovieFrost. Discover trending movies, TV series, web series, Hollywood, Bollywood, Korean drama, anime and more.',
+        'Watch movies online free in HD on Flixmovo. Discover trending movies, TV series, web series, Hollywood, Bollywood, Korean drama, anime and more.',
       isPartOf: { '@id': `${SITE_URL}#website` },
       about: { '@id': `${SITE_URL}#organization` },
       mainEntity: { '@id': `${SITE_URL}/#faq` },
@@ -94,43 +94,43 @@ const homeJsonLd = {
       mainEntity: [
         {
           '@type': 'Question',
-          name: 'What is MovieFrost?',
+          name: 'What is Flixmovo?',
           acceptedAnswer: {
             '@type': 'Answer',
             text:
-              'MovieFrost is an online movie and web series discovery platform where users can browse trending movies, TV series, genres, languages, industries and new releases in a clean HD-focused layout.',
+              'Flixmovo is an online movie and web series discovery platform where users can browse trending movies, TV series, genres, languages, industries and new releases in a clean HD-focused layout.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Can I watch movies online free in HD on MovieFrost?',
+          name: 'Can I watch movies online free in HD on Flixmovo?',
           acceptedAnswer: {
             '@type': 'Answer',
             text:
-              'MovieFrost helps users find movie and web series pages with HD viewing options, multiple servers, metadata, cast information, trailers, ratings and related recommendations.',
+              'Flixmovo helps users find movie and web series pages with HD viewing options, multiple servers, metadata, cast information, trailers, ratings and related recommendations.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Does MovieFrost include web series and TV shows?',
+          name: 'Does Flixmovo include web series and TV shows?',
           acceptedAnswer: {
             '@type': 'Answer',
             text:
-              'Yes. MovieFrost includes movies, TV shows and web series across Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed titles and more.',
+              'Yes. Flixmovo includes movies, TV shows and web series across Hollywood, Bollywood, Korean drama, Japanese anime, Chinese drama, South Indian Hindi dubbed titles and more.',
           },
         },
         {
           '@type': 'Question',
-          name: 'How can I find trending movies on MovieFrost?',
+          name: 'How can I find trending movies on Flixmovo?',
           acceptedAnswer: {
             '@type': 'Answer',
             text:
-              'The MovieFrost homepage highlights trending movies and TV series, while dedicated movie listing pages let users filter by type, genre, language, year, rating and film industry.',
+              'The Flixmovo homepage highlights trending movies and TV series, while dedicated movie listing pages let users filter by type, genre, language, year, rating and film industry.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Why should I start from the MovieFrost homepage?',
+          name: 'Why should I start from the Flixmovo homepage?',
           acceptedAnswer: {
             '@type': 'Answer',
             text:

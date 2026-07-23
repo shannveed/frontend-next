@@ -6,7 +6,7 @@ import { IoClose } from 'react-icons/io5';
 const STORAGE_KEY = 'mf_hide_hindi_announcement_v1';
 
 const HINDI_SITE_URL = (
-  process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
+  process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.flixmovo.online'
 ).replace(/\/+$/, '');
 
 export default function HindiAnnouncementBanner() {
@@ -43,7 +43,7 @@ export default function HindiAnnouncementBanner() {
           <div className="min-w-0 flex-1 flex items-center justify-center gap-2 text-center">
             <p className="text-[11px] sm:text-xs md:text-sm leading-5 text-white/90 truncate">
               <span className="hidden sm:inline">
-                Enjoy Moviefrost in Hindi — a platform specially designed for Hindi viewers for the best experience
+                Enjoy Flixmovo in Hindi — a platform specially designed for Hindi viewers for the best experience
               </span>
 
               <span className="sm:hidden">
@@ -55,7 +55,7 @@ export default function HindiAnnouncementBanner() {
               href={`${HINDI_SITE_URL}/`}
               className="shrink-0 inline-flex items-center rounded-full bg-customPurple px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold text-white hover:bg-opacity-90 transition"
             >
-              MovieFrost Hindi
+              Flixmovo Hindi
             </a>
           </div>
 

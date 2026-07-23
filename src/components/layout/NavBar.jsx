@@ -31,7 +31,7 @@ import {
 
 const DEFAULT_PROFILE_IMAGE = '/images/placeholder.jpg';
 
-const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.moviefrost.com'
+const HINDI_SITE_URL = `${process.env.NEXT_PUBLIC_HINDI_SITE_URL || 'https://hi.flixmovo.online'
   }`.replace(/\/+$/, '') + '/';
 
 const BROWSEBY_CACHE_KEY = 'mf_browseByDistinct_cache_v1';
@@ -525,7 +525,7 @@ export default function NavBar() {
   );
 
   // Indian items are now available under Browse By if present,
-  // while the old Indian nav dropdown is replaced by MovieFrost Hindi.
+  // while the old Indian nav dropdown is replaced by Flixmovo Hindi.
   const leftoverBrowseBy = useMemo(() => {
     const h = new Set(hollywoodBrowseBy);
     return (browseBy || []).filter((x) => x && !h.has(x));
@@ -586,11 +586,11 @@ export default function NavBar() {
           <Link
             href="/"
             className="inline-flex items-center min-h-[40px]"
-            aria-label="MovieFrost Home"
+            aria-label="Flixmovo Home"
           >
             <Image
-              src="/images/MOVIEFROST.png"
-              alt="MovieFrost"
+              src="/images/FLIXMOVO.png"
+              alt="Flixmovo"
               width={180}
               height={40}
               priority
@@ -722,9 +722,9 @@ export default function NavBar() {
           <a
             href={HINDI_SITE_URL}
             className={hover}
-            title="Open MovieFrost Hindi"
+            title="Open Flixmovo Hindi"
           >
-            MovieFrost Hindi
+            Flixmovo Hindi
           </a>
 
           <div className="relative group">

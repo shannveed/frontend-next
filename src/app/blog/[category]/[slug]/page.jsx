@@ -211,7 +211,7 @@ export default async function BlogPostPage({ params }) {
             <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden border border-border bg-main mt-6">
               <SafeImage
                 src={post?.coverImage}
-                fallbackCandidates={['/images/MOVIEFROST.png']}
+                fallbackCandidates={['/images/FLIXMOVO.png']}
                 alt={post?.coverImageAlt || post?.title || 'Blog post'}
                 fill
                 sizes="(max-width: 1280px) 100vw, 900px"

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const normalizeApiBase = (raw = '') => {
-  let value = String(raw || 'https://moviefrost-backend-omega.vercel.app').trim();
+  let value = String(raw || 'https://api.flixmovo.online').trim();
 
   if (!/^https?:\/\//i.test(value)) {
     const isLocal =
@@ -25,7 +25,7 @@ const normalizeApiBase = (raw = '') => {
 
 const API_BASE = normalizeApiBase(
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://moviefrost-backend-omega.vercel.app'
+  'https://api.flixmovo.online'
 );
 
 const normalizeType = (value = '') => {
@@ -73,10 +73,10 @@ export async function generateMetadata({ params }) {
   const canonical = `${SITE_URL}/watch/tmdb/${normalizeType(params?.type)}/${params?.id}`;
 
   const title = `Watch ${clean(movie?.name || 'Movie')}${movie?.year ? ` (${movie.year})` : ''
-    } | MovieFrost`;
+    } | Flixmovo`;
 
   const description = truncate(
-    movie?.desc || `Watch ${movie?.name || 'this title'} on MovieFrost.`,
+    movie?.desc || `Watch ${movie?.name || 'this title'} on Flixmovo.`,
     160
   );
 

@@ -3,36 +3,78 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+
 import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
-const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === 'true';
+const ADS_ENABLED =
+  String(process.env.NEXT_PUBLIC_ADS_ENABLED || '')
+    .trim()
+    .toLowerCase() === 'true';
 
 const PROFITABLE_POPUNDER_SCRIPT_SRC = String(
   process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_SCRIPT_SRC ||
   'https://pl27010453.profitablecpmratenetwork.com/62/c8/f3/62c8f34a5a4d1afbb8ec9a7b28896caa.js'
 ).trim();
 
-const PROFITABLE_POPUNDER_INITIAL_DELAY_MS = Number(
-  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS || 60_000
-);
+/**
+ * Zero means immediate.
+ *
+ * Set this in Vercel:
+ * NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS=0
+ */
+const readNonNegativeMs = (value, fallback = 0) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
 
-const PROFITABLE_POPUNDER_REPEAT_DELAY_MS = Number(
-  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_REPEAT_DELAY_MS || 30_000
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0
+    ? Math.floor(number)
+    : fallback;
+};
+
+const INITIAL_DELAY_MS = readNonNegativeMs(
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_INITIAL_DELAY_MS,
+  0
 );
 
 /**
- * TMDb virtual pages should load the popunder script too.
- * Shorter delay helps because these dynamic virtual pages are often entered directly.
+ * Existing behavior was to reload the popunder script every 30 seconds.
  *
- * Optional env override:
- * NEXT_PUBLIC_TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS=3000
+ * Use:
+ * - 30000 to preserve that behavior
+ * - 0 to load the script only once per eligible route
  */
-const TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS = Number(
-  process.env.NEXT_PUBLIC_TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS || 3_000
+const REPEAT_DELAY_RAW_MS = readNonNegativeMs(
+  process.env.NEXT_PUBLIC_PROFITABLE_POPUNDER_REPEAT_DELAY_MS,
+  30_000
 );
 
-const SCRIPT_ID = 'mf-profitable-popunder-script';
+const REPEAT_DELAY_MS =
+  REPEAT_DELAY_RAW_MS > 0
+    ? Math.max(5_000, REPEAT_DELAY_RAW_MS)
+    : 0;
 
+const SCRIPT_ID = 'flixmovo-profitable-popunder-script';
+const PRECONNECT_ID = 'flixmovo-profitable-popunder-preconnect';
+const DNS_PREFETCH_ID = 'flixmovo-profitable-popunder-dns-prefetch';
+
+const SCRIPT_ORIGIN = (() => {
+  try {
+    return new URL(PROFITABLE_POPUNDER_SCRIPT_SRC).origin;
+  } catch {
+    return '';
+  }
+})();
+
+/**
+ * Preserve the existing behavior of not showing popunders on:
+ * - admin/dashboard pages
+ * - account/private pages
+ * - authentication pages
+ * - public feedback form
+ */
 const EXCLUDED_PREFIXES = [
   '/dashboard',
   '/viewer-feedback',
@@ -48,14 +90,20 @@ const EXCLUDED_PREFIXES = [
   '/profile',
   '/password',
   '/favorites',
+
+  '/blog-posts',
+  '/blog-preview',
+  '/get-blog-posts',
+  '/bulk-create-blog-posts',
+  '/update-blog-posts',
 ];
 
-const EXCLUDED_EXACT = ['/login', '/register', '/feedback'];
-
-const toSafeDelay = (value, fallback) => {
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? n : fallback;
-};
+const EXCLUDED_EXACT = [
+  '/login',
+  '/register',
+  '/signup',
+  '/feedback',
+];
 
 const normalizePathname = (pathname = '') => {
   const raw = String(pathname || '/')
@@ -65,26 +113,15 @@ const normalizePathname = (pathname = '') => {
 
   if (!raw || raw === '/') return '/';
 
-  const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
+  const withLeadingSlash = raw.startsWith('/') ? raw : `/${raw}`;
 
-  return withSlash.length > 1 ? withSlash.replace(/\/+$/, '') : withSlash;
-};
-
-const isTmdbVirtualPopunderPath = (pathname = '') => {
-  const path = normalizePathname(pathname);
-
-  return /^\/(?:movie|watch)\/tmdb\/(?:movie|tv)\/[^/]+$/i.test(path);
+  return withLeadingSlash.length > 1
+    ? withLeadingSlash.replace(/\/+$/, '')
+    : withLeadingSlash;
 };
 
 const shouldExcludePath = (pathname = '') => {
   const path = normalizePathname(pathname);
-
-  /**
-   * Important:
-   * TMDb virtual movie/watch pages must be eligible even if future exclusions
-   * become broader.
-   */
-  if (isTmdbVirtualPopunderPath(path)) return false;
 
   if (EXCLUDED_EXACT.includes(path)) return true;
 
@@ -97,7 +134,7 @@ const isFeedbackModalOpenNow = () => {
   if (typeof document === 'undefined') return false;
 
   try {
-    return !!(
+    return Boolean(
       document.body?.classList?.contains('mf-feedback-modal-open') ||
       document.documentElement?.classList?.contains(
         'mf-feedback-modal-open'
@@ -114,142 +151,201 @@ const removeInjectedScript = () => {
   if (typeof document === 'undefined') return;
 
   const existing = document.getElementById(SCRIPT_ID);
+
   if (existing?.parentNode) {
     existing.parentNode.removeChild(existing);
   }
 };
 
-const injectProfitablePopunderScript = () => {
-  if (typeof document === 'undefined') return;
-  if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return;
+const ensureResourceHints = () => {
+  if (typeof document === 'undefined' || !SCRIPT_ORIGIN) return;
 
-  removeInjectedScript();
+  if (!document.getElementById(DNS_PREFETCH_ID)) {
+    const dnsPrefetch = document.createElement('link');
 
-  const script = document.createElement('script');
-  script.id = SCRIPT_ID;
-  script.type = 'text/javascript';
-  script.async = true;
-  script.src = PROFITABLE_POPUNDER_SCRIPT_SRC;
-  script.setAttribute('data-cfasync', 'false');
+    dnsPrefetch.id = DNS_PREFETCH_ID;
+    dnsPrefetch.rel = 'dns-prefetch';
+    dnsPrefetch.href = SCRIPT_ORIGIN;
 
-  (document.body || document.documentElement).appendChild(script);
+    document.head.appendChild(dnsPrefetch);
+  }
+
+  if (!document.getElementById(PRECONNECT_ID)) {
+    const preconnect = document.createElement('link');
+
+    preconnect.id = PRECONNECT_ID;
+    preconnect.rel = 'preconnect';
+    preconnect.href = SCRIPT_ORIGIN;
+    preconnect.crossOrigin = 'anonymous';
+
+    document.head.appendChild(preconnect);
+  }
+};
+
+const isValidScriptSource = () => {
+  if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return false;
+
+  try {
+    const url = new URL(PROFITABLE_POPUNDER_SCRIPT_SRC);
+    return url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 };
 
 export default function AdsterraScripts() {
   const pathname = usePathname() || '/';
 
-  const isTmdbVirtualPage = useMemo(
-    () => isTmdbVirtualPopunderPath(pathname),
+  const excluded = useMemo(
+    () => shouldExcludePath(pathname),
     [pathname]
   );
 
-  const isExcluded = useMemo(() => shouldExcludePath(pathname), [pathname]);
-
-  const activatedRef = useRef(false);
-  const initialTimerRef = useRef(null);
-  const repeatTimerRef = useRef(null);
   const lastInjectAtRef = useRef(0);
 
   useEffect(() => {
-    const clearAllTimers = () => {
-      if (initialTimerRef.current) {
-        window.clearTimeout(initialTimerRef.current);
+    let disposed = false;
+    let feedbackPaused = isFeedbackModalOpenNow();
+
+    let initialTimerId = null;
+    let repeatTimerId = null;
+
+    const clearTimers = () => {
+      if (initialTimerId !== null) {
+        window.clearTimeout(initialTimerId);
+        initialTimerId = null;
       }
 
-      if (repeatTimerRef.current) {
-        window.clearInterval(repeatTimerRef.current);
+      if (repeatTimerId !== null) {
+        window.clearInterval(repeatTimerId);
+        repeatTimerId = null;
       }
-
-      initialTimerRef.current = null;
-      repeatTimerRef.current = null;
     };
 
-    if (!ADS_ENABLED || isExcluded) {
-      clearAllTimers();
-      activatedRef.current = false;
-      lastInjectAtRef.current = 0;
-      removeInjectedScript();
-      return () => { };
-    }
+    const canInjectNow = () => {
+      if (disposed) return false;
+      if (!ADS_ENABLED) return false;
+      if (excluded) return false;
+      if (feedbackPaused || isFeedbackModalOpenNow()) return false;
+      if (!isValidScriptSource()) return false;
 
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return () => { };
-    }
+      // A prerendered/background tab can wait until it becomes visible.
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'hidden'
+      ) {
+        return false;
+      }
 
-    if (!PROFITABLE_POPUNDER_SCRIPT_SRC) return () => { };
-
-    const initialDelay = isTmdbVirtualPage
-      ? toSafeDelay(TMDB_VIRTUAL_POPUNDER_INITIAL_DELAY_MS, 3_000)
-      : toSafeDelay(PROFITABLE_POPUNDER_INITIAL_DELAY_MS, 60_000);
-
-    const repeatDelay = Math.max(
-      1_000,
-      toSafeDelay(PROFITABLE_POPUNDER_REPEAT_DELAY_MS, 30_000)
-    );
-
-    const clearAll = () => {
-      clearAllTimers();
+      return true;
     };
 
-    const injectIfAllowed = () => {
-      if (isFeedbackModalOpenNow()) {
-        removeInjectedScript();
-        return;
-      }
-
-      if (document.visibilityState !== 'visible') return;
-
-      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
-        return;
-      }
+    const injectScript = ({ force = false } = {}) => {
+      if (!canInjectNow()) return false;
 
       const now = Date.now();
+      const existing = document.getElementById(SCRIPT_ID);
 
-      if (
-        lastInjectAtRef.current &&
-        now - lastInjectAtRef.current < repeatDelay
-      ) {
-        return;
+      if (existing && !force) {
+        return true;
       }
 
+      /**
+       * Prevent accidental duplicate requests caused by several focus/visibility
+       * events firing together.
+       */
+      if (
+        !force &&
+        lastInjectAtRef.current &&
+        now - lastInjectAtRef.current < 5_000
+      ) {
+        return false;
+      }
+
+      ensureResourceHints();
+
+      if (existing?.parentNode) {
+        existing.parentNode.removeChild(existing);
+      }
+
+      const script = document.createElement('script');
+
+      script.id = SCRIPT_ID;
+      script.type = 'text/javascript';
+      script.async = true;
+      script.src = PROFITABLE_POPUNDER_SCRIPT_SRC;
+
+      script.setAttribute('data-cfasync', 'false');
+      script.setAttribute(
+        'data-flixmovo-route',
+        normalizePathname(pathname)
+      );
+
+      script.addEventListener(
+        'error',
+        () => {
+          const current = document.getElementById(SCRIPT_ID);
+
+          if (current === script) {
+            current.remove();
+          }
+        },
+        { once: true }
+      );
+
+      const target =
+        document.body ||
+        document.head ||
+        document.documentElement;
+
+      target.appendChild(script);
+
       lastInjectAtRef.current = now;
-      injectProfitablePopunderScript();
+
+      return true;
     };
 
-    const startRepeater = () => {
-      if (repeatTimerRef.current) return;
+    const startRepeatTimer = () => {
+      if (REPEAT_DELAY_MS <= 0) return;
+      if (repeatTimerId !== null) return;
 
-      repeatTimerRef.current = window.setInterval(() => {
-        if (!activatedRef.current) return;
-        injectIfAllowed();
-      }, repeatDelay);
+      repeatTimerId = window.setInterval(() => {
+        if (!canInjectNow()) return;
+
+        injectScript({ force: true });
+      }, REPEAT_DELAY_MS);
     };
 
     const activate = () => {
-      if (isFeedbackModalOpenNow()) {
-        removeInjectedScript();
-        return;
-      }
+      if (disposed) return;
+      if (!canInjectNow()) return;
 
-      activatedRef.current = true;
-      initialTimerRef.current = null;
-
-      injectIfAllowed();
-      startRepeater();
+      injectScript({ force: false });
+      startRepeatTimer();
     };
 
-    const startInitialTimer = () => {
-      clearAll();
+    const start = () => {
+      clearTimers();
 
-      activatedRef.current = false;
-      lastInjectAtRef.current = 0;
+      if (disposed) return;
 
-      if (isFeedbackModalOpenNow()) {
+      feedbackPaused = isFeedbackModalOpenNow();
+
+      if (!ADS_ENABLED || excluded || feedbackPaused) {
         removeInjectedScript();
         return;
       }
 
-      initialTimerRef.current = window.setTimeout(activate, initialDelay);
+      if (INITIAL_DELAY_MS <= 0) {
+        // Main change: inject immediately without an artificial delay.
+        activate();
+        return;
+      }
+
+      initialTimerId = window.setTimeout(() => {
+        initialTimerId = null;
+        activate();
+      }, INITIAL_DELAY_MS);
     };
 
     const onFeedbackOpenChange = (event) => {
@@ -258,55 +354,86 @@ export default function AdsterraScripts() {
           ? event.detail.open
           : isFeedbackModalOpenNow();
 
+      feedbackPaused = open;
+
       if (open) {
-        clearAll();
-        activatedRef.current = false;
-        lastInjectAtRef.current = 0;
+        clearTimers();
         removeInjectedScript();
         return;
       }
 
-      startInitialTimer();
+      // Feedback was closed: allow immediate loading again.
+      lastInjectAtRef.current = 0;
+      start();
     };
 
     const onVisibilityChange = () => {
-      if (!activatedRef.current) return;
+      if (document.visibilityState !== 'visible') return;
+      if (feedbackPaused || isFeedbackModalOpenNow()) return;
 
-      if (document.visibilityState === 'visible') {
-        injectIfAllowed();
-      }
+      activate();
     };
 
     const onFocus = () => {
-      if (!activatedRef.current) return;
-      injectIfAllowed();
+      if (feedbackPaused || isFeedbackModalOpenNow()) return;
+
+      activate();
     };
 
-    startInitialTimer();
+    const onPageShow = () => {
+      if (feedbackPaused || isFeedbackModalOpenNow()) return;
+
+      activate();
+    };
+
+    if (!ADS_ENABLED || excluded || !isValidScriptSource()) {
+      clearTimers();
+      removeInjectedScript();
+      lastInjectAtRef.current = 0;
+
+      return () => {
+        clearTimers();
+        removeInjectedScript();
+      };
+    }
+
+    start();
 
     window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+
     window.addEventListener(
       FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
       onFeedbackOpenChange
     );
-    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    document.addEventListener(
+      'visibilitychange',
+      onVisibilityChange
+    );
 
     return () => {
-      clearAll();
+      disposed = true;
+
+      clearTimers();
 
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+
       window.removeEventListener(
         FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
         onFeedbackOpenChange
       );
-      document.removeEventListener('visibilitychange', onVisibilityChange);
 
-      activatedRef.current = false;
-      lastInjectAtRef.current = 0;
+      document.removeEventListener(
+        'visibilitychange',
+        onVisibilityChange
+      );
 
       removeInjectedScript();
+      lastInjectAtRef.current = 0;
     };
-  }, [isExcluded, isTmdbVirtualPage, pathname]);
+  }, [excluded, pathname]);
 
   return null;
 }

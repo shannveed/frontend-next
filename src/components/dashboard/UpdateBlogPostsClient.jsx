@@ -145,7 +145,7 @@ const toEditableDoc = (post) => ({
     (id) => id !== String(post?._id || '')
   ),
 
-  authorName: String(post?.authorName || 'MovieFrost Editorial Team'),
+  authorName: String(post?.authorName || 'Flixmovo Editorial Team'),
 
   seoTitle: String(post?.seoTitle || ''),
   seoDescription: String(post?.seoDescription || ''),

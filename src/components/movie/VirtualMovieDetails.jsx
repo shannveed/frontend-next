@@ -121,7 +121,7 @@ export default function VirtualMovieDetails({ movie }) {
         <div className="relative w-full min-h-[560px] bg-black">
           <SafeImage
             src={movie?.image}
-            fallbackCandidates={[movie?.titleImage, '/images/MOVIEFROST.png']}
+            fallbackCandidates={[movie?.titleImage, '/images/FLIXMOVO.png']}
             alt={movie?.name || 'Movie background'}
             fill
             priority
@@ -137,7 +137,7 @@ export default function VirtualMovieDetails({ movie }) {
               <div className="relative w-full max-w-[320px] mx-auto lg:mx-0 aspect-[2/3] rounded-lg overflow-hidden border border-border bg-main">
                 <SafeImage
                   src={movie?.titleImage}
-                  fallbackCandidates={[movie?.image, '/images/MOVIEFROST.png']}
+                  fallbackCandidates={[movie?.image, '/images/FLIXMOVO.png']}
                   alt={movie?.name || 'Movie poster'}
                   fill
                   sizes="320px"

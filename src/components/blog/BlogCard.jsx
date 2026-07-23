@@ -33,7 +33,7 @@ export default function BlogCard({ post, compact = false }) {
         <div className="relative w-24 h-16 rounded overflow-hidden bg-black flex-shrink-0">
           <SafeImage
             src={post?.coverImage}
-            fallbackCandidates={['/images/MOVIEFROST.png']}
+            fallbackCandidates={['/images/FLIXMOVO.png']}
             alt={imageAlt}
             fill
             sizes="96px"
@@ -62,7 +62,7 @@ export default function BlogCard({ post, compact = false }) {
         <div className="relative w-full aspect-[16/9] bg-main">
           <SafeImage
             src={post?.coverImage}
-            fallbackCandidates={['/images/MOVIEFROST.png']}
+            fallbackCandidates={['/images/FLIXMOVO.png']}
             alt={imageAlt}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"

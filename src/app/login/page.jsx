@@ -3,7 +3,7 @@ import LoginWithGoogleProvider from '../../components/auth/LoginWithGoogleProvid
 
 export const metadata = {
   title: 'Login',
-  description: 'Login to MovieFrost to save favorites, rate titles, and receive notifications.',
+  description: 'Login to Flixmovo to save favorites, rate titles, and receive notifications.',
   robots: { index: false, follow: false },
 };
 

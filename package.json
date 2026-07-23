@@ -1,5 +1,5 @@
 {
-  "name": "moviefrost-frontend-next",
+  "name": "flixmovo-frontend-next",
   "private": true,
   "scripts": {
     "dev": "next dev",

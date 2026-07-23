@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 
-const SUPPORT_EMAIL = 'support@moviefrost.com';
+const SUPPORT_EMAIL = 'support@flixmovo.online';
 
 export default function ContactFormClient() {
   const [name, setName] = useState('');
@@ -13,7 +13,7 @@ export default function ContactFormClient() {
   const [message, setMessage] = useState('');
 
   const buildMailto = () => {
-    const safeSubject = subject.trim() || 'MovieFrost Support';
+    const safeSubject = subject.trim() || 'Flixmovo Support';
     const body = [
       `Name: ${name.trim() || '-'}`,
       `Email: ${fromEmail.trim() || '-'}`,

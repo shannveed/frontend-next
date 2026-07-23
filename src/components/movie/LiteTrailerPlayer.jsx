@@ -179,7 +179,7 @@ export default function LiteTrailerPlayer({
     ? posterCandidates.filter(Boolean)
     : [];
 
-  const poster = posters[0] || '/images/MOVIEFROST.png';
+  const poster = posters[0] || '/images/FLIXMOVO.png';
 
   if (activated) {
     if (info.provider === 'direct') {

@@ -1,7 +1,7 @@
 // frontend-next/src/lib/seo.js
 
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.moviefrost.com'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.flixmovo.online'
 ).replace(/\/+$/, '');
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
@@ -245,7 +245,7 @@ const buildMovieTitleInfo = (movie) => {
 
 export const buildMovieTitle = (movie, { maxLen = 100 } = {}) => {
   const nameWithYear = buildMovieNameWithYear(movie);
-  const suffix = ` HD | ${buildMovieTitleInfo(movie)} | MovieFrost`;
+  const suffix = ` HD | ${buildMovieTitleInfo(movie)} | Flixmovo`;
 
   return buildPatternTitle(nameWithYear, {
     maxLen,
@@ -456,7 +456,7 @@ export const buildMovieTrailerVideoJsonLd = (movie) => {
     : getEmbeddableTrailerUrl(rawTrailerUrl) || rawTrailerUrl;
 
   const image = absoluteUrl(
-    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+    movie?.titleImage || movie?.image || '/images/FLIXMOVO.png'
   );
 
   const uploadDate = getSchemaDate(movie);
@@ -468,7 +468,7 @@ export const buildMovieTrailerVideoJsonLd = (movie) => {
     description: truncate(
       movie?.seoDescription ||
       movie?.desc ||
-      `${buildMovieNameWithYear(movie)} trailer on MovieFrost.`,
+      `${buildMovieNameWithYear(movie)} trailer on Flixmovo.`,
       300
     ),
     url: canonical,
@@ -619,7 +619,7 @@ export const buildMovieJsonLd = (movie) => {
   const schemaType = isSeries ? 'TVSeries' : 'Movie';
 
   const image = absoluteUrl(
-    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+    movie?.titleImage || movie?.image || '/images/FLIXMOVO.png'
   );
 
   const directorName = clean(movie?.director);
@@ -729,18 +729,18 @@ export const buildMovieGraphJsonLd = (movie) => {
       {
         '@type': 'Organization',
         '@id': orgId,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         url: SITE_URL,
         logo: {
           '@type': 'ImageObject',
-          url: absoluteUrl('/images/MOVIEFROST.png'),
+          url: absoluteUrl('/images/FLIXMOVO.png'),
         },
       },
       {
         '@type': 'WebSite',
         '@id': websiteId,
         url: SITE_URL,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         publisher: { '@id': orgId },
         potentialAction: {
           '@type': 'SearchAction',
@@ -809,18 +809,18 @@ export const buildActorGraphJsonLd = ({ actor, movies = [] }) => {
       {
         '@type': 'Organization',
         '@id': orgId,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         url: SITE_URL,
         logo: {
           '@type': 'ImageObject',
-          url: absoluteUrl('/images/MOVIEFROST.png'),
+          url: absoluteUrl('/images/FLIXMOVO.png'),
         },
       },
       {
         '@type': 'WebSite',
         '@id': websiteId,
         url: SITE_URL,
-        name: 'MovieFrost',
+        name: 'Flixmovo',
         publisher: { '@id': orgId },
       },
       {

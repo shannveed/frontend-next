@@ -77,10 +77,10 @@ export default async function TrendingArticlesPage() {
 
       <SeoLandingHero
         contained={false}
-        eyebrow="MovieFrost Blog"
+        eyebrow="Flixmovo Blog"
         title="Trending Articles"
-        description="Explore the most popular movie articles, reviews, explainers, and recommendation posts currently trending on MovieFrost Blog."
-        chips={['Trending', `${posts.length} articles`, 'MovieFrost Blog']}
+        description="Explore the most popular movie articles, reviews, explainers, and recommendation posts currently trending on Flixmovo Blog."
+        chips={['Trending', `${posts.length} articles`, 'Flixmovo Blog']}
       />
 
       <CategoryPills categories={categories} />

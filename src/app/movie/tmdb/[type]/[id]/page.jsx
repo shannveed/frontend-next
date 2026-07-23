@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const normalizeApiBase = (raw = '') => {
-  let value = String(raw || 'https://moviefrost-backend-omega.vercel.app').trim();
+  let value = String(raw || 'https://api.flixmovo.online').trim();
 
   if (!/^https?:\/\//i.test(value)) {
     const isLocal =
@@ -30,7 +30,7 @@ const normalizeApiBase = (raw = '') => {
 
 const API_BASE = normalizeApiBase(
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://moviefrost-backend-omega.vercel.app'
+  'https://api.flixmovo.online'
 );
 
 const normalizeType = (value = '') => {
@@ -83,7 +83,7 @@ export async function generateMetadata({ params }) {
 
   if (movie?.source === 'local' && movie?.slug) {
     return {
-      title: movie.name || 'MovieFrost',
+      title: movie.name || 'Flixmovo',
       robots: { index: false, follow: true },
     };
   }
@@ -93,17 +93,17 @@ export async function generateMetadata({ params }) {
   )}/${params?.id}`;
 
   const title = `${clean(movie?.name || 'Movie')}${movie?.year ? ` (${movie.year})` : ''
-    } | MovieFrost`;
+    } | Flixmovo`;
 
   const description = truncate(
     movie?.seoDescription ||
     movie?.desc ||
-    `Watch ${movie?.name || 'this title'} on MovieFrost.`,
+    `Watch ${movie?.name || 'this title'} on Flixmovo.`,
     160
   );
 
   const image = absoluteUrl(
-    movie?.titleImage || movie?.image || '/images/MOVIEFROST.png'
+    movie?.titleImage || movie?.image || '/images/FLIXMOVO.png'
   );
 
   return {

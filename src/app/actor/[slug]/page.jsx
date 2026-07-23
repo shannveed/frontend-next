@@ -18,7 +18,7 @@ export const revalidate = 3600;
 export const dynamicParams = true;
 
 /**
- * Actor pages are disabled by default.
+ * Actor pages are enabled by default but remain noindex.
  *
  * To enable visible actor pages later:
  * NEXT_PUBLIC_ACTOR_PAGES_ENABLED=true
@@ -31,9 +31,9 @@ export const dynamicParams = true;
  * - noindex
  */
 const ACTOR_PAGES_ENABLED =
-  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_ENABLED || '')
+  String(process.env.NEXT_PUBLIC_ACTOR_PAGES_ENABLED ?? 'true')
     .trim()
-    .toLowerCase() === 'true';
+    .toLowerCase() !== 'false';
 
 const ACTOR_PAGES_NOINDEX =
   String(process.env.NEXT_PUBLIC_ACTOR_PAGES_NOINDEX ?? 'true')
@@ -89,14 +89,14 @@ const buildActorTitle = (actor) => {
   const name = clean(actor?.name || 'Actor');
   const roleLabel = clean(actor?.roleLabel || actor?.knownForDepartment || 'Actor');
 
-  return `${name} Movies, Biography, Career & ${roleLabel} Info | MovieFrost`;
+  return `${name} Movies, Biography, Career & ${roleLabel} Info | Flixmovo`;
 };
 
 const buildActorDescription = (actor) => {
   const name = clean(actor?.name || 'Actor');
   const roleLabel = clean(actor?.roleLabel || actor?.knownForDepartment || 'Actor');
 
-  const base = `Explore ${name} biography, TMDb profile, career info, and MovieFrost movies/web series where ${name} appears as ${roleLabel.toLowerCase()}. Includes local titles plus TMDb discovery results.`;
+  const base = `Explore ${name} biography, TMDb profile, career info, and Flixmovo movies/web series where ${name} appears as ${roleLabel.toLowerCase()}. Includes local titles plus TMDb discovery results.`;
 
   return truncate(base, 160);
 };
@@ -106,7 +106,7 @@ function ActorUnavailablePage() {
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       <div className="mx-auto max-w-2xl bg-dry border border-border rounded-2xl p-6 sm:p-8 text-center">
         <p className="text-customPurple text-xs font-semibold uppercase tracking-wide">
-          MovieFrost
+          Flixmovo
         </p>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-white mt-2">
@@ -145,10 +145,10 @@ export async function generateMetadata({ params }) {
   if (!ACTOR_PAGES_ENABLED) {
     return {
       title: {
-        absolute: 'Actor pages temporarily unavailable | MovieFrost',
+        absolute: 'Actor pages temporarily unavailable | Flixmovo',
       },
       description:
-        'MovieFrost actor profile pages are temporarily unavailable.',
+        'Flixmovo actor profile pages are temporarily unavailable.',
       alternates: { canonical },
       robots: noindexNoFollowRobots,
     };

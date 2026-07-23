@@ -1,35 +1,71 @@
 /** @type {import('next').NextConfig} */
 
 const ensureUrl = (value, fallback) => {
-  let v = String(value || fallback || '').trim();
+  let next = String(value || fallback || '').trim();
 
-  if (!v) return fallback;
+  if (!next) return fallback;
 
-  if (!/^https?:\/\//i.test(v)) {
+  if (!/^https?:\/\//i.test(next)) {
     const isLocal =
-      v.startsWith('localhost') ||
-      v.startsWith('127.0.0.1') ||
-      v.startsWith('0.0.0.0');
+      next.startsWith('localhost') ||
+      next.startsWith('127.0.0.1') ||
+      next.startsWith('0.0.0.0') ||
+      next.startsWith('hi.localhost');
 
-    v = `${isLocal ? 'http' : 'https'}://${v.replace(/^\/+/, '')}`;
+    next = `${isLocal ? 'http' : 'https'}://${next.replace(/^\/+/, '')}`;
   }
 
-  return v.replace(/\/+$/, '');
+  return next.replace(/\/+$/, '');
 };
 
-const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api-hi.moviefrost.com';
+const parseCsv = (value = '') =>
+  String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 
-const API_BASE = ensureUrl(RAW_API_BASE, 'https://api-hi.moviefrost.com')
+const unique = (items = []) =>
+  Array.from(
+    new Set(
+      (items || [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+const RAW_API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  'https://api.flixmovo.online';
+
+const API_BASE = ensureUrl(
+  RAW_API_BASE,
+  'https://api.flixmovo.online'
+)
   .replace(/\/+$/, '')
   .replace(/\/api$/i, '');
 
 const RAW_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.moviefrost.com';
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  'https://www.flixmovo.online';
 
-const SITE_URL = ensureUrl(RAW_SITE_URL, 'https://hi.moviefrost.com').replace(
-  /\/+$/,
-  ''
+const SITE_URL = ensureUrl(
+  RAW_SITE_URL,
+  'https://www.flixmovo.online'
+).replace(/\/+$/, '');
+
+const ENGLISH_SITE_URL = ensureUrl(
+  process.env.NEXT_PUBLIC_ENGLISH_SITE_URL,
+  'https://www.flixmovo.online'
+);
+
+const HINDI_SITE_URL = ensureUrl(
+  process.env.NEXT_PUBLIC_HINDI_SITE_URL,
+  'https://hi.flixmovo.online'
+);
+
+const CDN_BASE_URL = ensureUrl(
+  process.env.NEXT_PUBLIC_CDN_BASE_URL,
+  'https://cdn.flixmovo.online'
 );
 
 const IMAGE_CACHE =
@@ -45,14 +81,16 @@ const ACTOR_PAGES_NOINDEX =
 
 const remotePatternFromUrl = (url) => {
   try {
-    const u = new URL(url);
+    const parsed = new URL(url);
 
-    if (!['http:', 'https:'].includes(u.protocol)) return null;
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
 
     return {
-      protocol: u.protocol.replace(':', ''),
-      hostname: u.hostname,
-      ...(u.port ? { port: u.port } : {}),
+      protocol: parsed.protocol.replace(':', ''),
+      hostname: parsed.hostname,
+      ...(parsed.port ? { port: parsed.port } : {}),
       pathname: '/**',
     };
   } catch {
@@ -66,7 +104,12 @@ const uniqueRemotePatterns = (patterns = []) => {
   return patterns.filter((pattern) => {
     if (!pattern?.hostname) return false;
 
-    const key = `${pattern.protocol || ''}:${pattern.hostname}:${pattern.port || ''}:${pattern.pathname || ''}`;
+    const key = [
+      pattern.protocol || '',
+      pattern.hostname || '',
+      pattern.port || '',
+      pattern.pathname || '',
+    ].join(':');
 
     if (seen.has(key)) return false;
 
@@ -75,12 +118,54 @@ const uniqueRemotePatterns = (patterns = []) => {
   });
 };
 
+const hostFromValue = (value = '') => {
+  let next = String(value || '').trim();
+  if (!next) return '';
+
+  if (!/^https?:\/\//i.test(next)) {
+    next = `https://${next}`;
+  }
+
+  try {
+    return new URL(next).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+const currentSiteHost = hostFromValue(SITE_URL);
+
+/**
+ * Production frontend environment:
+ *
+ * English deployment:
+ * LEGACY_SITE_HOSTS=moviefrost.com,www.moviefrost.com
+ *
+ * Hindi deployment:
+ * LEGACY_SITE_HOSTS=hi.moviefrost.com,www.hi.moviefrost.com
+ *
+ * Keep the old domains attached to Vercel while these redirects are active.
+ */
+const LEGACY_SITE_HOSTS = unique(
+  parseCsv(process.env.LEGACY_SITE_HOSTS)
+    .map(hostFromValue)
+    .filter((host) => host && host !== currentSiteHost)
+);
+
+const buildLegacyHostRedirects = () =>
+  LEGACY_SITE_HOSTS.map((host) => ({
+    source: '/:path*',
+    has: [{ type: 'host', value: host }],
+    destination: `${SITE_URL}/:path*`,
+    permanent: true,
+  }));
+
 const buildCanonicalHostRedirects = () => {
   const redirects = [];
 
   try {
-    const u = new URL(SITE_URL);
-    const host = u.hostname;
+    const parsed = new URL(SITE_URL);
+    const host = parsed.hostname.toLowerCase();
 
     const isLocal =
       host === 'localhost' ||
@@ -89,15 +174,6 @@ const buildCanonicalHostRedirects = () => {
 
     if (isLocal) return redirects;
 
-    /**
-     * English:
-     * NEXT_PUBLIC_SITE_URL=https://www.moviefrost.com
-     * moviefrost.com -> www.moviefrost.com
-     *
-     * Hindi:
-     * NEXT_PUBLIC_SITE_URL=https://hi.moviefrost.com
-     * www.hi.moviefrost.com -> hi.moviefrost.com
-     */
     if (host.startsWith('www.')) {
       redirects.push({
         source: '/:path*',
@@ -114,13 +190,11 @@ const buildCanonicalHostRedirects = () => {
       });
     }
   } catch {
-    // ignore bad SITE_URL
+    // Ignore malformed SITE_URL.
   }
 
   return redirects;
 };
-
-const dynamicApiRemotePattern = remotePatternFromUrl(API_BASE);
 
 const nextConfig = {
   reactStrictMode: true,
@@ -130,26 +204,52 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 365,
 
     remotePatterns: uniqueRemotePatterns([
-      { protocol: 'https', hostname: 'cdn.moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'image.tmdb.org', pathname: '/t/p/**' },
-      { protocol: 'https', hostname: 'www.moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'hi.moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'www.hi.moviefrost.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'api-hi.moviefrost.com', pathname: '/**' },
       {
         protocol: 'https',
-        hostname: 'moviefrost-backend-xi.vercel.app',
+        hostname: 'cdn.flixmovo.online',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'moviefrost-backend.vercel.app',
+        hostname: 'image.tmdb.org',
+        pathname: '/t/p/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.flixmovo.online',
         pathname: '/**',
       },
-      { protocol: 'https', hostname: 'fra.cloud.appwrite.io', pathname: '/**' },
-      { protocol: 'https', hostname: 'cloud.appwrite.io', pathname: '/**' },
-      dynamicApiRemotePattern,
+      {
+        protocol: 'https',
+        hostname: 'flixmovo.online',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'hi.flixmovo.online',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.flixmovo.online',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'fra.cloud.appwrite.io',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cloud.appwrite.io',
+        pathname: '/**',
+      },
+
+      remotePatternFromUrl(API_BASE),
+      remotePatternFromUrl(SITE_URL),
+      remotePatternFromUrl(ENGLISH_SITE_URL),
+      remotePatternFromUrl(HINDI_SITE_URL),
+      remotePatternFromUrl(CDN_BASE_URL),
     ]),
   },
 
@@ -164,7 +264,6 @@ const nextConfig = {
           source: '/api/:path*',
           destination: `${API_BASE}/api/:path*`,
         },
-
         {
           source: '/sitemap.xml',
           destination: `${API_BASE}/sitemap.xml`,
@@ -174,20 +273,22 @@ const nextConfig = {
           destination: `${API_BASE}/sitemap-index.xml`,
         },
 
-        // Do NOT rewrite /sitemap-actors.xml.
-        // It is served by frontend route and returns 410.
+        // sitemap-actors.xml remains a frontend 410 response because
+        // actor pages are visible to users but intentionally noindex.
       ],
     };
   },
 
   async redirects() {
     return [
+      ...buildLegacyHostRedirects(),
+      ...buildCanonicalHostRedirects(),
+
       {
         source: '/favicon1.png',
         destination: '/images/favicon1.png',
         permanent: true,
       },
-      ...buildCanonicalHostRedirects(),
     ];
   },
 
@@ -210,11 +311,21 @@ const nextConfig = {
         ? [
           {
             source: '/actor/:path*',
-            headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+            headers: [
+              {
+                key: 'X-Robots-Tag',
+                value: 'noindex, follow',
+              },
+            ],
           },
           {
             source: '/sitemap-actors.xml',
-            headers: [{ key: 'X-Robots-Tag', value: 'noindex, follow' }],
+            headers: [
+              {
+                key: 'X-Robots-Tag',
+                value: 'noindex, follow',
+              },
+            ],
           },
         ]
         : []),

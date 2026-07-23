@@ -96,7 +96,7 @@ export default function ImportTmdbTitleButton({
           </p>
 
           <h2 className="mt-1 text-lg font-bold text-white">
-            Convert this virtual TMDb title into a real MovieFrost title
+            Convert this virtual TMDb title into a real Flixmovo title
           </h2>
 
           {movieName ? (

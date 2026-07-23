@@ -405,7 +405,7 @@ export default function ActorPageClient({
                 </h2>
 
                 <p className="text-dryGray text-sm mt-1">
-                  MovieFrost local titles are merged with extended external credits. Local versions always replace duplicates.
+                  Flixmovo local titles are merged with extended external credits. Local versions always replace duplicates.
                 </p>
               </div>
 

@@ -7,7 +7,7 @@ import { SITE_URL } from '../../lib/seo';
 export const metadata = {
   title: 'DMCA',
   description:
-    'MovieFrost DMCA policy and copyright complaint process.',
+    'Flixmovo DMCA policy and copyright complaint process.',
   alternates: { canonical: `${SITE_URL}/dmca` },
 };
 
@@ -15,30 +15,30 @@ export default function DmcaPage() {
   return (
     <LegalPageLayout
       title="DMCA Policy"
-      intro="MovieFrost respects the intellectual property rights of others and responds to valid copyright notices in accordance with applicable law."
+      intro="Flixmovo respects the intellectual property rights of others and responds to valid copyright notices in accordance with applicable law."
     >
       <LegalSection title="1. Third-party content notice">
         <p>
-          MovieFrost does <strong>not host video files on its own servers</strong>.
+          Flixmovo does <strong>not host video files on its own servers</strong>.
           The platform may display, embed, or link to content made available by
           third-party sources. Images and metadata may be stored for indexing,
           presentation, and site functionality, but streaming sources are not
-          uploaded or stored by MovieFrost.
+          uploaded or stored by Flixmovo.
         </p>
       </LegalSection>
 
       <LegalSection title="2. How to submit a copyright complaint">
         <p>
-          If you believe that material available through MovieFrost infringes your
+          If you believe that material available through Flixmovo infringes your
           copyright, please send a written notice to:
         </p>
 
         <p className="mt-3">
           <a
-            href="mailto:support@moviefrost.com"
+            href="mailto:support@flixmovo.online"
             className="text-customPurple hover:underline"
           >
-            support@moviefrost.com
+            support@flixmovo.online
           </a>
         </p>
 
@@ -47,7 +47,7 @@ export default function DmcaPage() {
           <li>Your full legal name and contact information.</li>
           <li>A description of the copyrighted work.</li>
           <li>
-            The exact URL(s) on MovieFrost where the allegedly infringing material
+            The exact URL(s) on Flixmovo where the allegedly infringing material
             appears.
           </li>
           <li>
@@ -64,7 +64,7 @@ export default function DmcaPage() {
 
       <LegalSection title="3. Response process">
         <p>
-          After receiving a valid complaint, MovieFrost may remove or disable
+          After receiving a valid complaint, Flixmovo may remove or disable
           access to the reported page, link, embed, thumbnail, or metadata while
           the issue is reviewed. Repeated complaints may also result in additional
           restrictions.
@@ -81,7 +81,7 @@ export default function DmcaPage() {
 
       <LegalSection title="5. Repeat infringement policy">
         <p>
-          MovieFrost reserves the right to restrict, remove, or permanently block
+          Flixmovo reserves the right to restrict, remove, or permanently block
           pages, links, submissions, or user access in cases of repeat or abusive
           infringement claims.
         </p>

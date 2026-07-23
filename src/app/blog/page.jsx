@@ -181,9 +181,9 @@ export default async function BlogHomePage() {
     <div className="container mx-auto min-h-screen px-2 mobile:px-0 my-6 pb-24 sm:pb-8">
       <SeoLandingHero
         contained={false}
-        eyebrow="MovieFrost Blog"
+        eyebrow="Flixmovo Blog"
         title="Latest Movie Articles, Reviews & Explained Guides"
-        description="Browse trending movie articles, reviews, ending explained guides, recommendation lists, and upcoming movie updates on MovieFrost."
+        description="Browse trending movie articles, reviews, ending explained guides, recommendation lists, and upcoming movie updates on Flixmovo."
         chips={[
           'Trending Articles',
           ...categoriesWithPosts.slice(0, 4).map((category) => category.title),

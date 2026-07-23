@@ -32,7 +32,7 @@ function TopViewedPostItem({ post }) {
       <div className="relative w-24 h-16 rounded overflow-hidden bg-black flex-shrink-0">
         <SafeImage
           src={post?.coverImage}
-          fallbackCandidates={['/images/MOVIEFROST.png']}
+          fallbackCandidates={['/images/FLIXMOVO.png']}
           alt={imageAlt}
           fill
           sizes="96px"

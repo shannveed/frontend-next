@@ -7,7 +7,7 @@ import { SITE_URL } from '../../lib/seo';
 export const metadata = {
   title: 'Terms of Service',
   description:
-    'MovieFrost terms of service and usage rules.',
+    'Flixmovo terms of service and usage rules.',
   alternates: { canonical: `${SITE_URL}/terms-of-service` },
 };
 
@@ -15,11 +15,11 @@ export default function TermsOfServicePage() {
   return (
     <LegalPageLayout
       title="Terms of Service"
-      intro="By accessing or using MovieFrost, you agree to these Terms of Service. If you do not agree, please discontinue use of the website."
+      intro="By accessing or using Flixmovo, you agree to these Terms of Service. If you do not agree, please discontinue use of the website."
     >
       <LegalSection title="1. Use of the website">
         <p>
-          MovieFrost is provided for browsing, discovering, and interacting with
+          Flixmovo is provided for browsing, discovering, and interacting with
           movie and web-series listings. You agree not to misuse the website,
           interfere with its operation, or attempt unauthorized access.
         </p>
@@ -35,8 +35,8 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="3. Third-party links and sources">
         <p>
-          MovieFrost may link to, embed, or reference third-party sources.
-          MovieFrost does not guarantee the availability, legality, quality, or
+          Flixmovo may link to, embed, or reference third-party sources.
+          Flixmovo does not guarantee the availability, legality, quality, or
           safety of third-party websites and does not host third-party streaming
           files on its own servers.
         </p>
@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
       <LegalSection title="4. Intellectual property">
         <p>
           Site branding, design, code, logos, and original platform content are
-          the property of MovieFrost or their respective owners. Unauthorized
+          the property of Flixmovo or their respective owners. Unauthorized
           copying, scraping, re-publication, or commercial reuse is prohibited
           unless permitted by law.
         </p>
@@ -53,7 +53,7 @@ export default function TermsOfServicePage() {
 
       <LegalSection title="5. Availability and changes">
         <p>
-          MovieFrost may modify, suspend, remove, or update features, pages,
+          Flixmovo may modify, suspend, remove, or update features, pages,
           links, categories, or policies at any time without prior notice.
         </p>
       </LegalSection>
@@ -61,7 +61,7 @@ export default function TermsOfServicePage() {
       <LegalSection title="6. Disclaimer and limitation of liability">
         <p>
           The website is provided on an “as is” and “as available” basis.
-          MovieFrost makes no guarantee that the service will always be available,
+          Flixmovo makes no guarantee that the service will always be available,
           error-free, secure, or suitable for a particular purpose.
         </p>
       </LegalSection>
@@ -70,10 +70,10 @@ export default function TermsOfServicePage() {
         <p>
           For terms-related questions, contact{' '}
           <a
-            href="mailto:support@moviefrost.com"
+            href="mailto:support@flixmovo.online"
             className="text-customPurple hover:underline"
           >
-            support@moviefrost.com
+            support@flixmovo.online
           </a>
           .
         </p>

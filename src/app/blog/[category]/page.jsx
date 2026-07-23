@@ -128,7 +128,7 @@ export default async function BlogCategoryPage({ params }) {
 
       <SeoLandingHero
         contained={false}
-        eyebrow="MovieFrost Blog"
+        eyebrow="Flixmovo Blog"
         title={category.title}
         description={category.description}
         chips={[

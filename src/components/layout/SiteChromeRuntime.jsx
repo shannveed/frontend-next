@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { FaTelegramPlane } from 'react-icons/fa';
+import AdsterraScripts from '../ads/AdsterraScripts';
 
 import AnalyticsBootstrap from '../analytics/AnalyticsBootstrap';
 import { getUserInfo } from '../../lib/client/auth';
@@ -16,9 +17,6 @@ import {
   FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
 } from '../../lib/events';
 
-const AdsterraScripts = dynamic(() => import('../ads/AdsterraScripts'), {
-  ssr: false,
-});
 
 const FloatingShareIcons = dynamic(
   () => import('../social/FloatingShareIcons'),
@@ -435,13 +433,11 @@ export default function SiteChromeRuntime() {
     <>
       <AnalyticsBootstrap />
 
-      {/* Do not mount popunder ads on feedback page. */}
-      {enhancementsReady &&
-        ADS_ENABLED &&
-        !feedbackOpen &&
-        !isPublicFeedbackPage ? (
+      {/* Mount popunder immediately after hydration on eligible public pages. */}
+      {ADS_ENABLED && !feedbackOpen && !isPublicFeedbackPage ? (
         <AdsterraScripts />
       ) : null}
+
 
       {/* Do not show floating share icon on feedback page. */}
       {enhancementsReady && !feedbackOpen && !isPublicFeedbackPage ? (

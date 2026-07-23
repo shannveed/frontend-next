@@ -109,7 +109,7 @@ const buildDuplicatePayload = (post) => ({
     (id) => id !== String(post?._id)
   ),
 
-  authorName: clean(post?.authorName || 'MovieFrost Team'),
+  authorName: clean(post?.authorName || 'Flixmovo Team'),
 
   seoTitle: clean(post?.seoTitle),
   seoDescription: clean(post?.seoDescription),

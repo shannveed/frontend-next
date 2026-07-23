@@ -98,8 +98,8 @@ export default function Footer() {
           <div className="pb-3.5 sm:pb-0 col-span-1 md:col-span-2 lg:col-span-2">
             <Link href="/" className="inline-flex items-center">
               <Image
-                src="/images/MOVIEFROST.png"
-                alt="MovieFrost logo"
+                src="/images/FLIXMOVO.png"
+                alt="Flixmovo logo"
                 width={180}
                 height={42}
                 sizes="180px"
@@ -110,7 +110,7 @@ export default function Footer() {
             <p className="leading-7 text-sm text-border mt-3">
               <span>Box No. 76706, Dubai, UAE</span>
               <br />
-              <span>Email: support@moviefrost.com</span>
+              <span>Email: support@flixmovo.online</span>
             </p>
           </div>
         </div>

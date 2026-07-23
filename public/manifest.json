@@ -1,7 +1,7 @@
 {
-  "short_name": "MovieFrost",
-  "name": "MovieFrost - Watch Free Movies",
-  "description": "Watch free movies and web series online in HD on MovieFrost.",
+  "short_name": "Flixmovo",
+  "name": "Flixmovo - Watch Free Movies",
+  "description": "Watch free movies and web series online in HD on Flixmovo.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

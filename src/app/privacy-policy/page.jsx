@@ -7,7 +7,7 @@ import { SITE_URL } from '../../lib/seo';
 export const metadata = {
   title: 'Privacy Policy',
   description:
-    'MovieFrost privacy policy explaining what information we collect and how we use it.',
+    'Flixmovo privacy policy explaining what information we collect and how we use it.',
   alternates: { canonical: `${SITE_URL}/privacy-policy` },
 };
 
@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPageLayout
       title="Privacy Policy"
-      intro="This Privacy Policy explains how MovieFrost may collect, use, and protect information when you browse the website, create an account, save favorites, submit ratings, or enable notifications."
+      intro="This Privacy Policy explains how Flixmovo may collect, use, and protect information when you browse the website, create an account, save favorites, submit ratings, or enable notifications."
     >
       <LegalSection title="1. Information we may collect">
         <ul className="list-disc ml-5 space-y-1">
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection title="3. Cookies and local storage">
         <p>
-          MovieFrost may use cookies, browser storage, and similar technologies to
+          Flixmovo may use cookies, browser storage, and similar technologies to
           keep you logged in, remember preferences, cache data, and improve site
           performance.
         </p>
@@ -75,10 +75,10 @@ export default function PrivacyPolicyPage() {
         <p>
           For privacy questions, contact{' '}
           <a
-            href="mailto:support@moviefrost.com"
+            href="mailto:support@flixmovo.online"
             className="text-customPurple hover:underline"
           >
-            support@moviefrost.com
+            support@flixmovo.online
           </a>
           .
         </p>
