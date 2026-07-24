@@ -1,21 +1,103 @@
 // frontend-next/src/components/ads/EffectiveGateNativeBanner.jsx
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
 import { FEEDBACK_MODAL_OPEN_CHANGE_EVENT } from '../../lib/events';
 
-const DEFAULT_SCRIPT_SRC =
+const LEGACY_SCRIPT_SRC =
   'https://pl27041508.effectivegatecpm.com/019a973cec8ffe0b4ea36cff849dc6cf/invoke.js';
 
-const DEFAULT_CONTAINER_ID = 'container-019a973cec8ffe0b4ea36cff849dc6cf';
+const LEGACY_CONTAINER_ID =
+  'container-019a973cec8ffe0b4ea36cff849dc6cf';
 
-const buildSrcDoc = ({ containerId, scriptSrc }) => `<!doctype html>
+const normalizeScriptUrl = (value = '') => {
+  const source = String(value || '').trim();
+
+  if (!source) return '';
+  if (source.startsWith('//')) return `https:${source}`;
+
+  return source;
+};
+
+const normalizeContainerId = (value = '') =>
+  String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '');
+
+const COMMON_SCRIPT_SRC = normalizeScriptUrl(
+  process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_SCRIPT_SRC ||
+  LEGACY_SCRIPT_SRC
+);
+
+const COMMON_CONTAINER_ID = normalizeContainerId(
+  process.env.NEXT_PUBLIC_ADSTERRA_NATIVE_CONTAINER_ID ||
+  LEGACY_CONTAINER_ID
+);
+
+const DESKTOP_SCRIPT_SRC = normalizeScriptUrl(
+  process.env
+    .NEXT_PUBLIC_ADSTERRA_NATIVE_DESKTOP_SCRIPT_SRC ||
+  COMMON_SCRIPT_SRC
+);
+
+const DESKTOP_CONTAINER_ID = normalizeContainerId(
+  process.env
+    .NEXT_PUBLIC_ADSTERRA_NATIVE_DESKTOP_CONTAINER_ID ||
+  COMMON_CONTAINER_ID
+);
+
+const MOBILE_SCRIPT_SRC = normalizeScriptUrl(
+  process.env
+    .NEXT_PUBLIC_ADSTERRA_NATIVE_MOBILE_SCRIPT_SRC ||
+  COMMON_SCRIPT_SRC
+);
+
+const MOBILE_CONTAINER_ID = normalizeContainerId(
+  process.env
+    .NEXT_PUBLIC_ADSTERRA_NATIVE_MOBILE_CONTAINER_ID ||
+  COMMON_CONTAINER_ID
+);
+
+const escapeAttribute = (value = '') =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const isValidConfig = ({ scriptSrc, containerId }) => {
+  if (!scriptSrc || !containerId) return false;
+
+  try {
+    const url = new URL(scriptSrc);
+    return url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const buildSrcDoc = ({ containerId, scriptSrc }) => {
+  const safeContainer = escapeAttribute(containerId);
+  const safeScript = escapeAttribute(scriptSrc);
+
+  return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    />
+    <base target="_blank" />
     <style>
-      html, body {
+      html,
+      body {
         margin: 0;
         padding: 0;
         width: 100%;
@@ -23,120 +105,148 @@ const buildSrcDoc = ({ containerId, scriptSrc }) => `<!doctype html>
         overflow: hidden;
         background: transparent;
       }
-      #${containerId} { width: 100%; height: 100%; }
+
+      #${safeContainer} {
+        width: 100%;
+        min-height: 100%;
+      }
     </style>
   </head>
+
   <body>
-    <div id="${containerId}"></div>
-    <script async data-cfasync="false" src="${scriptSrc}"></script>
+    <div id="${safeContainer}"></div>
+    <script
+      async
+      data-cfasync="false"
+      src="${safeScript}"
+    ></script>
   </body>
 </html>`;
+};
 
-const buildMediaQuery = ({ minWidthPx, maxWidthPx }) => {
-  const parts = [];
+const buildMediaQuery = ({
+  minWidthPx,
+  maxWidthPx,
+}) => {
+  const conditions = [];
 
   const min = Number(minWidthPx);
   const max = Number(maxWidthPx);
 
-  if (Number.isFinite(min) && min >= 0) parts.push(`(min-width: ${min}px)`);
-  if (Number.isFinite(max) && max >= 0) parts.push(`(max-width: ${max}px)`);
+  if (Number.isFinite(min) && min >= 0) {
+    conditions.push(`(min-width: ${min}px)`);
+  }
 
-  return parts.length ? parts.join(' and ') : '(min-width: 0px)';
+  if (Number.isFinite(max) && max >= 0) {
+    conditions.push(`(max-width: ${max}px)`);
+  }
+
+  return conditions.length
+    ? conditions.join(' and ')
+    : '(min-width: 0px)';
 };
 
-const isFeedbackModalOpenNow = () => {
+const isFeedbackOpenNow = () => {
   if (typeof document === 'undefined') return false;
 
-  try {
-    return !!(
-      document.body?.classList?.contains('mf-feedback-modal-open') ||
-      document.documentElement?.classList?.contains(
-        'mf-feedback-modal-open'
-      ) ||
-      document.body?.dataset?.mfFeedbackModalOpen === 'true' ||
-      document.documentElement?.dataset?.mfFeedbackModalOpen === 'true'
-    );
-  } catch {
-    return false;
-  }
+  return Boolean(
+    document.body?.classList?.contains(
+      'mf-feedback-modal-open'
+    ) ||
+    document.documentElement?.classList?.contains(
+      'mf-feedback-modal-open'
+    ) ||
+    document.body?.dataset?.mfFeedbackModalOpen ===
+    'true' ||
+    document.documentElement?.dataset
+      ?.mfFeedbackModalOpen === 'true'
+  );
 };
 
-const useFeedbackModalOpen = () => {
+const useFeedbackOpen = () => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const updateFromDom = () => {
-      setOpen(isFeedbackModalOpenNow());
+    const update = () => {
+      setOpen(isFeedbackOpenNow());
     };
 
     const onEvent = (event) => {
-      const next = event?.detail?.open;
-
-      if (typeof next === 'boolean') {
-        setOpen(next);
-        return;
+      if (typeof event?.detail?.open === 'boolean') {
+        setOpen(event.detail.open);
+      } else {
+        update();
       }
-
-      updateFromDom();
     };
 
-    updateFromDom();
+    update();
 
-    window.addEventListener(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, onEvent);
+    window.addEventListener(
+      FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
+      onEvent
+    );
 
-    let bodyObserver = null;
-    let htmlObserver = null;
+    const observer =
+      typeof MutationObserver !== 'undefined'
+        ? new MutationObserver(update)
+        : null;
 
-    if (typeof MutationObserver !== 'undefined') {
-      bodyObserver = new MutationObserver(updateFromDom);
-      htmlObserver = new MutationObserver(updateFromDom);
+    if (observer && document.documentElement) {
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: [
+          'class',
+          'data-mf-feedback-modal-open',
+        ],
+      });
+    }
 
-      if (document.body) {
-        bodyObserver.observe(document.body, {
-          attributes: true,
-          attributeFilter: ['class', 'data-mf-feedback-modal-open'],
-        });
-      }
-
-      if (document.documentElement) {
-        htmlObserver.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['class', 'data-mf-feedback-modal-open'],
-        });
-      }
+    if (observer && document.body) {
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: [
+          'class',
+          'data-mf-feedback-modal-open',
+        ],
+      });
     }
 
     return () => {
-      window.removeEventListener(FEEDBACK_MODAL_OPEN_CHANGE_EVENT, onEvent);
-      bodyObserver?.disconnect?.();
-      htmlObserver?.disconnect?.();
+      window.removeEventListener(
+        FEEDBACK_MODAL_OPEN_CHANGE_EVENT,
+        onEvent
+      );
+
+      observer?.disconnect();
     };
   }, []);
 
   return open;
 };
 
-// ✅ SSR-safe: first render always false
 const useMediaQuery = (query, enabled = true) => {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
-    if (!enabled) return;
-    if (typeof window === 'undefined' || !window.matchMedia) return;
+    if (!enabled || !window.matchMedia) return;
 
-    const mql = window.matchMedia(query);
-    const update = () => setMatches(mql.matches);
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
 
     update();
 
-    if (mql.addEventListener) mql.addEventListener('change', update);
-    else mql.addListener(update);
+    if (media.addEventListener) {
+      media.addEventListener('change', update);
+    } else {
+      media.addListener(update);
+    }
 
     return () => {
-      if (mql.removeEventListener) mql.removeEventListener('change', update);
-      else mql.removeListener(update);
+      if (media.removeEventListener) {
+        media.removeEventListener('change', update);
+      } else {
+        media.removeListener(update);
+      }
     };
   }, [query, enabled]);
 
@@ -145,11 +255,11 @@ const useMediaQuery = (query, enabled = true) => {
 
 function AdShell({
   label,
-  className,
+  className = '',
   aspectRatio,
   minHeight,
-  children,
   shellRef,
+  children,
 }) {
   return (
     <section
@@ -159,15 +269,20 @@ function AdShell({
     >
       <div className="border border-border bg-dry rounded-lg p-3 sm:p-4">
         {label ? (
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-dryGray">{label}</span>
+          <div className="mb-2">
+            <span className="text-xs text-dryGray">
+              {label}
+            </span>
           </div>
         ) : null}
 
         <div
           ref={shellRef}
           className="w-full overflow-hidden rounded-md bg-main"
-          style={{ aspectRatio, minHeight }}
+          style={{
+            aspectRatio,
+            minHeight,
+          }}
         >
           {children}
         </div>
@@ -176,114 +291,121 @@ function AdShell({
   );
 }
 
-function EffectiveGateIframeAd({
-  scriptSrc = DEFAULT_SCRIPT_SRC,
-  containerId = DEFAULT_CONTAINER_ID,
-
-  // responsive gating
+function AdsterraNativeIframe({
+  scriptSrc,
+  containerId,
   minWidthPx,
   maxWidthPx,
-
-  // layout
-  aspectRatio = '4 / 1',
-  minHeight = 90,
-
-  // loading
+  aspectRatio,
+  minHeight,
   rootMargin = '300px',
-
-  // UI
   className = '',
   label = 'Advertisement',
-
   refreshKey = '',
-  iframeTitle,
+  iframeTitle = '',
 }) {
+  const configValid = isValidConfig({
+    scriptSrc,
+    containerId,
+  });
+
   const query = useMemo(
-    () => buildMediaQuery({ minWidthPx, maxWidthPx }),
+    () =>
+      buildMediaQuery({
+        minWidthPx,
+        maxWidthPx,
+      }),
     [minWidthPx, maxWidthPx]
   );
 
   const [mounted, setMounted] = useState(false);
-  const [shouldLoadFrame, setShouldLoadFrame] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
 
   const shellRef = useRef(null);
+  const feedbackOpen = useFeedbackOpen();
 
-  const feedbackModalOpen = useFeedbackModalOpen();
-
-  useEffect(() => setMounted(true), []);
-
-  // Only evaluate media query after mount (prevents SSR/client mismatch)
   const matches = useMediaQuery(query, mounted);
 
-  const srcDoc = useMemo(
-    () => buildSrcDoc({ containerId, scriptSrc }),
-    [containerId, scriptSrc]
+  const frameKey = useMemo(
+    () =>
+      [
+        containerId,
+        scriptSrc,
+        refreshKey,
+        query,
+        aspectRatio,
+      ].join(':'),
+    [
+      containerId,
+      scriptSrc,
+      refreshKey,
+      query,
+      aspectRatio,
+    ]
   );
 
-  const iframeKey = useMemo(() => {
-    return `${containerId}:${String(
-      refreshKey
-    )}:${scriptSrc}:${query}:${aspectRatio}`;
-  }, [containerId, refreshKey, scriptSrc, query, aspectRatio]);
-
-  /**
-   * ✅ Main fix:
-   * When the public feedback modal opens, remove the iframe entirely.
-   * This prevents mobile/desktop inline ads from staying loaded behind/on top of the form.
-   */
-  useEffect(() => {
-    if (feedbackModalOpen) {
-      setShouldLoadFrame(false);
-    }
-  }, [feedbackModalOpen]);
+  const srcDoc = useMemo(
+    () =>
+      configValid
+        ? buildSrcDoc({
+          containerId,
+          scriptSrc,
+        })
+        : '',
+    [configValid, containerId, scriptSrc]
+  );
 
   useEffect(() => {
-    if (feedbackModalOpen) {
-      setShouldLoadFrame(false);
-      return;
-    }
+    setMounted(true);
+  }, []);
 
-    if (!mounted || !matches) {
-      setShouldLoadFrame(false);
-      return;
-    }
+  useEffect(() => {
+    setShouldLoad(false);
+  }, [frameKey]);
 
-    if (shouldLoadFrame) return;
+  useEffect(() => {
+    if (!configValid) return;
+    if (!mounted || !matches || feedbackOpen) return;
+    if (shouldLoad) return;
 
-    const node = shellRef.current;
-    if (!node) return;
+    const element = shellRef.current;
+    if (!element) return;
 
-    if (
-      typeof window === 'undefined' ||
-      !('IntersectionObserver' in window)
-    ) {
-      setShouldLoadFrame(true);
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoad(true);
       return;
     }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isFeedbackModalOpenNow()) {
-          setShouldLoadFrame(true);
+        if (
+          entry.isIntersecting &&
+          !isFeedbackOpenNow()
+        ) {
+          setShouldLoad(true);
           observer.disconnect();
         }
       },
       {
-        root: null,
         rootMargin,
         threshold: 0.01,
       }
     );
 
-    observer.observe(node);
+    observer.observe(element);
 
     return () => observer.disconnect();
-  }, [mounted, matches, shouldLoadFrame, rootMargin, feedbackModalOpen]);
+  }, [
+    configValid,
+    mounted,
+    matches,
+    feedbackOpen,
+    shouldLoad,
+    rootMargin,
+  ]);
 
-  // ✅ Do not render ad slot at all while feedback form is open.
-  if (feedbackModalOpen) return null;
+  if (!configValid || feedbackOpen) return null;
 
-  // SSR-safe placeholder
   if (!mounted) {
     return (
       <AdShell
@@ -297,9 +419,6 @@ function EffectiveGateIframeAd({
 
   if (!matches) return null;
 
-  const title =
-    iframeTitle || `effectivegate-ad-${String(refreshKey || 'default')}`;
-
   return (
     <AdShell
       label={label}
@@ -308,13 +427,19 @@ function EffectiveGateIframeAd({
       minHeight={minHeight}
       shellRef={shellRef}
     >
-      {shouldLoadFrame ? (
+      {shouldLoad ? (
         <iframe
-          key={iframeKey}
-          title={title}
+          key={frameKey}
+          title={
+            iframeTitle ||
+            `flixmovo-native-ad-${refreshKey || 'default'}`
+          }
           srcDoc={srcDoc}
           className="w-full h-full"
-          style={{ border: 0, display: 'block' }}
+          style={{
+            border: 0,
+            display: 'block',
+          }}
           scrolling="no"
           loading="lazy"
           referrerPolicy="no-referrer-when-cross-origin"
@@ -324,18 +449,19 @@ function EffectiveGateIframeAd({
   );
 }
 
-/**
- * ✅ Desktop default (4:1) – shows on >= 640px
- */
 export default function EffectiveGateNativeBanner({
+  scriptSrc = DESKTOP_SCRIPT_SRC,
+  containerId = DESKTOP_CONTAINER_ID,
   minWidthPx = 640,
   aspectRatio = '4 / 1',
   minHeight = 90,
   ...props
 }) {
   return (
-    <EffectiveGateIframeAd
+    <AdsterraNativeIframe
       {...props}
+      scriptSrc={scriptSrc}
+      containerId={containerId}
       minWidthPx={minWidthPx}
       aspectRatio={aspectRatio}
       minHeight={minHeight}
@@ -343,18 +469,19 @@ export default function EffectiveGateNativeBanner({
   );
 }
 
-/**
- * ✅ Mobile default (1:1) – shows on <= 639px
- */
 export function EffectiveGateSquareAd({
+  scriptSrc = MOBILE_SCRIPT_SRC,
+  containerId = MOBILE_CONTAINER_ID,
   maxWidthPx = 639,
   aspectRatio = '1 / 1',
   minHeight = 260,
   ...props
 }) {
   return (
-    <EffectiveGateIframeAd
+    <AdsterraNativeIframe
       {...props}
+      scriptSrc={scriptSrc}
+      containerId={containerId}
       maxWidthPx={maxWidthPx}
       aspectRatio={aspectRatio}
       minHeight={minHeight}

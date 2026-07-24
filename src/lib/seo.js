@@ -1,8 +1,10 @@
 // frontend-next/src/lib/seo.js
 
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://hi.flixmovo.online'
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  'https://www.flixmovo.online'
 ).replace(/\/+$/, '');
+
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 
