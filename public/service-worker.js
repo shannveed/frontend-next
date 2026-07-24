@@ -2,7 +2,7 @@
 const CACHE_PREFIX = 'flixmovo-cache-';
 
 // ✅ Injected at build time by scripts/inject-sw-build-id.js
-const CACHE_VERSION = 'dev-1784853887208';
+const CACHE_VERSION = 'dev-1784918643425';
 
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 
