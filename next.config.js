@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 
-const ensureUrl = (value, fallback) => {
+const IS_VERCEL_BUILD = Boolean(process.env.VERCEL);
+
+const ensureUrl = (value, fallback = '') => {
   let next = String(value || fallback || '').trim();
 
-  if (!next) return fallback;
+  if (!next) return '';
 
   if (!/^https?:\/\//i.test(next)) {
     const isLocal =
@@ -16,6 +18,41 @@ const ensureUrl = (value, fallback) => {
   }
 
   return next.replace(/\/+$/, '');
+};
+
+const hostnameOf = (value = '') => {
+  const normalized = ensureUrl(value, '');
+
+  try {
+    return normalized ? new URL(normalized).hostname.toLowerCase() : '';
+  } catch {
+    return '';
+  }
+};
+
+const isLoopbackUrl = (value = '') => {
+  const host = hostnameOf(value);
+
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host === 'hi.localhost' ||
+    host.endsWith('.localhost')
+  );
+};
+
+const resolveConfiguredUrl = (values = [], fallback = '') => {
+  for (const raw of [...values, fallback]) {
+    const normalized = ensureUrl(raw, '');
+
+    if (!normalized) continue;
+    if (IS_VERCEL_BUILD && isLoopbackUrl(normalized)) continue;
+
+    return normalized;
+  }
+
+  return ensureUrl(fallback, '');
 };
 
 const parseCsv = (value = '') =>
@@ -33,40 +70,72 @@ const unique = (items = []) =>
     )
   );
 
-const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://api.flixmovo.online';
-
-const API_BASE = ensureUrl(
-  RAW_API_BASE,
-  'https://api.flixmovo.online'
-)
-  .replace(/\/+$/, '')
-  .replace(/\/api$/i, '');
-
-const RAW_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  'https://www.flixmovo.online';
-
-const SITE_URL = ensureUrl(
-  RAW_SITE_URL,
-  'https://www.flixmovo.online'
-).replace(/\/+$/, '');
-
-const ENGLISH_SITE_URL = ensureUrl(
-  process.env.NEXT_PUBLIC_ENGLISH_SITE_URL,
+const SITE_URL = resolveConfiguredUrl(
+  [process.env.NEXT_PUBLIC_SITE_URL],
   'https://www.flixmovo.online'
 );
 
-const HINDI_SITE_URL = ensureUrl(
-  process.env.NEXT_PUBLIC_HINDI_SITE_URL,
+const ENGLISH_SITE_URL = resolveConfiguredUrl(
+  [
+    process.env.NEXT_PUBLIC_ENGLISH_SITE_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+  ],
+  'https://www.flixmovo.online'
+);
+
+const HINDI_SITE_URL = resolveConfiguredUrl(
+  [process.env.NEXT_PUBLIC_HINDI_SITE_URL],
   'https://hi.flixmovo.online'
 );
 
-const CDN_BASE_URL = ensureUrl(
-  process.env.NEXT_PUBLIC_CDN_BASE_URL,
+const CDN_BASE_URL = resolveConfiguredUrl(
+  [process.env.NEXT_PUBLIC_CDN_BASE_URL],
   'https://cdn.flixmovo.online'
 );
+
+const resolveBackendApiBase = () => {
+  const frontendHost = hostnameOf(SITE_URL);
+
+  const candidates = [
+    process.env.BACKEND_API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    'https://api.flixmovo.online',
+  ];
+
+  for (const raw of candidates) {
+    const normalized = ensureUrl(raw, '')
+      .replace(/\/+$/, '')
+      .replace(/\/api$/i, '');
+
+    if (!normalized) continue;
+
+    const candidateHost = hostnameOf(normalized);
+
+    if (IS_VERCEL_BUILD && isLoopbackUrl(normalized)) {
+      continue;
+    }
+
+    // Prevent /api -> same frontend -> /api rewrite recursion.
+    if (
+      IS_VERCEL_BUILD &&
+      frontendHost &&
+      candidateHost === frontendHost
+    ) {
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return 'https://api.flixmovo.online';
+};
+
+const API_BASE = resolveBackendApiBase();
+
+if (IS_VERCEL_BUILD) {
+  console.log(`[Flixmovo config] API rewrite target: ${API_BASE}`);
+  console.log(`[Flixmovo config] Canonical site: ${SITE_URL}`);
+}
 
 const IMAGE_CACHE =
   'public, max-age=31536000, s-maxage=31536000, immutable';
@@ -118,44 +187,21 @@ const uniqueRemotePatterns = (patterns = []) => {
   });
 };
 
-const hostFromValue = (value = '') => {
-  let next = String(value || '').trim();
-  if (!next) return '';
+const currentSiteHost = hostnameOf(SITE_URL);
 
-  if (!/^https?:\/\//i.test(next)) {
-    next = `https://${next}`;
-  }
-
-  try {
-    return new URL(next).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-};
-
-const currentSiteHost = hostFromValue(SITE_URL);
-
-/**
- * Production frontend environment:
- *
- * English deployment:
- * LEGACY_SITE_HOSTS=moviefrost.com,www.moviefrost.com
- *
- * Hindi deployment:
- * LEGACY_SITE_HOSTS=hi.moviefrost.com,www.hi.moviefrost.com
- *
- * Keep the old domains attached to Vercel while these redirects are active.
- */
 const LEGACY_SITE_HOSTS = unique(
   parseCsv(process.env.LEGACY_SITE_HOSTS)
-    .map(hostFromValue)
+    .map(hostnameOf)
     .filter((host) => host && host !== currentSiteHost)
 );
+
+const escapeRegex = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const buildLegacyHostRedirects = () =>
   LEGACY_SITE_HOSTS.map((host) => ({
     source: '/:path*',
-    has: [{ type: 'host', value: host }],
+    has: [{ type: 'host', value: escapeRegex(host) }],
     destination: `${SITE_URL}/:path*`,
     permanent: true,
   }));
@@ -177,14 +223,24 @@ const buildCanonicalHostRedirects = () => {
     if (host.startsWith('www.')) {
       redirects.push({
         source: '/:path*',
-        has: [{ type: 'host', value: host.slice(4) }],
+        has: [
+          {
+            type: 'host',
+            value: escapeRegex(host.slice(4)),
+          },
+        ],
         destination: `${SITE_URL}/:path*`,
         permanent: true,
       });
     } else {
       redirects.push({
         source: '/:path*',
-        has: [{ type: 'host', value: `www.${host}` }],
+        has: [
+          {
+            type: 'host',
+            value: escapeRegex(`www.${host}`),
+          },
+        ],
         destination: `${SITE_URL}/:path*`,
         permanent: true,
       });
@@ -272,9 +328,6 @@ const nextConfig = {
           source: '/sitemap-index.xml',
           destination: `${API_BASE}/sitemap-index.xml`,
         },
-
-        // sitemap-actors.xml remains a frontend 410 response because
-        // actor pages are visible to users but intentionally noindex.
       ],
     };
   },

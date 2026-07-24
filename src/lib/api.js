@@ -1,9 +1,61 @@
 // frontend-next/src/lib/api.js
-const RAW_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.flixmovo.online';
+import 'server-only';
 
-// ✅ normalize: remove trailing slashes + accidental "/api"
-const API_BASE = RAW_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
+const normalizeApiOrigin = (value = '') => {
+  let next = String(value || '').trim();
+
+  if (!next) return '';
+
+  if (!/^https?:\/\//i.test(next)) {
+    const isLocal =
+      next.startsWith('localhost') ||
+      next.startsWith('127.0.0.1') ||
+      next.startsWith('0.0.0.0');
+
+    next = `${isLocal ? 'http' : 'https'}://${next.replace(/^\/+/, '')}`;
+  }
+
+  return next.replace(/\/+$/, '').replace(/\/api$/i, '');
+};
+
+const isLoopbackOrigin = (value = '') => {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.localhost')
+    );
+  } catch {
+    return false;
+  }
+};
+
+const resolveServerApiBase = () => {
+  const candidates = [
+    process.env.BACKEND_API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    'https://api.flixmovo.online',
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeApiOrigin(candidate);
+
+    if (!normalized) continue;
+
+    if (process.env.VERCEL && isLoopbackOrigin(normalized)) {
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return 'https://api.flixmovo.online';
+};
+
+const API_BASE = resolveServerApiBase();
 const API = `${API_BASE}/api`;
 
 /**
