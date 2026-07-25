@@ -363,7 +363,7 @@ export default function AdminWebsiteFeedbackPanel({ token }) {
                 No feedback submitted yet
               </h3>
               <p className="text-dryGray text-sm mt-2">
-                After viewers spend 3 minutes on the website, they will see the
+                After viewers spend 15 active minutes on the website, they will see the
                 feedback form. Submitted responses will appear here.
               </p>
             </div>

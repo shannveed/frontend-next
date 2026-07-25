@@ -28,7 +28,14 @@ export const metadata = {
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true },
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+      'max-snippet': -1,
+    },
+
   },
   openGraph: {
     type: 'website',
@@ -36,18 +43,28 @@ export const metadata = {
     title: 'Watch Movies Online Free in HD | Flixmovo',
     description:
       'Watch movies online free in HD on Flixmovo. Discover trending movies, TV series, web series, Hollywood, Bollywood, Korean drama, anime and more.',
-    images: [`${SITE_URL}/images/FLIXMOVO.png`],
+    images: [
+      {
+        url: HOME_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: 'Flixmovo — Watch Movies and Web Series Online',
+      },
+    ],
   },
+
   twitter: {
     card: 'summary_large_image',
     title: 'Watch Movies Online Free in HD | Flixmovo',
     description:
       'Watch movies online free in HD on Flixmovo. Browse trending movies, TV series, web series and more.',
-    images: [`${SITE_URL}/images/FLIXMOVO.png`],
+    images: [HOME_OG_IMAGE],
   },
+
 };
 
 const HOME_TRENDING_LIMIT = 50;
+const HOME_OG_IMAGE = `${SITE_URL}/og-image`;
 
 const homeJsonLd = {
   '@context': 'https://schema.org',

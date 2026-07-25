@@ -138,14 +138,14 @@ const isFeedbackOpen = () => {
   );
 };
 
-const isAdminNow = () => {
+const isAuthenticatedNow = () => {
   if (typeof window === 'undefined') return false;
 
   try {
     const raw = localStorage.getItem('userInfo');
     const user = raw ? JSON.parse(raw) : null;
 
-    return Boolean(user?.isAdmin);
+    return Boolean(user?.token || user?.isAdmin);
   } catch {
     return false;
   }
@@ -285,7 +285,7 @@ export default function AdsterraScripts() {
     if (!ADS_ENABLED) return;
     if (excluded) return;
     if (!isValidScriptSource()) return;
-    if (isAdminNow()) return;
+    if (isAuthenticatedNow()) return;
 
     let disposed = false;
     let paused = isFeedbackOpen();
@@ -296,7 +296,7 @@ export default function AdsterraScripts() {
     const canRun = () => {
       if (disposed) return false;
       if (paused || isFeedbackOpen()) return false;
-      if (isAdminNow()) return false;
+      if (isAuthenticatedNow()) return false;
 
       return document.visibilityState !== 'hidden';
     };
@@ -347,7 +347,7 @@ export default function AdsterraScripts() {
     };
 
     const onStorage = () => {
-      if (!isAdminNow()) {
+      if (!isAuthenticatedNow()) {
         activate();
       }
     };

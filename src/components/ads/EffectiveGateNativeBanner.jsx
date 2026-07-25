@@ -435,6 +435,7 @@ function AdsterraNativeIframe({
             `flixmovo-native-ad-${refreshKey || 'default'}`
           }
           srcDoc={srcDoc}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
           className="w-full h-full"
           style={{
             border: 0,

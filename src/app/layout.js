@@ -7,8 +7,11 @@ import Providers from './providers';
 import SiteChrome from '../components/layout/SiteChrome';
 
 const SITE_NAME = 'Flixmovo';
+
 const SITE_DESCRIPTION =
   'Watch free movies and web series online in HD on Flixmovo.';
+
+const SITE_OG_IMAGE = `${SITE_URL}/og-image`;
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -63,15 +66,28 @@ export const metadata = {
   icons: {
     icon: [
       {
-        url: '/images/favicon1.png',
+        url: '/favicon.ico',
         type: 'image/png',
+        sizes: '192x192',
+      },
+      {
+        url: '/images/desktop-icon-512.png',
+        type: 'image/png',
+        sizes: '512x512',
       },
     ],
-    shortcut: ['/images/favicon1.png'],
+    shortcut: [
+      {
+        url: '/favicon.ico',
+        type: 'image/png',
+        sizes: '192x192',
+      },
+    ],
     apple: [
       {
-        url: '/images/FLIXMOVO.png',
+        url: '/images/desktop-icon-192.png',
         type: 'image/png',
+        sizes: '192x192',
       },
     ],
   },
@@ -82,20 +98,47 @@ export const metadata = {
     title: SITE_NAME,
   },
 
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+      'max-snippet': -1,
+    },
+  },
+
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
     url: SITE_URL,
     title: 'Flixmovo — Watch Free Movies & Web Series Online',
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/images/FLIXMOVO.png`],
+    images: [
+      {
+        url: SITE_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: 'Flixmovo — Watch Movies and Web Series Online',
+        type: 'image/png',
+      },
+    ],
   },
 
   twitter: {
     card: 'summary_large_image',
     title: 'Flixmovo — Watch Free Movies & Web Series Online',
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/images/FLIXMOVO.png`],
+    images: [
+      {
+        url: SITE_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: 'Flixmovo — Watch Movies and Web Series Online',
+      },
+    ],
   },
 
   other: {

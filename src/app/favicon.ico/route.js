@@ -1,27 +1,43 @@
 // frontend-next/src/app/favicon.ico/route.js
-/**
- * Google Search + many bots request /favicon.ico directly.
- * This route serves your existing /public/favicon1.png as /favicon.ico
- * so Google will use your real favicon in search results.
- */
 export const runtime = 'edge';
 
+const ICON_PATH = '/images/desktop-icon-192.png';
+
 export async function GET(request) {
-  const iconUrl = new URL('/favicon1.png', request.url);
+  try {
+    const iconUrl = new URL(ICON_PATH, request.url);
 
-  const iconRes = await fetch(iconUrl, { cache: 'force-cache' });
+    const iconResponse = await fetch(iconUrl, {
+      cache: 'force-cache',
+      redirect: 'follow',
+    });
 
-  if (!iconRes.ok) {
-    return new Response('favicon1.png not found', { status: 404 });
+    if (!iconResponse.ok || !iconResponse.body) {
+      return new Response('Favicon not found', {
+        status: 404,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
+    return new Response(iconResponse.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Disposition': 'inline; filename="favicon.png"',
+        'Cache-Control':
+          'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+      },
+    });
+  } catch {
+    return new Response('Favicon unavailable', {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
   }
-
-  return new Response(iconRes.body, {
-    status: 200,
-    headers: {
-      'Content-Type': 'image/png',
-      // Do NOT use "immutable" for favicon (Google/browsers should be able to refresh it)
-      'Cache-Control':
-        'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
-    },
-  });
 }

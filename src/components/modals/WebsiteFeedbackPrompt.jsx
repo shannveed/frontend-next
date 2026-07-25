@@ -8,15 +8,41 @@ import { getUserInfo } from '../../lib/client/auth';
 
 const FEEDBACK_PAGE_PATH = '/feedback';
 
-const ACTIVE_TIME_TARGET_MS = 5 * 60 * 1000; // 5 minutes
-const SUBMIT_COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+const configuredMinutes = Number(
+  process.env.NEXT_PUBLIC_FEEDBACK_ACTIVE_MINUTES || 15
+);
 
-const ACTIVE_MS_KEY = 'mf_feedback_active_ms_v1';
-const LAST_SUBMITTED_AT_KEY = 'mf_feedback_last_submitted_at_v1';
-const DISMISSED_SESSION_KEY = 'mf_feedback_dismissed_this_session_v1';
-const RETURN_PATH_SESSION_KEY = 'mf_feedback_return_path_v1';
+const FEEDBACK_ACTIVE_MINUTES =
+  Number.isFinite(configuredMinutes) &&
+    configuredMinutes >= 1 &&
+    configuredMinutes <= 180
+    ? configuredMinutes
+    : 15;
 
-const EXCLUDED_EXACT = ['/login', '/register', '/signup', FEEDBACK_PAGE_PATH];
+const ACTIVE_TIME_TARGET_MS =
+  FEEDBACK_ACTIVE_MINUTES * 60 * 1000;
+
+const SUBMIT_COOLDOWN_MS =
+  60 * 24 * 60 * 60 * 1000; // 60 days
+
+// v2 resets the old five-minute counter after this deployment.
+const ACTIVE_MS_KEY = 'mf_feedback_active_ms_v2';
+
+const LAST_SUBMITTED_AT_KEY =
+  'mf_feedback_last_submitted_at_v1';
+
+const DISMISSED_SESSION_KEY =
+  'mf_feedback_dismissed_this_session_v1';
+
+const RETURN_PATH_SESSION_KEY =
+  'mf_feedback_return_path_v1';
+
+const EXCLUDED_EXACT = [
+  '/login',
+  '/register',
+  '/signup',
+  FEEDBACK_PAGE_PATH,
+];
 
 const EXCLUDED_PREFIXES = [
   '/dashboard',
@@ -42,32 +68,49 @@ const shouldSkipPath = (pathname = '') => {
 
   if (EXCLUDED_EXACT.includes(path)) return true;
 
-  return EXCLUDED_PREFIXES.some((prefix) => path.startsWith(prefix));
+  return EXCLUDED_PREFIXES.some((prefix) =>
+    path.startsWith(prefix)
+  );
 };
 
-const readNumber = (key, fallback = 0) => {
+const readActiveMs = () => {
   try {
-    const n = Number(localStorage.getItem(key));
-    return Number.isFinite(n) ? n : fallback;
+    const n = Number(sessionStorage.getItem(ACTIVE_MS_KEY));
+
+    return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch {
-    return fallback;
+    return 0;
   }
 };
 
-const writeNumber = (key, value) => {
+const writeActiveMs = (value) => {
   try {
-    localStorage.setItem(key, String(value));
+    sessionStorage.setItem(
+      ACTIVE_MS_KEY,
+      String(Math.max(0, Number(value) || 0))
+    );
   } catch {
-    // ignore
+    // Ignore unavailable browser storage.
+  }
+};
+
+const resetActiveMs = () => {
+  try {
+    sessionStorage.removeItem(ACTIVE_MS_KEY);
+  } catch {
+    // Ignore unavailable browser storage.
   }
 };
 
 const isRecentlySubmitted = () => {
   try {
-    const ts = Number(localStorage.getItem(LAST_SUBMITTED_AT_KEY) || 0);
-    if (!ts) return false;
+    const timestamp = Number(
+      localStorage.getItem(LAST_SUBMITTED_AT_KEY) || 0
+    );
 
-    return Date.now() - ts < SUBMIT_COOLDOWN_MS;
+    if (!timestamp) return false;
+
+    return Date.now() - timestamp < SUBMIT_COOLDOWN_MS;
   } catch {
     return false;
   }
@@ -75,7 +118,9 @@ const isRecentlySubmitted = () => {
 
 const isDismissedThisSession = () => {
   try {
-    return sessionStorage.getItem(DISMISSED_SESSION_KEY) === '1';
+    return (
+      sessionStorage.getItem(DISMISSED_SESSION_KEY) === '1'
+    );
   } catch {
     return false;
   }
@@ -85,7 +130,7 @@ const markDismissedThisSession = () => {
   try {
     sessionStorage.setItem(DISMISSED_SESSION_KEY, '1');
   } catch {
-    // ignore
+    // Ignore unavailable browser storage.
   }
 };
 
@@ -113,26 +158,31 @@ const storeCurrentPathForFeedbackReturn = () => {
     if (typeof window === 'undefined') return;
 
     const currentPath = normalizeReturnPath(
-      `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''
-      }`
+      `${window.location.pathname || '/'}${window.location.search || ''
+      }${window.location.hash || ''}`
     );
 
     if (!currentPath) return;
 
-    sessionStorage.setItem(RETURN_PATH_SESSION_KEY, currentPath);
+    sessionStorage.setItem(
+      RETURN_PATH_SESSION_KEY,
+      currentPath
+    );
   } catch {
-    // ignore
+    // Ignore unavailable browser storage.
   }
 };
 
 /**
- * This component is now a silent route trigger:
- * - tracks active browsing time
- * - after 3 minutes redirects to /feedback
- * - stores the current page path, so feedback close button can return user back
- * - does not render a modal anymore
+ * Tracks visible and focused browsing time.
+ *
+ * After 15 active minutes by default, the user is sent to /feedback.
+ * Set NEXT_PUBLIC_FEEDBACK_ACTIVE_MINUTES to change the delay.
  */
-export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange }) {
+export default function WebsiteFeedbackPrompt({
+  blocked = false,
+  onOpenChange,
+}) {
   const router = useRouter();
   const pathname = usePathname() || '/';
 
@@ -151,39 +201,49 @@ export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange })
   useEffect(() => {
     if (!mounted) return;
 
-    const ui = getUserInfo();
+    const user = getUserInfo();
 
-    if (ui?.isAdmin) return;
+    if (user?.isAdmin) return;
     if (shouldSkipPath(pathname)) return;
-    if (isRecentlySubmitted()) return;
+
+    if (isRecentlySubmitted()) {
+      resetActiveMs();
+      return;
+    }
+
     if (isDismissedThisSession()) return;
+
+    if (readActiveMs() >= ACTIVE_TIME_TARGET_MS) {
+      setEligible(true);
+      return;
+    }
 
     let lastTick = Date.now();
 
     const tick = () => {
-      if (document.visibilityState !== 'visible') {
-        lastTick = Date.now();
-        return;
-      }
-
-      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
-        lastTick = Date.now();
-        return;
-      }
-
       const now = Date.now();
       const delta = Math.max(0, now - lastTick);
+
       lastTick = now;
 
-      const next = readNumber(ACTIVE_MS_KEY, 0) + delta;
-      writeNumber(ACTIVE_MS_KEY, next);
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
 
-      if (next >= ACTIVE_TIME_TARGET_MS) {
+      if (
+        typeof document.hasFocus === 'function' &&
+        !document.hasFocus()
+      ) {
+        return;
+      }
+
+      const nextActiveMs = readActiveMs() + delta;
+      writeActiveMs(nextActiveMs);
+
+      if (nextActiveMs >= ACTIVE_TIME_TARGET_MS) {
         setEligible(true);
       }
     };
-
-    tick();
 
     const intervalId = window.setInterval(tick, 1000);
 
@@ -193,21 +253,18 @@ export default function WebsiteFeedbackPrompt({ blocked = false, onOpenChange })
   }, [mounted, pathname]);
 
   useEffect(() => {
-    if (!mounted) return;
-    if (!eligible) return;
-    if (blocked) return;
+    if (!mounted || !eligible || blocked) return;
 
-    const ui = getUserInfo();
+    const user = getUserInfo();
 
-    if (ui?.isAdmin) return;
+    if (user?.isAdmin) return;
     if (shouldSkipPath(pathname)) return;
     if (isRecentlySubmitted()) return;
     if (isDismissedThisSession()) return;
 
-    // Store the page user was on before automatic redirect to /feedback.
     storeCurrentPathForFeedbackReturn();
 
-    // Prevent instant redirect loops if user closes/back without submitting.
+    // Prevent a loop if the user closes the feedback page.
     markDismissedThisSession();
 
     router.push(FEEDBACK_PAGE_PATH);
