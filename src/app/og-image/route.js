@@ -2,8 +2,15 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const dynamic = 'force-static';
 
+/**
+ * Do not combine Edge Runtime with:
+ *
+ * export const dynamic = 'force-static';
+ *
+ * Next.js 14 considers those settings incompatible. The response is cached
+ * through the Cache-Control header instead.
+ */
 export function GET() {
   return new ImageResponse(
     (
@@ -87,7 +94,9 @@ export function GET() {
               }}
             >
               FLIX
-              <span style={{ color: '#1B82FF' }}>MOVO</span>
+              <span style={{ color: '#1B82FF' }}>
+                MOVO
+              </span>
             </div>
 
             <div
@@ -117,6 +126,7 @@ export function GET() {
     {
       width: 1200,
       height: 630,
+
       headers: {
         'Cache-Control':
           'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
