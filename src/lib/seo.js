@@ -1,10 +1,69 @@
 // frontend-next/src/lib/seo.js
 
-export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  'https://www.flixmovo.online'
-).replace(/\/+$/, '');
+/* ============================================================
+   ✅ SEO-SAFE SITE URL RESOLUTION (Q2 fix)
 
+   Problem fixed:
+   - .env.local sets NEXT_PUBLIC_SITE_URL=http://localhost:3000 and
+     Next.js loads .env.local during `next build`, so canonicals,
+     og:url and every JSON-LD @id could bake in localhost.
+
+   Guarantee now:
+   - In production runtime (NODE_ENV=production or VERCEL build),
+     loopback / http:// / unparsable values are rejected and we
+     fall back to the real production domain.
+   ============================================================ */
+
+const PRODUCTION_SITE_URL = 'https://www.flixmovo.online';
+
+const IS_PROD_RUNTIME =
+  process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
+const normalizeSiteUrl = (value = '') => {
+  let v = String(value || '').trim();
+  if (!v) return '';
+
+  if (!/^https?:\/\//i.test(v)) {
+    v = `https://${v.replace(/^\/+/, '')}`;
+  }
+
+  return v.replace(/\/+$/, '');
+};
+
+const isLoopbackSiteUrl = (value = '') => {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.localhost')
+    );
+  } catch {
+    // Unparsable => unsafe for SEO output.
+    return true;
+  }
+};
+
+const resolveSiteUrl = () => {
+  const candidate = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+
+  if (!candidate) return PRODUCTION_SITE_URL;
+
+  if (IS_PROD_RUNTIME) {
+    if (isLoopbackSiteUrl(candidate)) return PRODUCTION_SITE_URL;
+
+    // Production canonicals must always be https.
+    if (candidate.startsWith('http://')) {
+      return candidate.replace(/^http:\/\//i, 'https://');
+    }
+  }
+
+  return candidate;
+};
+
+export const SITE_URL = resolveSiteUrl();
 
 export const clean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
 

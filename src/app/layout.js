@@ -20,21 +20,45 @@ const poppins = Poppins({
   preload: true,
 });
 
+/**
+ * ✅ Q2 FIX: never render placeholder verification codes.
+ *
+ * A literal value like "YOUR_GSC_CODE" was being emitted as
+ * <meta name="google-site-verification" content="YOUR_GSC_CODE" />.
+ * Google rejects it and the tag is useless noise.
+ *
+ * Real codes are long, single-token strings. Anything that looks like a
+ * placeholder, contains whitespace, or is suspiciously short is dropped.
+ */
+const VERIFICATION_PLACEHOLDER_RE =
+  /(your[\s_-]?|placeholder|example|changeme|xxx|gsc[\s_-]?code|verification[\s_-]?code|<|>)/i;
+
+const cleanVerificationValue = (raw = '') => {
+  const value = String(raw || '').trim();
+
+  if (!value) return '';
+  if (/\s/.test(value)) return '';
+  if (VERIFICATION_PLACEHOLDER_RE.test(value)) return '';
+  if (value.length < 16) return '';
+
+  return value;
+};
+
 const buildVerification = () => {
   const verification = {};
   const other = {};
 
-  const google = String(
-    process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || ''
-  ).trim();
+  const google = cleanVerificationValue(
+    process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+  );
 
-  const yandex = String(
-    process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || ''
-  ).trim();
+  const yandex = cleanVerificationValue(
+    process.env.NEXT_PUBLIC_YANDEX_VERIFICATION
+  );
 
-  const bing = String(
-    process.env.NEXT_PUBLIC_BING_VERIFICATION || ''
-  ).trim();
+  const bing = cleanVerificationValue(
+    process.env.NEXT_PUBLIC_BING_VERIFICATION
+  );
 
   if (google) verification.google = google;
   if (yandex) verification.yandex = yandex;
