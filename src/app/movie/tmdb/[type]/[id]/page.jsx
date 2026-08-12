@@ -1,6 +1,6 @@
 // frontend-next/src/app/movie/tmdb/[type]/[id]/page.jsx
 import { notFound, redirect } from 'next/navigation';
-
+import { cache } from 'react';
 import VirtualMovieDetails from '@/components/movie/VirtualMovieDetails';
 import ImportTmdbTitleButton from '@/components/movie/ImportTmdbTitleButton';
 import EffectiveGateNativeBanner, {
@@ -10,8 +10,7 @@ import VisibleBreadcrumbs from '@/components/seo/VisibleBreadcrumbs';
 
 import { SITE_URL, absoluteUrl, clean, truncate } from '@/lib/seo';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 300;
 
 const normalizeApiBase = (raw = '') => {
   let value = String(raw || 'https://api.flixmovo.online').trim();
@@ -42,69 +41,71 @@ const normalizeType = (value = '') => {
   return '';
 };
 
-async function getVirtualMovie(type, id) {
+const loadVirtualMovie = async (type, id) => {
   const tmdbType = normalizeType(type);
   const tmdbId = Number(id);
 
-  if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
-
-  const url =
-    `${API_BASE}/api/movies/tmdb/virtual/` +
-    `${encodeURIComponent(tmdbType)}/` +
-    `${encodeURIComponent(tmdbId)}`;
-
-  let res;
-
-  try {
-    res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-        'X-Flixmovo-Frontend': 'tmdb-virtual-page',
-      },
-    });
-  } catch (error) {
-    console.error('[tmdb-page] Backend fetch failed:', {
-      url,
-      error: error?.message || String(error),
-    });
-
-    throw new Error(
-      `TMDb backend request failed: ${error?.message || 'network error'}`
-    );
+  if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) {
+    return null;
   }
+
+  const url = `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(
+    tmdbType
+  )}/${encodeURIComponent(tmdbId)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'Flixmovo-Frontend/1.0',
+    },
+    next: { revalidate: 300 },
+  });
 
   const data = await res.json().catch(() => null);
 
+  // Only a real backend 404 means the title does not exist.
   if (res.status === 404) return null;
 
+  // Do not disguise infrastructure and rate-limit failures as 404 pages.
   if (!res.ok) {
-    console.error('[tmdb-page] Backend returned error:', {
-      url,
-      status: res.status,
-      data,
-    });
-
-    throw new Error(
-      data?.message ||
-      data?.error ||
-      `TMDb backend returned HTTP ${res.status}`
+    const error = new Error(
+      data?.message || `TMDB virtual API failed with HTTP ${res.status}`
     );
+    error.status = res.status;
+    throw error;
   }
 
-  if (!data) {
-    throw new Error('TMDb backend returned an empty response');
+  if (!data || !data.name) {
+    throw new Error('TMDB virtual API returned an invalid response');
   }
 
   return data;
-}
+};
+
+const getVirtualMovie = cache(loadVirtualMovie);
 
 export async function generateMetadata({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id);
+  let movie;
+
+  try {
+    movie = await getVirtualMovie(params?.type, params?.id);
+  } catch (error) {
+    console.error('[tmdb-movie-metadata] fetch failed', {
+      type: params?.type,
+      id: params?.id,
+      status: error?.status || 0,
+      message: error?.message || String(error),
+    });
+
+    return {
+      title: 'TMDB title temporarily unavailable',
+      robots: { index: false, follow: false },
+    };
+  }
 
   if (!movie) {
     return {
-      title: 'TMDb title not found',
+      title: 'TMDB title not found',
       robots: { index: false, follow: false },
     };
   }
@@ -164,11 +165,11 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function TmdbMoviePage({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id);
+  const movie = await getVirtualMovie(params?.type, params?.id).catch(
+    () => null
+  );
 
-  if (!movie) {
-    notFound();
-  }
+  if (!movie) notFound();
 
   if (movie?.source === 'local' && movie?.slug) {
     redirect(`/movie/${movie.slug}`);

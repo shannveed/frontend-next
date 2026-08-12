@@ -167,6 +167,7 @@ function shouldKeepQueryParamForPath(pathname = '', key = '') {
     return MOVIES_ALLOWED_QUERY_KEYS.has(key);
   }
 
+  // Movie/watch detail pages should not keep random cache-busting query params.
   if (path.startsWith('/movie/') || path.startsWith('/watch/')) {
     return false;
   }
@@ -268,13 +269,8 @@ function normalizeLanguageKey(value = '') {
     .trim();
 }
 
-const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGE_WORDS
-  .map(normalizeLanguageKey)
-  .filter(Boolean);
-
-const INDIAN_CONTENT_KEYS = INDIAN_CONTENT_MARKERS
-  .map(normalizeLanguageKey)
-  .filter(Boolean);
+const INDIAN_LANGUAGE_KEYS = INDIAN_LANGUAGE_WORDS.map(normalizeLanguageKey).filter(Boolean);
+const INDIAN_CONTENT_KEYS = INDIAN_CONTENT_MARKERS.map(normalizeLanguageKey).filter(Boolean);
 
 function textContainsNormalizedToken(text = '', keys = []) {
   const normalized = normalizeLanguageKey(text);
@@ -288,17 +284,12 @@ function textContainsNormalizedToken(text = '', keys = []) {
     if (!cleanKey) return false;
 
     const keyCompact = cleanKey.replace(/\s+/g, '');
-
-    return (
-      padded.includes(` ${cleanKey} `) ||
-      compact.includes(keyCompact)
-    );
+    return padded.includes(` ${cleanKey} `) || compact.includes(keyCompact);
   });
 }
 
 function movieHasIndianLanguage(movie) {
   const languageText = [movie?.language].join(' ');
-
   const allSearchableText = [
     movie?.language,
     movie?.browseBy,
@@ -324,6 +315,7 @@ function shouldRedirectFromHost(currentHostname = '') {
   if (
     current === hindiHost ||
     current === 'hi.flixmovo.online' ||
+    current === 'hi.flixmovo.online' ||
     current === 'wwwhi.flixmovo.online'
   ) {
     return false;
@@ -343,9 +335,7 @@ function shouldRedirectFromHost(currentHostname = '') {
 function getRedirectStatus() {
   const raw = clean(process.env.NEXT_PUBLIC_HINDI_REDIRECT_STATUS);
   const n = Number(raw);
-
   if ([301, 302, 307, 308].includes(n)) return n;
-
   return IS_PRODUCTION ? 308 : 307;
 }
 
@@ -369,14 +359,14 @@ function buildRedirectInfoUrls(slug, req) {
 
   const urls = [];
 
+  // ✅ PRIORITY 1: Same-domain via Next.js rewrite (most reliable in Edge runtime)
   try {
-    urls.push(
-      new URL(`/api/movies/redirect-info/${safe}`, req.url).toString()
-    );
+    urls.push(new URL(`/api/movies/redirect-info/${safe}`, req.url).toString());
   } catch {
     // ignore
   }
 
+  // ✅ PRIORITY 2: Absolute backend URLs as fallback
   for (const base of API_BASE_CANDIDATES) {
     urls.push(`${base}/api/movies/redirect-info/${safe}`);
   }
@@ -401,20 +391,11 @@ async function fetchJsonWithTimeout(url) {
     });
 
     if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        data: null,
-      };
+      return { ok: false, status: res.status, data: null };
     }
 
     const data = await res.json().catch(() => null);
-
-    return {
-      ok: true,
-      status: res.status,
-      data,
-    };
+    return { ok: true, status: res.status, data };
   } catch (error) {
     return {
       ok: false,
@@ -435,6 +416,7 @@ async function fetchMovieRedirectInfo(slug, req) {
   const attempts = [];
 
   for (const url of urls) {
+    // eslint-disable-next-line no-await-in-loop
     const result = await fetchJsonWithTimeout(url);
 
     attempts.push({
@@ -445,17 +427,11 @@ async function fetchMovieRedirectInfo(slug, req) {
     });
 
     if (result.ok && result.data) {
-      return {
-        movie: result.data,
-        attempts,
-      };
+      return { movie: result.data, attempts };
     }
   }
 
-  return {
-    movie: null,
-    attempts,
-  };
+  return { movie: null, attempts };
 }
 
 function nextWithDebug(reason = '', extra = {}) {
@@ -467,10 +443,7 @@ function nextWithDebug(reason = '', extra = {}) {
     if (extra && typeof extra === 'object') {
       Object.entries(extra).forEach(([k, v]) => {
         try {
-          res.headers.set(
-            `X-MF-Hindi-${k}`,
-            String(v).slice(0, 200)
-          );
+          res.headers.set(`X-MF-Hindi-${k}`, String(v).slice(0, 200));
         } catch {
           // ignore
         }
@@ -495,12 +468,7 @@ const escapeHtml = (value = '') =>
 
 function isActorPagePath(pathname = '') {
   const path = String(pathname || '').trim();
-
-  return (
-    path === '/actor' ||
-    path === '/actor/' ||
-    path.startsWith('/actor/')
-  );
+  return path === '/actor' || path === '/actor/' || path.startsWith('/actor/');
 }
 
 function actorPagesDisabledResponse(req) {
@@ -523,7 +491,6 @@ function actorPagesDisabledResponse(req) {
         color: #fff;
         font-family: Arial, sans-serif;
       }
-
       .wrap {
         min-height: 100vh;
         display: flex;
@@ -532,7 +499,6 @@ function actorPagesDisabledResponse(req) {
         padding: 24px;
         box-sizing: border-box;
       }
-
       .card {
         width: 100%;
         max-width: 620px;
@@ -543,19 +509,16 @@ function actorPagesDisabledResponse(req) {
         box-sizing: border-box;
         text-align: center;
       }
-
       h1 {
         margin: 0;
         font-size: 24px;
         line-height: 1.3;
       }
-
       p {
         color: #C0C0C0;
         line-height: 1.7;
         margin: 14px 0 0;
       }
-
       .actions {
         display: flex;
         gap: 12px;
@@ -563,7 +526,6 @@ function actorPagesDisabledResponse(req) {
         flex-wrap: wrap;
         margin-top: 24px;
       }
-
       a {
         color: #fff;
         background: #1B82FF;
@@ -572,24 +534,20 @@ function actorPagesDisabledResponse(req) {
         border-radius: 10px;
         font-weight: 700;
       }
-
       a.secondary {
         background: transparent;
         border: 1px solid #4b5563;
       }
     </style>
   </head>
-
   <body>
     <main class="wrap">
       <section class="card">
         <h1>Actor pages are temporarily unavailable</h1>
-
         <p>
-          Flixmovo actor profile pages are currently disabled while we improve
-          this feature. You can continue browsing movies and web series.
+          Flixmovo actor profile pages are currently disabled while we improve this feature.
+          You can continue browsing movies and web series.
         </p>
-
         <div class="actions">
           <a href="${escapeHtml(moviesUrl)}">Browse Movies</a>
           <a class="secondary" href="${escapeHtml(homeUrl)}">Go Home</a>
@@ -613,26 +571,19 @@ export async function middleware(req) {
   const { nextUrl } = req;
   const pathname = nextUrl.pathname || '';
 
-  // Temporarily disable public actor pages with 410 + noindex.
+  // ✅ Temporarily disable public actor pages with 410 + noindex.
+  // This runs before any API calls or page rendering.
   if (isActorPagePath(pathname) && !ACTOR_PAGES_ENABLED) {
     return actorPagesDisabledResponse(req);
   }
 
-  // Execute query cleanup.
+  // Execute query cleanup
   const queryCleanup = stripUnknownQueryParams(req);
   if (queryCleanup) return queryCleanup;
 
-  // IMPORTANT:
-  // TMDb virtual pages are canonical public routes.
-  // "tmdb" is not a local movie slug, so do not run the
-  // Hindi/local movie redirect lookup on these routes.
+  // Virtual TMDB paths are not local movie slugs. Let Next.js render them.
   if (pathname.startsWith('/movie/tmdb/')) {
-    return nextWithDebug('tmdb-virtual-page');
-  }
-
-  // TMDb virtual watch pages are also canonical public routes.
-  if (pathname.startsWith('/watch/tmdb/')) {
-    return nextWithDebug('tmdb-virtual-watch-page');
+    return nextWithDebug('tmdb-virtual-path');
   }
 
   if (!ENABLE_REDIRECT) {
@@ -644,13 +595,12 @@ export async function middleware(req) {
   }
 
   if (!shouldRedirectFromHost(nextUrl.hostname)) {
-    return nextWithDebug('host-not-eligible', {
-      Host: nextUrl.hostname,
-    });
+    return nextWithDebug('host-not-eligible', { Host: nextUrl.hostname });
   }
 
-  const slug = getMovieSlugFromPathname(pathname);
 
+
+  const slug = getMovieSlugFromPathname(pathname);
   if (!slug) {
     return nextWithDebug('missing-slug');
   }
@@ -659,10 +609,7 @@ export async function middleware(req) {
 
   if (!movie) {
     if (DEBUG_REDIRECT) {
-      console.warn(
-        '[hindi-redirect] all lookup attempts failed:',
-        attempts
-      );
+      console.warn('[hindi-redirect] all lookup attempts failed:', attempts);
     }
 
     const lastAttempt = attempts[attempts.length - 1];
@@ -685,7 +632,6 @@ export async function middleware(req) {
   }
 
   const canonicalSeg = clean(movie.slug) || slug;
-
   if (!canonicalSeg) {
     return nextWithDebug('missing-canonical-segment');
   }
@@ -694,24 +640,13 @@ export async function middleware(req) {
   target.pathname = `/movie/${encodeURIComponent(canonicalSeg)}`;
   target.search = nextUrl.search;
 
-  const res = NextResponse.redirect(target, {
-    status: getRedirectStatus(),
-  });
+  const res = NextResponse.redirect(target, { status: getRedirectStatus() });
 
   if (DEBUG_REDIRECT) {
     res.headers.set('X-MF-Hindi-Redirect', 'redirected');
-    res.headers.set(
-      'X-MF-Hindi-Language',
-      clean(movie?.language)
-    );
-    res.headers.set(
-      'X-MF-Hindi-BrowseBy',
-      clean(movie?.browseBy)
-    );
-    res.headers.set(
-      'X-MF-Hindi-Target',
-      target.toString()
-    );
+    res.headers.set('X-MF-Hindi-Language', clean(movie?.language));
+    res.headers.set('X-MF-Hindi-BrowseBy', clean(movie?.browseBy));
+    res.headers.set('X-MF-Hindi-Target', target.toString());
   }
 
   return res;

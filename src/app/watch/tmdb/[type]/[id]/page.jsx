@@ -1,12 +1,11 @@
 // frontend-next/src/app/watch/tmdb/[type]/[id]/page.jsx
 import { notFound, redirect } from 'next/navigation';
-
+import { cache } from 'react';
 import VirtualWatchClient from '@/components/watch/VirtualWatchClient';
 
 import { SITE_URL, clean, truncate } from '@/lib/seo';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 300;
 
 const normalizeApiBase = (raw = '') => {
   let value = String(raw || 'https://api.flixmovo.online').trim();
@@ -35,37 +34,71 @@ const normalizeType = (value = '') => {
   return '';
 };
 
-async function getVirtualMovie(type, id) {
+const loadVirtualMovie = async (type, id) => {
   const tmdbType = normalizeType(type);
   const tmdbId = Number(id);
 
-  if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
+  if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) {
+    return null;
+  }
 
-  const res = await fetch(
-    `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(tmdbType)}/${encodeURIComponent(tmdbId)}`,
-    {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-    }
-  );
+  const url = `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(
+    tmdbType
+  )}/${encodeURIComponent(tmdbId)}`;
 
-  if (res.status === 404) return null;
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'Flixmovo-Frontend/1.0',
+    },
+    next: { revalidate: 300 },
+  });
 
   const data = await res.json().catch(() => null);
 
+  // Only a real backend 404 means the title does not exist.
+  if (res.status === 404) return null;
+
+  // Do not disguise infrastructure and rate-limit failures as 404 pages.
   if (!res.ok) {
-    throw new Error(data?.message || 'Failed to load TMDb title');
+    const error = new Error(
+      data?.message || `TMDB virtual API failed with HTTP ${res.status}`
+    );
+    error.status = res.status;
+    throw error;
+  }
+
+  if (!data || !data.name) {
+    throw new Error('TMDB virtual API returned an invalid response');
   }
 
   return data;
-}
+};
+
+const getVirtualMovie = cache(loadVirtualMovie);
 
 export async function generateMetadata({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id).catch(() => null);
+  let movie;
+
+  try {
+    movie = await getVirtualMovie(params?.type, params?.id);
+  } catch (error) {
+    console.error('[tmdb-movie-metadata] fetch failed', {
+      type: params?.type,
+      id: params?.id,
+      status: error?.status || 0,
+      message: error?.message || String(error),
+    });
+
+    return {
+      title: 'TMDB title temporarily unavailable',
+      robots: { index: false, follow: false },
+    };
+  }
 
   if (!movie) {
     return {
-      title: 'TMDb title not found',
+      title: 'TMDB title not found',
       robots: { index: false, follow: false },
     };
   }
