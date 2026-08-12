@@ -48,31 +48,59 @@ async function getVirtualMovie(type, id) {
 
   if (!tmdbType || !Number.isFinite(tmdbId) || tmdbId <= 0) return null;
 
-  const res = await fetch(
-    `${API_BASE}/api/movies/tmdb/virtual/${encodeURIComponent(
-      tmdbType
-    )}/${encodeURIComponent(tmdbId)}`,
-    {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-    }
-  );
+  const url =
+    `${API_BASE}/api/movies/tmdb/virtual/` +
+    `${encodeURIComponent(tmdbType)}/` +
+    `${encodeURIComponent(tmdbId)}`;
 
-  if (res.status === 404) return null;
+  let res;
+
+  try {
+    res = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        'X-Flixmovo-Frontend': 'tmdb-virtual-page',
+      },
+    });
+  } catch (error) {
+    console.error('[tmdb-page] Backend fetch failed:', {
+      url,
+      error: error?.message || String(error),
+    });
+
+    throw new Error(
+      `TMDb backend request failed: ${error?.message || 'network error'}`
+    );
+  }
 
   const data = await res.json().catch(() => null);
 
+  if (res.status === 404) return null;
+
   if (!res.ok) {
-    throw new Error(data?.message || 'Failed to load TMDb title');
+    console.error('[tmdb-page] Backend returned error:', {
+      url,
+      status: res.status,
+      data,
+    });
+
+    throw new Error(
+      data?.message ||
+      data?.error ||
+      `TMDb backend returned HTTP ${res.status}`
+    );
+  }
+
+  if (!data) {
+    throw new Error('TMDb backend returned an empty response');
   }
 
   return data;
 }
 
 export async function generateMetadata({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id).catch(
-    () => null
-  );
+  const movie = await getVirtualMovie(params?.type, params?.id);
 
   if (!movie) {
     return {
@@ -136,11 +164,11 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function TmdbMoviePage({ params }) {
-  const movie = await getVirtualMovie(params?.type, params?.id).catch(
-    () => null
-  );
+  const movie = await getVirtualMovie(params?.type, params?.id);
 
-  if (!movie) notFound();
+  if (!movie) {
+    notFound();
+  }
 
   if (movie?.source === 'local' && movie?.slug) {
     redirect(`/movie/${movie.slug}`);
