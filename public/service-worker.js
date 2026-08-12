@@ -2,7 +2,7 @@
 const CACHE_PREFIX = 'flixmovo-cache-';
 
 // Replaced automatically during every build.
-const CACHE_VERSION = 'dev-1785025648666';
+const CACHE_VERSION = 'dev-1786576093735';
 
 const CACHE_NAME =
   `${CACHE_PREFIX}${CACHE_VERSION}`;

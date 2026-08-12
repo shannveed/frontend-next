@@ -16,7 +16,7 @@ const normalizeApiBase = (raw = '') => {
   let value = String(raw || 'https://api.flixmovo.online').trim();
 
   if (!/^https?:\/\//i.test(value)) {
-    const isLocal =
+    const isLocal =a
       value.startsWith('localhost') ||
       value.startsWith('127.0.0.1') ||
       value.startsWith('0.0.0.0');
